@@ -12,6 +12,12 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Block re-setup if config already exists
+  const existing = await loadConfig();
+  if (existing) {
+    return NextResponse.json({ error: 'Sistema já configurado' }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/config';
+import { createSession } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,9 +15,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Senha incorreta' }, { status: 401 });
     }
 
+    const token = await createSession();
+
     const response = NextResponse.json({ success: true });
-    
-    response.cookies.set('auth', config.authPassword, {
+    response.cookies.set('auth', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

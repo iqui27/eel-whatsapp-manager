@@ -6,16 +6,21 @@ export interface AppConfig {
   warmingIntervalMinutes: number;
   warmingMessage: string;
   instanceName: string;
+  /** ISO timestamp of the last successful cron warming run */
+  lastCronRun?: string;
 }
 
 export interface Chip {
   id: string;
   name: string;
   phone: string;
+  instanceName?: string;
   groupId?: string;
+  clusterIds?: string[];
   enabled: boolean;
   lastWarmed?: string;
   status: 'connected' | 'disconnected' | 'warming';
+  warmCount?: number;
 }
 
 const CONFIG_FILE = '.eel-config.json';

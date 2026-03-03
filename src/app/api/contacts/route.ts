@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/config';
-import { loadChips, addChip, updateChip, deleteChip } from '@/lib/chips';
+import { addContact, deleteContact, loadContacts, updateContact } from '@/lib/contacts';
 import { validateSession } from '@/lib/auth';
 
 async function verifyAuth(request: NextRequest) {
@@ -8,7 +8,7 @@ async function verifyAuth(request: NextRequest) {
   if (!await validateSession(token)) {
     return null;
   }
-  return await loadConfig();
+  return loadConfig();
 }
 
 export async function GET(request: NextRequest) {
@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const chips = await loadChips();
-  return NextResponse.json(chips);
+  const contacts = await loadContacts();
+  return NextResponse.json(contacts);
 }
 
 export async function POST(request: NextRequest) {
@@ -28,24 +28,34 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
-    const chip = {
-      id: crypto.randomUUID(),
-      name: body.name,
-      phone: body.phone,
-      instanceName: body.instanceName || undefined,
-      groupId: body.groupId,
-      clusterIds: Array.isArray(body.clusterIds) ? body.clusterIds : [],
-      enabled: body.enabled ?? true,
-      status: 'disconnected' as const,
-      warmCount: 0,
+    const body = await request.json() as {
+      name?: string;
+      phone?: string;
+      clusterIds?: string[];
+      enabled?: boolean;
     };
 
-    await addChip(chip);
-    return NextResponse.json(chip, { status: 201 });
+    const name = body.name?.trim();
+    const phone = body.phone?.trim();
+
+    if (!name || !phone) {
+      return NextResponse.json({ error: 'Nome e telefone são obrigatórios' }, { status: 400 });
+    }
+
+    const contact = {
+      id: crypto.randomUUID(),
+      name,
+      phone,
+      clusterIds: Array.isArray(body.clusterIds) ? body.clusterIds : [],
+      contactCount: 0,
+      enabled: body.enabled ?? true,
+    };
+
+    await addContact(contact);
+    return NextResponse.json(contact, { status: 201 });
   } catch (error) {
-    console.error('Add chip error:', error);
-    return NextResponse.json({ error: 'Erro ao adicionar chip' }, { status: 500 });
+    console.error('Add contact error:', error);
+    return NextResponse.json({ error: 'Erro ao adicionar contato' }, { status: 500 });
   }
 }
 
@@ -56,16 +66,27 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
-    const updates = {
-      ...body.updates,
-      clusterIds: Array.isArray(body.updates?.clusterIds) ? body.updates.clusterIds : body.updates?.clusterIds,
+    const body = await request.json() as {
+      id?: string;
+      updates?: {
+        name?: string;
+        phone?: string;
+        clusterIds?: string[];
+        enabled?: boolean;
+        lastContacted?: string;
+        contactCount?: number;
+      };
     };
-    await updateChip(body.id, updates);
+
+    if (!body.id || !body.updates) {
+      return NextResponse.json({ error: 'ID e updates são obrigatórios' }, { status: 400 });
+    }
+
+    await updateContact(body.id, body.updates);
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Update chip error:', error);
-    return NextResponse.json({ error: 'Erro ao atualizar chip' }, { status: 500 });
+    console.error('Update contact error:', error);
+    return NextResponse.json({ error: 'Erro ao atualizar contato' }, { status: 500 });
   }
 }
 
@@ -78,15 +99,15 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    
+
     if (!id) {
       return NextResponse.json({ error: 'ID é obrigatório' }, { status: 400 });
     }
 
-    await deleteChip(id);
+    await deleteContact(id);
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Delete chip error:', error);
-    return NextResponse.json({ error: 'Erro ao deletar chip' }, { status: 500 });
+    console.error('Delete contact error:', error);
+    return NextResponse.json({ error: 'Erro ao deletar contato' }, { status: 500 });
   }
 }

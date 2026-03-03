@@ -43,3 +43,6 @@ next-env.d.ts
 # eel config
 .eel-config.json
 .eel-chips.json
+.eel-contacts.json
+.eel-logs.json
+.eel-sessions.json

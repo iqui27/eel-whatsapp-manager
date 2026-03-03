@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig } from '@/lib/config';
-import { loadChips, updateChip } from '@/lib/chips';
+import { loadConfig, saveConfig } from '@/lib/config';
+import { loadChips } from '@/lib/chips';
+import { runWarming } from '@/lib/warming';
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  
+  // Validate cron secret
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
   const config = await loadConfig();
   
   if (!config) {
@@ -15,43 +23,32 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: 'Warming desabilitado' });
   }
 
-  const chips = await loadChips();
-  const enabledChips = chips.filter(c => c.enabled);
-  
-  const results = [];
-  
-  for (const chip of enabledChips) {
-    try {
-      const response = await fetch(`${config.evolutionApiUrl}/message/sendText/${config.instanceName}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': config.evolutionApiKey,
-        },
-        body: JSON.stringify({
-          number: chip.phone,
-          text: config.warmingMessage,
-        }),
+  // Check if enough time has passed since the last run
+  const intervalMs = (config.warmingIntervalMinutes ?? 60) * 60 * 1000;
+  if (config.lastCronRun) {
+    const elapsed = Date.now() - new Date(config.lastCronRun).getTime();
+    if (elapsed < intervalMs) {
+      const remainingMs = intervalMs - elapsed;
+      const remainingMin = Math.ceil(remainingMs / 60000);
+      return NextResponse.json({
+        message: `Intervalo não atingido. Próximo run em ~${remainingMin} min.`,
+        nextRunInMinutes: remainingMin,
+        lastCronRun: config.lastCronRun,
       });
-
-      if (response.ok) {
-        await updateChip(chip.id, { 
-          lastWarmed: new Date().toISOString(),
-          status: 'connected'
-        });
-        results.push({ id: chip.id, name: chip.name, success: true });
-      } else {
-        const error = await response.text();
-        results.push({ id: chip.id, name: chip.name, success: false, error });
-      }
-    } catch (error) {
-      results.push({ id: chip.id, name: chip.name, success: false, error: String(error) });
     }
   }
 
+  const chips = await loadChips();
+  const results = await runWarming(config, chips);
+  const totalEnabled = chips.filter((chip) => chip.enabled).length;
+
+  // Persist the timestamp of this run so the next call can check the interval
+  const now = new Date().toISOString();
+  await saveConfig({ ...config, lastCronRun: now });
+
   return NextResponse.json({ 
-    timestamp: new Date().toISOString(),
-    total: enabledChips.length,
-    results 
+    timestamp: now,
+    total: totalEnabled,
+    results,
   });
 }
