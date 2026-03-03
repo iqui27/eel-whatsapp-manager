@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig, saveConfig, AppConfig } from '@/lib/config';
-import { validateSession } from '@/lib/auth';
+import { loadConfig, saveConfig } from '@/lib/db-config';
+import { validateSession } from '@/lib/db-auth';
+import type { Config } from '@/db';
 
 async function verifyAuth(request: NextRequest) {
   const token = request.cookies.get('auth')?.value;
@@ -36,13 +37,12 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    const body = await request.json() as Partial<AppConfig>;
+    const body = await request.json() as Partial<Config>;
 
     // If the client sends back the masked placeholder, keep the original key
     const isMasked = (key: string) => key.includes('***');
 
-    const updated: AppConfig = {
-      ...config,
+    await saveConfig({
       evolutionApiUrl: body.evolutionApiUrl ?? config.evolutionApiUrl,
       evolutionApiKey: (body.evolutionApiKey && !isMasked(body.evolutionApiKey))
         ? body.evolutionApiKey
@@ -51,12 +51,9 @@ export async function PUT(request: NextRequest) {
       warmingIntervalMinutes: body.warmingIntervalMinutes ?? config.warmingIntervalMinutes,
       warmingMessage: body.warmingMessage ?? config.warmingMessage,
       instanceName: body.instanceName ?? config.instanceName,
-      // keep authPassword and lastCronRun unchanged
       authPassword: config.authPassword,
       lastCronRun: config.lastCronRun,
-    };
-
-    await saveConfig(updated);
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Settings update error:', error);

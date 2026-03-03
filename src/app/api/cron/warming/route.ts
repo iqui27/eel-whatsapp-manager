@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig, saveConfig } from '@/lib/config';
-import { loadChips } from '@/lib/chips';
+import { loadConfig, saveConfig } from '@/lib/db-config';
+import { loadChips } from '@/lib/db-chips';
 import { runWarming } from '@/lib/warming';
+import { toAppConfig, toWarmingChips } from '@/lib/warming-compat';
 
 export async function GET(request: NextRequest) {
   // Validate cron secret
@@ -39,15 +40,15 @@ export async function GET(request: NextRequest) {
   }
 
   const chips = await loadChips();
-  const results = await runWarming(config, chips);
+  const results = await runWarming(toAppConfig(config), toWarmingChips(chips));
   const totalEnabled = chips.filter((chip) => chip.enabled).length;
 
-  // Persist the timestamp of this run so the next call can check the interval
-  const now = new Date().toISOString();
+  // Persist the timestamp of this run
+  const now = new Date();
   await saveConfig({ ...config, lastCronRun: now });
 
   return NextResponse.json({ 
-    timestamp: now,
+    timestamp: now.toISOString(),
     total: totalEnabled,
     results,
   });

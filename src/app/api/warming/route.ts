@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig } from '@/lib/config';
-import { loadChips } from '@/lib/chips';
-import { validateSession } from '@/lib/auth';
+import { loadConfig } from '@/lib/db-config';
+import { loadChips } from '@/lib/db-chips';
+import { validateSession } from '@/lib/db-auth';
 import { runWarming } from '@/lib/warming';
+import { toAppConfig, toWarmingChips } from '@/lib/warming-compat';
 
 async function verifyAuth(request: NextRequest) {
   const token = request.cookies.get('auth')?.value;
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Chip não encontrado' }, { status: 404 });
     }
 
-    const results = await runWarming(config, chips, { singleChipId: id });
+    const results = await runWarming(toAppConfig(config), toWarmingChips(chips), { singleChipId: id });
     return NextResponse.json({ success: true, results });
   } catch (error) {
     console.error('Warming error:', error);
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
   }
 
   const chips = await loadChips();
-  const results = await runWarming(config, chips);
+  const results = await runWarming(toAppConfig(config), toWarmingChips(chips));
 
   return NextResponse.json({ results });
 }

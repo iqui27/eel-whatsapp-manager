@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig } from '@/lib/config';
-import { addCluster, deleteCluster, loadClusters, updateCluster } from '@/lib/contacts';
-import { validateSession } from '@/lib/auth';
+import { loadConfig } from '@/lib/db-config';
+import { addCluster, deleteCluster, loadClusters, updateCluster } from '@/lib/db-contacts';
+import { validateSession } from '@/lib/db-auth';
 
 async function verifyAuth(request: NextRequest) {
   const token = request.cookies.get('auth')?.value;
@@ -49,18 +49,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Adicione pelo menos uma mensagem para o cluster' }, { status: 400 });
     }
 
-    const cluster = {
-      id: crypto.randomUUID(),
+    const cluster = await addCluster({
       name,
       messages: messagePool,
       maxMessagesPerDay: Math.max(1, body.maxMessagesPerDay ?? 10),
       priority: Math.max(1, body.priority ?? 1),
-      windowStart: body.windowStart?.trim() || undefined,
-      windowEnd: body.windowEnd?.trim() || undefined,
+      windowStart: body.windowStart?.trim() || '08:00',
+      windowEnd: body.windowEnd?.trim() || '22:00',
       enabled: body.enabled ?? true,
-    };
-
-    await addCluster(cluster);
+    });
     return NextResponse.json(cluster, { status: 201 });
   } catch (error) {
     console.error('Add cluster error:', error);
