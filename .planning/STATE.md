@@ -1,36 +1,40 @@
 # EEL — Project State
 
 ## Current Phase
-**Phase 4: Dashboard Premium + Charts** — Próximo
+**Phase 5: Pages Overhaul** — Próximo
 
 ## Completed Phases
 - ✅ **Phase 1** — Design System + Paper Prototyping (9 artboards no Paper/Pencil)
 - ✅ **Phase 2** — Foundation: Supabase + Design System Code (`6e9c73b`)
-- ✅ **Phase 3** — Layout & Navigation Overhaul (`47875c8`)
+- ✅ **Phase 3** — Layout & Navigation Overhaul (`47875c8`, `f09cfe1`)
+- ✅ **Phase 4** — Dashboard Premium + Charts (`b489910`)
 
 ## Position
-Phase 3 completa.
+Phase 4 completa.
 
-### Phase 3 — O que foi feito
-- Framer Motion: sidebar collapse animado (240→64px, 200ms)
-- AnimatePresence nos labels de nav, logo text e footer items
-- Mobile drawer: slide-in overlay com backdrop, fecha ao clicar em link
-- Bottom navigation: 5 itens, fixo no fundo (mobile only)
-- Hamburger no header (mobile only)
-- Command palette ⌘K: busca fuzzy, navegação por setas, Enter/ESC
-- CommandTrigger no header desktop
-- Skeleton loaders: Skeleton, KpiCardSkeleton, TableSkeleton, CardSkeleton, AvatarSkeleton
-- Sonner Toaster no root layout (bottom-right, themed)
-- Page title no header
+### Phase 4 — O que foi feito
+- Recharts instalado
+- **Todas as API routes migradas** de JSON para Drizzle/Supabase:
+  - chips, contacts, clusters, logs, settings, auth (login/logout), setup, warming, cron/warming
+  - `warming-compat.ts`: adapter bridge para manter warming.ts sem reescrita
+- **Dashboard completamente reescrito** (page.tsx):
+  - 4 KPI cards animados (Framer Motion stagger): chips, conectados, aquecimentos, taxa de sucesso
+  - AreaChart 7 dias (Recharts): linhas success/error com fill gradients
+  - PieChart donut: success rate com % no centro
+  - Lista de chips (top 5) com StatusBadge
+  - Activity feed (últimos 8 logs) com ícones check/x e tempo relativo
+  - Stats row: contatos, clusters, ok, erros — todos links para respectivas páginas
+  - Skeleton loading, Sonner toasts, botão refresh com spin animation
+- Build limpo: 22 rotas, 0 erros TypeScript
 
 ## Decisions Made
-- [x] Database: Supabase PostgreSQL — `db.xmmweyxoilvrnocshmyq.supabase.co`
-- [x] ORM: Drizzle (postgres-js driver)
-- [x] Dark + Light mode com toggle (padrão dark)
-- [x] Charts: Recharts — instalar na Phase 4
-- [x] Animations: Framer Motion — instalado e em uso
-- [x] Toasts: Sonner — instalado, Toaster no root layout
-- [x] Icons: Lucide — emojis substituídos
+- [x] Database: Supabase PostgreSQL
+- [x] ORM: Drizzle (postgres-js)
+- [x] Dark + Light mode (padrão dark)
+- [x] Charts: Recharts — em uso no dashboard
+- [x] Animations: Framer Motion — sidebar + dashboard cards
+- [x] Toasts: Sonner
+- [x] Icons: Lucide
 - [x] Mobile: bottom nav + drawer
 
 ## Blockers
@@ -38,26 +42,26 @@ Nenhum.
 
 ## Key Files
 ```
-src/components/
-  SidebarLayout.tsx     # Sidebar animada, drawer mobile, bottom nav, command palette
-  command-palette.tsx   # ⌘K palette com busca fuzzy e navegação por teclado
-  theme-provider.tsx
-  theme-toggle.tsx
-  ui/skeleton.tsx       # Skeleton, KpiCardSkeleton, TableSkeleton, CardSkeleton
-src/db/
-  schema.ts / index.ts
-src/lib/
-  db-chips/contacts/logs/auth/config.ts
 src/app/
-  globals.css           # Design tokens dark/light completos
-  layout.tsx            # ThemeProvider + Sonner Toaster
+  page.tsx              # Dashboard premium com Recharts + Framer Motion
+  api/chips/route.ts    # → db-chips
+  api/contacts/route.ts # → db-contacts
+  api/clusters/route.ts # → db-contacts
+  api/logs/route.ts     # → db-logs
+  api/settings/route.ts # → db-config
+  api/auth/*/route.ts   # → db-auth
+  api/setup/route.ts    # → db-config
+  api/warming/route.ts  # → db-chips + warming-compat
+  api/cron/warming/route.ts
+src/lib/
+  warming-compat.ts     # Adapter Drizzle Config/Chip → legacy AppConfig/Chip
 ```
 
-## Next Actions (Phase 4)
-1. Instalar Recharts
-2. Dashboard page: 4 KPI cards com gradientes + trend indicators
-3. Line chart: warming timeline 7 dias (dados reais de `getDailyStats`)
-4. Donut chart: taxa de sucesso vs erro
-5. Activity feed: últimos 10 logs com ícone de status
-6. Migrar API routes para usar db-* libs (substituir JSON)
-7. Conectar dashboard com dados reais do Supabase
+## Next Actions (Phase 5)
+1. **Chips page** — tabela premium com filtros, badge status, toggle inline, ações edit/delete
+2. **Contacts page** — busca, filtros, toggle inline, detail panel
+3. **Clusters page** — lista visual com drag-drop reorder, preview de mensagens
+4. **History page** — tabela de logs com filtros, paginação, export
+5. **Settings page** — seções colapsáveis, validação em tempo real
+6. **Login page** — split screen premium
+7. Migrar warming.ts para usar db-* libs (remover dependência dos JSON antigos)
