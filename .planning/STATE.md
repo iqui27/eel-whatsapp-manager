@@ -1,39 +1,65 @@
 # EEL — Project State
 
 ## Current Phase
-**Phase 1: Design System + Paper Prototyping** — Em progresso
+**Phase 3: Layout & Navigation Overhaul** — Próximo
+
+## Completed Phases
+- ✅ **Phase 1** — Design System + Paper Prototyping (9 artboards no Paper/Pencil)
+- ✅ **Phase 2** — Foundation: Supabase + Design System Code
 
 ## Position
-- Codebase analisada completamente
-- Roadmap criado com 6 fases
-- Design Brief documentado (cores, tipografia, spacing, components)
-- Supabase Schema planejado
-- `.env.local` criado com credentials
-- **Próximo passo:** Abrir Paper e criar designs
+Phase 2 completa. Commit: `6e9c73b`
+
+### Phase 2 — O que foi feito
+- Supabase PostgreSQL conectado via Drizzle ORM
+- Schema migrado: chips, contacts, clusters, config, logs, sessions (8 tabelas)
+- Nova camada de acesso a dados: `db-chips`, `db-contacts`, `db-logs`, `db-auth`, `db-config`
+- Design tokens completos em `globals.css` (dark #09090B / light #FAFAFA)
+- Accent azul (#3B82F6 dark / #2563EB light), success/warning semânticos
+- ThemeProvider + ThemeToggle (dark/light/system, persiste no localStorage)
+- SidebarLayout reconstruído: Lucide icons, colapsável, API status indicator
+- Build limpo: 22 rotas, 0 erros TypeScript
 
 ## Decisions Made
-- [x] Database: Supabase PostgreSQL (connection string configurada)
-- [x] ORM: Drizzle (edge-compatible)
-- [x] Dark + Light mode com toggle
-- [x] Charts: Recharts
-- [x] Animations: Framer Motion
-- [x] Toasts: Sonner
-- [x] Icons: Lucide (substituir emojis)
-- [x] Design-first: Paper antes de código
-- [x] Mobile: responsivo, funcionar no celular
+- [x] Database: Supabase PostgreSQL — `db.xmmweyxoilvrnocshmyq.supabase.co`
+- [x] ORM: Drizzle (postgres-js driver)
+- [x] Dark + Light mode com toggle (ThemeProvider, padrão dark)
+- [x] Charts: Recharts (pendente instalação na Phase 4)
+- [x] Animations: Framer Motion (pendente instalação na Phase 3)
+- [x] Toasts: Sonner (pendente instalação na Phase 3)
+- [x] Icons: Lucide — emojis substituídos na sidebar
+- [x] Design-first: Paper designs aprovados (9 artboards)
+- [x] Mobile: responsivo, mobile-first
 
 ## Blockers
-- Paper (Pencil) precisa estar aberto para criar designs
+Nenhum.
 
-## Files Created
-- `.planning/ROADMAP.md` — Roadmap completo 6 fases
-- `.planning/DESIGN-BRIEF.md` — Especificações de design
-- `.planning/SUPABASE-SCHEMA.md` — Schema do banco
-- `.planning/STATE.md` — Este arquivo
-- `.env.local` — Supabase credentials (NÃO commitado)
+## Key Files
+```
+src/db/
+  schema.ts         # Drizzle schema (8 tabelas)
+  index.ts          # DB client (postgres-js)
+src/lib/
+  db-chips.ts       # Chips CRUD (Supabase)
+  db-contacts.ts    # Contacts + Clusters CRUD (Supabase)
+  db-logs.ts        # Logs + dashboard stats queries
+  db-auth.ts        # Session auth (Supabase)
+  db-config.ts      # App config CRUD (Supabase)
+src/components/
+  SidebarLayout.tsx # Sidebar com Lucide, colapsável, ThemeToggle
+  theme-provider.tsx
+  theme-toggle.tsx
+src/app/
+  globals.css       # Design tokens completos dark/light
+  layout.tsx        # ThemeProvider no root
+drizzle.config.ts
+drizzle/0000_pink_garia.sql
+```
 
-## Next Actions
-1. Abrir Paper → Criar design system components
-2. Criar screens: Dashboard, Chips, Contacts, Clusters, History, Settings, Login
-3. Versões mobile de cada screen
-4. Após aprovação do design → iniciar Phase 2 (código)
+## Next Actions (Phase 3)
+1. Instalar Framer Motion + Sonner
+2. Sidebar com animação de colapso (Framer Motion)
+3. Layout responsivo mobile: bottom nav, hamburger
+4. Breadcrumbs no header
+5. Skeleton loaders globais
+6. Command palette ⌘K (busca global)
