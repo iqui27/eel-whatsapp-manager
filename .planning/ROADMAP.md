@@ -9,8 +9,8 @@
 
 | Phase | Name | Priority | Depends On | Plans |
 |-------|------|----------|------------|-------|
-| 01 | V2 Shell + Design Tokens | — | — | TBD |
-| 02 | DB Schema Expansion | — | — | TBD |
+| 01 | V2 Shell + Design Tokens | — | — | 2 plans |
+| 02 | DB Schema Expansion | — | — | 2 plans |
 | 03 | Import + Segmentation | P0 | 01, 02 | TBD |
 | 04 | Campaign Editor + Send | P0 | 02, 03 | TBD |
 | 05 | Dashboard V2 + Chat Panel | P0/P1 | 01, 02, 04 | TBD |
@@ -31,7 +31,10 @@
 - SHELL-03: New Topbar with global search, period selector, critical alerts badge, user profile
 - SHELL-04: Shared page layout component (sidebar + topbar + content area) reusable across all pages
 
-**Plans:** TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 01-01-PLAN.md — V2 design tokens + sidebar electoral navigation
+- [ ] 01-02-PLAN.md — V2 Topbar component + integration
 
 ---
 
@@ -47,7 +50,10 @@
 - DB-04: Conversations table (voter_id, status, assigned_agent, messages JSON[], handoff_reason, created_at)
 - DB-05: Compliance tables (consent_logs, audit_trail) + users/roles tables (user, role, region_scope, permissions)
 
-**Plans:** TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — Electoral tables (voters, campaigns, segments) + CRUD libraries
+- [ ] 02-02-PLAN.md — Conversations, compliance, users tables + API routes
 
 ---
 
