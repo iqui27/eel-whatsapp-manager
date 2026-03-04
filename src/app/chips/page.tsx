@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Flame, Trash2, Smartphone, Loader2, X } from 'lucide-react';
+import { Plus, Search, Flame, Trash2, Smartphone, Loader2, X, RefreshCw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import SidebarLayout from '@/components/SidebarLayout';
@@ -51,6 +51,7 @@ export default function ChipsPage() {
   const [chips, setChips] = useState<Chip[]>([]);
   const [loading, setLoading] = useState(true);
   const [warmingId, setWarmingId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
@@ -92,6 +93,21 @@ export default function ChipsPage() {
     catch { toast.error('Erro ao deletar chip'); }
   };
 
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/chips/sync', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Sincronizado! ${data.updated} chip(s) atualizado(s)`);
+        fetchChips(true);
+      } else {
+        toast.error(data.error || 'Erro ao sincronizar');
+      }
+    } catch { toast.error('Erro ao sincronizar com a Evolution API'); }
+    finally { setSyncing(false); }
+  };
+
   const handleWarm = async (chip: Chip) => {
     setWarmingId(chip.id);
     try {
@@ -121,9 +137,16 @@ export default function ChipsPage() {
             <h1 className="text-xl font-semibold text-foreground">Chips</h1>
             <p className="text-sm text-muted-foreground mt-0.5">{chips.length} chip{chips.length !== 1 ? 's' : ''} cadastrado{chips.length !== 1 ? 's' : ''}</p>
           </div>
-          <button onClick={() => setShowForm(v => !v)} className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-            <Plus className="h-4 w-4" /> Novo chip
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleSync} disabled={syncing}
+              className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 transition-colors">
+              <RefreshCw className={cn('h-3.5 w-3.5', syncing && 'animate-spin')} />
+              {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            </button>
+            <button onClick={() => setShowForm(v => !v)} className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+              <Plus className="h-4 w-4" /> Novo chip
+            </button>
+          </div>
         </div>
 
         {/* Add form */}

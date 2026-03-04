@@ -2,6 +2,7 @@ import { AppConfig, Chip } from './config';
 import { loadClusters, loadContacts, updateContact } from './contacts';
 import { addLog, loadLogs } from './logs';
 import { updateChip } from './chips';
+import { sendText as evolutionSendText } from './evolution';
 
 interface RunOptions {
   singleChipId?: string;
@@ -79,19 +80,7 @@ function isSameDay(timestamp: string, now = new Date()): boolean {
 }
 
 async function sendText(config: AppConfig, instanceName: string, number: string, text: string): Promise<void> {
-  const response = await fetch(`${config.evolutionApiUrl}/message/sendText/${instanceName}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: config.evolutionApiKey,
-    },
-    body: JSON.stringify({ number, text }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(error);
-  }
+  await evolutionSendText(config.evolutionApiUrl, config.evolutionApiKey, instanceName, number, text);
 }
 
 async function warmChipToChip(chip: Chip, target: Chip, config: AppConfig): Promise<SendOutcome> {

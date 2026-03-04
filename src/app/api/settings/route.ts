@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig, saveConfig } from '@/lib/db-config';
 import { validateSession } from '@/lib/db-auth';
+import { testConnection } from '@/lib/evolution';
 import type { Config } from '@/db';
 
 async function verifyAuth(request: NextRequest) {
@@ -69,18 +70,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${config.evolutionApiUrl}/instance/fetchInstances`, {
-      headers: {
-        'apikey': config.evolutionApiKey,
-      },
-    });
-
-    if (response.ok) {
-      return NextResponse.json({ success: true, message: 'Conexão bem-sucedida!' });
-    } else {
-      return NextResponse.json({ success: false, message: 'Falha na conexão com a API' }, { status: 400 });
-    }
+    const result = await testConnection(config.evolutionApiUrl, config.evolutionApiKey);
+    return NextResponse.json(result, { status: result.ok ? 200 : 400 });
   } catch {
-    return NextResponse.json({ success: false, message: 'Não foi possível conectar à API' }, { status: 500 });
+    return NextResponse.json({ ok: false, message: 'Não foi possível conectar à API' }, { status: 500 });
   }
 }
