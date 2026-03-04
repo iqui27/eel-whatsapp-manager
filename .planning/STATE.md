@@ -2,24 +2,18 @@
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
-Phase 02 (DB Schema Expansion) — Next up.
+**Phase 02 (DB Schema) — COMPLETE** ✅
+Wave 1 complete.
 
-Progress: Phase 01 complete (2/2 plans). Wave 1 partially done.
+Progress: Phase 01 (2/2 plans) + Phase 02 (2/2 plans) done.
 
-Last session: 2026-03-04 — Completed Phase 01 (plans 01-01 + 01-02)
-Stopped at: Phase 02 (DB Schema) — plans 02-01 and beyond
+Last session: 2026-03-04 — Completed Phase 01 + Phase 02 (full Wave 1)
+Stopped at: Phase 03 (Import Pipeline) — next up
 
 ## Project History
 
 ### EEL v1 (Chip Warming Manager) — COMPLETE
-All 6 original phases shipped and deployed to `zap.iqui27.app`:
-- Phase 1: Design System + Paper Prototyping
-- Phase 2: Foundation (Supabase/Drizzle)
-- Phase 3: Layout & Navigation
-- Phase 4: Dashboard Premium + Charts
-- Phase 5: Pages Overhaul
-- Phase 6: Polish & Animations
-- Deploy: Evolution API v2, auth fixes, standalone output
+All 6 original phases shipped and deployed to `zap.iqui27.app`.
 
 ### EEL Eleicao (Electoral Campaign Dashboard) — IN PROGRESS
 Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap created.
@@ -27,6 +21,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 **Phase 01 — V2 Shell — COMPLETE** ✅
 - 01-01: V2 design tokens (warm #F8F6F1) + 8-item electoral sidebar
 - 01-02: V2 Topbar (search, period, alerts, profile) + shell integration
+
+**Phase 02 — DB Schema — COMPLETE** ✅
+- 02-01: voters, campaigns, segments, segmentVoters tables + 3 CRUD libraries
+- 02-02: conversations, consentLogs, users tables + 3 more CRUD libs + 3 API routes
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -40,48 +38,40 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [x] Topbar ThemeToggle placement: in Topbar (5th section) on desktop, in simplified mobile header
 - [x] CommandTrigger removed from layout — visual role replaced by Topbar search input; Cmd+K still works
 - [x] Legacy nav: "Operacional" section in sidebar for pre-electoral pages (Chips, Contacts, etc.)
+- [x] segments declared before campaigns in schema.ts — satisfies FK ordering requirement
+- [x] conversation_messages: separate table (not JSON) — enables message-level queries and indexing
+- [x] logConsent() updates voter.optInStatus in same call — single source of truth
+- [x] audit_trail deferred — consent_logs covers LGPD needs; generic trail can be added later
+- [x] filters stored as JSON string in segments table — API serializes object→string if needed
 
 ## Blockers
 None.
 
 ## Key Files (Current)
 ```
-.planning/
-  PROJECT.md           # Product definition
-  ROADMAP.md           # 8-phase roadmap with requirements
-  STATE.md             # This file
-  DESIGN-BRIEF.md      # Original design tokens
-  PAPER-WIREFRAMES-ELEICAO.md  # Full IA + wireframe specs
-  SUPABASE-SCHEMA.md   # Existing DB schema
-  phases/
-    01-v2-shell/
-      01-01-PLAN.md    # Design tokens + sidebar plan
-      01-01-SUMMARY.md # Design tokens + sidebar summary ✅
-      01-02-PLAN.md    # Topbar plan
-      01-02-SUMMARY.md # Topbar summary ✅
-
-src/app/
-  page.tsx              # Dashboard (to be rebuilt as V2)
-  layout.tsx            # Root layout (Geist fonts, ThemeProvider)
-  template.tsx          # Framer Motion page transitions
-  chips/page.tsx        # Chips CRUD
-  contacts/page.tsx     # Contacts CRUD
-  clusters/page.tsx     # Clusters card list
-  history/page.tsx      # Logs table
-  settings/page.tsx     # Settings sections
-  login/page.tsx        # Login
-  setup/page.tsx        # Setup wizard
-
 src/db/
-  index.ts              # Drizzle client
-  schema.ts             # Current tables: config, chips, contacts, clusters, logs, sessions
+  schema.ts             # 12 tables: config, chips, contacts, clusters, chip_clusters, contact_clusters,
+                        #   logs, sessions, voters, segments, campaigns, segmentVoters,
+                        #   conversations, conversationMessages, consentLogs, users
+
+src/lib/
+  db-chips.ts           # Chip CRUD
+  db-contacts.ts        # Contact CRUD
+  db-voters.ts          # Voter CRUD + bulk insert + search + segment join ✅ NEW
+  db-campaigns.ts       # Campaign CRUD + status filter ✅ NEW
+  db-segments.ts        # Segment CRUD + voter association (transactional) ✅ NEW
+  db-conversations.ts   # Conversation CRUD + message append ✅ NEW
+  db-compliance.ts      # Consent logging + stats ✅ NEW
+  db-users.ts           # User CRUD ✅ NEW
+
+src/app/api/
+  voters/route.ts       # GET(search) POST PUT DELETE ✅ NEW
+  campaigns/route.ts    # GET(status) POST PUT DELETE ✅ NEW
+  segments/route.ts     # GET POST PUT DELETE ✅ NEW
 
 src/components/
   SidebarLayout.tsx     # V2 shell with 8 electoral nav items + legacy section ✅
-  topbar.tsx            # V2 Topbar (search, period, alerts, profile) ✅ NEW
-  command-palette.tsx   # Cmd+K palette (still active)
-  theme-provider.tsx    # Dark/light theme
-  ui/                   # shadcn primitives (button, card, input, label, select, skeleton, switch)
+  topbar.tsx            # V2 Topbar (search, period, alerts, profile) ✅
 ```
 
 ## Performance Metrics
@@ -89,8 +79,10 @@ src/components/
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 01-v2-shell | 01 | 18 min | 2/2 | 2 |
-| 01-v2-shell | 02 | 12 min | 2/2 | 2 (1 created) |
+| 01-v2-shell | 02 | 12 min | 2/2 | 2+1 created |
+| 02-db-schema | 01 | 20 min | 2/2 | 1+3 created |
+| 02-db-schema | 02 | 22 min | 2/2 | 1+6 created |
 
 ## Next Actions
-1. Execute Phase 02 (DB Schema Expansion) — plans 02-01 onward
-2. Execute remaining Wave 1 plans
+1. Execute Phase 03 (Import Pipeline) — CSV/XLSX voter import, dedup, preview
+2. Execute Phase 04 (Campaigns) — campaign builder, send flow, monitoring
