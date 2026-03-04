@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -59,6 +59,38 @@ interface DailyStats {
   error: number;
 }
 
+// ─── useCountUp hook ──────────────────────────────────────────────────────────
+function useCountUp(target: number, duration = 800, delay = 0) {
+  const [value, setValue] = useState(0);
+  const frameRef = useRef<number | null>(null);
+  const startRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      const animate = (ts: number) => {
+        if (!startRef.current) startRef.current = ts;
+        const elapsed = ts - startRef.current;
+        const progress = Math.min(elapsed / duration, 1);
+        // ease-out cubic
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setValue(Math.round(eased * target));
+        if (progress < 1) {
+          frameRef.current = requestAnimationFrame(animate);
+        }
+      };
+      frameRef.current = requestAnimationFrame(animate);
+    }, delay);
+
+    return () => {
+      clearTimeout(timeout);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      startRef.current = null;
+    };
+  }, [target, duration, delay]);
+
+  return value;
+}
+
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 function KpiCard({
   label,
@@ -77,6 +109,11 @@ function KpiCard({
   trendLabel?: string;
   delay?: number;
 }) {
+  const isNumeric = typeof value === 'number';
+  const isPercent = typeof value === 'string' && value.endsWith('%');
+  const numericTarget = isNumeric ? value : isPercent ? parseInt(value) : 0;
+  const animated = useCountUp(numericTarget, 700, (delay ?? 0) * 1000 + 100);
+  const displayValue = isNumeric ? animated : isPercent ? `${animated}%` : value;
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -90,7 +127,7 @@ function KpiCard({
           <Icon className="h-4 w-4 text-white" />
         </div>
       </div>
-      <div className="text-3xl font-bold text-foreground">{value}</div>
+      <div className="text-3xl font-bold text-foreground tabular-nums">{displayValue}</div>
       {trendLabel && (
         <div className={cn(
           'flex items-center gap-1 text-xs font-medium',

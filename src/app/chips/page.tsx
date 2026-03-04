@@ -7,6 +7,7 @@ import { Plus, Search, Flame, Trash2, Smartphone, Loader2, X } from 'lucide-reac
 import { Switch } from '@/components/ui/switch';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import SidebarLayout from '@/components/SidebarLayout';
+import { EmptyState } from '@/components/empty-state';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -181,8 +182,11 @@ export default function ChipsPage() {
               </tr>
             </thead>
             {loading ? <TableSkeleton rows={5} cols={7} /> : filtered.length === 0 ? (
-              <tbody><tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                {search || filter !== 'all' ? 'Nenhum resultado' : <span>Nenhum chip. <button onClick={() => setShowForm(true)} className="text-primary underline">Adicionar agora</button></span>}
+              <tbody><tr><td colSpan={7}>
+                {search || filter !== 'all'
+                  ? <EmptyState illustration="smartphone" title="Nenhum resultado" description="Tente ajustar os filtros ou a busca" />
+                  : <EmptyState illustration="smartphone" title="Nenhum chip cadastrado" description="Adicione seu primeiro chip WhatsApp para começar" action={<button onClick={() => setShowForm(true)} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">Adicionar chip</button>} />
+                }
               </td></tr></tbody>
             ) : (
               <tbody>

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Layers, Loader2, X, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import SidebarLayout from '@/components/SidebarLayout';
+import { EmptyState } from '@/components/empty-state';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -130,10 +131,13 @@ export default function ClustersPage() {
         {loading ? (
           <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-20 rounded-xl border border-border bg-card shimmer" />)}</div>
         ) : clusters.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-border text-muted-foreground gap-3">
-            <Layers className="h-10 w-10 opacity-30" />
-            <p className="text-sm">Nenhum cluster criado.</p>
-            <button onClick={() => setShowForm(true)} className="text-sm text-primary hover:underline">Criar primeiro cluster</button>
+          <div className="rounded-xl border border-dashed border-border">
+            <EmptyState
+              illustration="layers"
+              title="Nenhum cluster criado"
+              description="Clusters agrupam mensagens para envio organizado por prioridade"
+              action={<button onClick={() => setShowForm(true)} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">Criar cluster</button>}
+            />
           </div>
         ) : (
           <div className="space-y-3">

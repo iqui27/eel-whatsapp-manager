@@ -3,9 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, History, CheckCircle2, XCircle, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import SidebarLayout from '@/components/SidebarLayout';
+import { EmptyState } from '@/components/empty-state';
 import { cn } from '@/lib/utils';
 
 interface LogEntry {
@@ -232,15 +233,11 @@ export default function HistoryPage() {
             ) : paginated.length === 0 ? (
               <tbody>
                 <tr>
-                  <td colSpan={5} className="px-4 py-16 text-center">
-                    <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                      <History className="h-8 w-8 opacity-30" />
-                      <p className="text-sm">
-                        {search || statusFilter !== 'all' || chipFilter !== 'all'
-                          ? 'Nenhum registro encontrado para os filtros aplicados'
-                          : 'Nenhum log registrado ainda'}
-                      </p>
-                    </div>
+                  <td colSpan={5}>
+                    {search || statusFilter !== 'all' || chipFilter !== 'all'
+                      ? <EmptyState illustration="history" title="Nenhum resultado" description="Nenhum registro encontrado para os filtros aplicados" />
+                      : <EmptyState illustration="history" title="Nenhum log registrado ainda" description="Os registros aparecerão aqui após o primeiro aquecimento" />
+                    }
                   </td>
                 </tr>
               </tbody>

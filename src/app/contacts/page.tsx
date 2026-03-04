@@ -7,6 +7,7 @@ import { Plus, Search, Trash2, Users, Loader2, X } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import SidebarLayout from '@/components/SidebarLayout';
+import { EmptyState } from '@/components/empty-state';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -158,8 +159,11 @@ export default function ContactsPage() {
               </tr>
             </thead>
             {loading ? <TableSkeleton rows={5} cols={6} /> : filtered.length === 0 ? (
-              <tbody><tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                {search || filter !== 'all' ? 'Nenhum resultado' : <span>Nenhum contato. <button onClick={() => setShowForm(true)} className="text-primary underline">Adicionar agora</button></span>}
+              <tbody><tr><td colSpan={6}>
+                {search || filter !== 'all'
+                  ? <EmptyState illustration="users" title="Nenhum resultado" description="Tente ajustar os filtros ou a busca" />
+                  : <EmptyState illustration="users" title="Nenhum contato cadastrado" description="Adicione contatos para iniciar o aquecimento" action={<button onClick={() => setShowForm(true)} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">Adicionar contato</button>} />
+                }
               </td></tr></tbody>
             ) : (
               <tbody>

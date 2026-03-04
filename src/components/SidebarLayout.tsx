@@ -96,13 +96,21 @@ function SidebarContent({
               onClick={onLinkClick}
               title={collapsed ? label : undefined}
               className={cn(
-                'group flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',
+                'group relative flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',
                 isActive
                   ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                   : 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
                 collapsed && 'justify-center px-0',
               )}
             >
+              {/* Active left-bar indicator */}
+              {isActive && (
+                <motion.div
+                  layoutId="sidebar-active-bar"
+                  className="absolute left-0 top-1 bottom-1 w-0.5 rounded-full bg-sidebar-primary"
+                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                />
+              )}
               <Icon
                 className={cn(
                   'h-[18px] w-[18px] shrink-0 transition-colors',
@@ -206,13 +214,29 @@ function BottomNav({ currentPage }: { currentPage: PageId }) {
           <Link
             key={id}
             href={href}
-            className={cn(
-              'flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors',
-              isActive ? 'text-primary' : 'text-muted-foreground',
-            )}
+            className="flex flex-col items-center gap-1 px-3 py-1 relative"
           >
-            <Icon className="h-5 w-5" />
-            <span className="text-[10px] font-medium">{label}</span>
+            <motion.div
+              animate={{ scale: isActive ? 1.1 : 1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+                isActive ? 'bg-primary/15' : 'bg-transparent',
+              )}
+            >
+              <Icon className={cn('h-5 w-5 transition-colors', isActive ? 'text-primary' : 'text-muted-foreground')} />
+            </motion.div>
+            <span className={cn('text-[10px] font-medium transition-colors', isActive ? 'text-primary' : 'text-muted-foreground')}>
+              {label}
+            </span>
+            {/* Active dot indicator */}
+            {isActive && (
+              <motion.div
+                layoutId="bottom-nav-dot"
+                className="absolute -top-px left-1/2 -translate-x-1/2 h-0.5 w-4 rounded-full bg-primary"
+                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+              />
+            )}
           </Link>
         );
       })}
