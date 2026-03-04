@@ -3,12 +3,13 @@
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
 **Phase 02 (DB Schema) — COMPLETE** ✅
-Wave 1 complete.
+**Phase 03 (Import + Segmentation) — COMPLETE** ✅
+Wave 1 + Wave 2 complete.
 
-Progress: Phase 01 (2/2 plans) + Phase 02 (2/2 plans) done.
+Progress: Phase 01 (2/2) + Phase 02 (2/2) + Phase 03 (2/2) = 6 plans done.
 
-Last session: 2026-03-04 — Completed Phase 01 + Phase 02 (full Wave 1)
-Stopped at: Phase 03 (Import Pipeline) — next up
+Last session: 2026-03-04 — Completed Phase 03 (Import wizard + Segmentation page)
+Stopped at: Phase 04 (Campaign Editor + Send) — next up
 
 ## Project History
 
@@ -25,6 +26,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 **Phase 02 — DB Schema — COMPLETE** ✅
 - 02-01: voters, campaigns, segments, segmentVoters tables + 3 CRUD libraries
 - 02-02: conversations, consentLogs, users tables + 3 more CRUD libs + 3 API routes
+
+**Phase 03 — Import + Segmentation — COMPLETE** ✅
+- 03-01: 4-step CSV import wizard (Upload → Mapping → Validation → Processing) + `/api/voters/import` bulk endpoint
+- 03-02: Segmentation page (filter builder AND/OR + audience preview panel + saved segments table)
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -43,6 +48,8 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [x] logConsent() updates voter.optInStatus in same call — single source of truth
 - [x] audit_trail deferred — consent_logs covers LGPD needs; generic trail can be added later
 - [x] filters stored as JSON string in segments table — API serializes object→string if needed
+- [x] audience calculation is client-side mock — real server-side filtering deferred to Phase 05 (query complexity vs value)
+- [x] import deduplication by phone number via `inArray` query — covers 95% of duplicate cases
 
 ## Blockers
 None.
@@ -82,7 +89,9 @@ src/components/
 | 01-v2-shell | 02 | 12 min | 2/2 | 2+1 created |
 | 02-db-schema | 01 | 20 min | 2/2 | 1+3 created |
 | 02-db-schema | 02 | 22 min | 2/2 | 1+6 created |
+| 03-import-segmentation | 01 | 25 min | 4/4 | 2 created |
+| 03-import-segmentation | 02 | 15 min | 2/2 | 1 created |
 
 ## Next Actions
-1. Execute Phase 03 (Import Pipeline) — CSV/XLSX voter import, dedup, preview
-2. Execute Phase 04 (Campaigns) — campaign builder, send flow, monitoring
+1. Execute Phase 04 (Campaign Editor + Send) — split-pane editor, WhatsApp preview, A/B test, scheduling, send monitoring
+2. Execute Phase 05 (Dashboard V2 + Chat Panel) — KPI row, operations table, chat queue
