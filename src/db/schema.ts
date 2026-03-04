@@ -232,3 +232,73 @@ export type NewCampaign = typeof campaigns.$inferInsert;
 
 export type Segment = typeof segments.$inferSelect;
 export type NewSegment = typeof segments.$inferInsert;
+
+// ─── Conversations ────────────────────────────────────────────────────────────
+export const conversations = pgTable('conversations', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  voterId: uuid('voter_id').references(() => voters.id, { onDelete: 'set null' }),
+  voterName: text('voter_name').notNull(),
+  voterPhone: text('voter_phone').notNull(),
+  status: text('status', { enum: ['open', 'assigned', 'waiting', 'resolved', 'bot'] }).default('bot'),
+  assignedAgent: text('assigned_agent'),
+  handoffReason: text('handoff_reason'),
+  lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
+  priority: integer('priority').default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_conversations_voter').on(t.voterId),
+  index('idx_conversations_status').on(t.status),
+  index('idx_conversations_priority').on(t.priority),
+]);
+
+// ─── Conversation Messages ────────────────────────────────────────────────────
+export const conversationMessages = pgTable('conversation_messages', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+  sender: text('sender', { enum: ['voter', 'bot', 'agent'] }).notNull(),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_conv_messages_conv').on(t.conversationId),
+]);
+
+// ─── Consent Logs ────────────────────────────────────────────────────────────
+export const consentLogs = pgTable('consent_logs', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  voterId: uuid('voter_id').references(() => voters.id, { onDelete: 'cascade' }),
+  action: text('action', { enum: ['opt_in', 'opt_out', 'renew', 'revoke'] }).notNull(),
+  channel: text('channel').default('whatsapp'),
+  ipAddress: text('ip_address'),
+  metadata: text('metadata'),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_consent_voter').on(t.voterId),
+]);
+
+// ─── Users (app users, not voters) ───────────────────────────────────────────
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  role: text('role', { enum: ['coordenador', 'cabo', 'voluntario', 'admin'] }).default('voluntario'),
+  regionScope: text('region_scope'),
+  enabled: boolean('enabled').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_users_email').on(t.email),
+  index('idx_users_role').on(t.role),
+]);
+
+export type Conversation = typeof conversations.$inferSelect;
+export type NewConversation = typeof conversations.$inferInsert;
+
+export type ConversationMessage = typeof conversationMessages.$inferSelect;
+export type NewConversationMessage = typeof conversationMessages.$inferInsert;
+
+export type ConsentLog = typeof consentLogs.$inferSelect;
+export type NewConsentLog = typeof consentLogs.$inferInsert;
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
