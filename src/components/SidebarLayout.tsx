@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import { CommandPalette } from './command-palette';
+import { Topbar } from './topbar';
 import { cn } from '@/lib/utils';
 
 type PageId =
@@ -469,29 +470,24 @@ export default function SidebarLayout({
       {/* ── Main content ── */}
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
 
-        {/* Top bar — simplified mobile header */}
-        <header className="flex h-14 items-center border-b border-border bg-background px-4 gap-3 shrink-0">
-          {/* Mobile hamburger */}
+        {/* Desktop Topbar — V2 full topbar with search, period, alerts, profile */}
+        <header className="hidden md:block shrink-0">
+          <Topbar />
+        </header>
+
+        {/* Mobile header — simplified: hamburger + title + theme toggle */}
+        <header className="flex h-14 items-center border-b border-border bg-background px-4 gap-3 shrink-0 md:hidden">
           <button
             onClick={() => setMobileOpen(true)}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             aria-label="Abrir menu"
           >
             <Menu className="h-4 w-4" />
           </button>
-
-          {/* Page title (mobile only) */}
-          <div className="flex-1 min-w-0 md:hidden">
+          <div className="flex-1 min-w-0">
             <h1 className="text-sm font-semibold text-foreground truncate">{title}</h1>
           </div>
-
-          {/* Desktop: spacer so ThemeToggle goes right */}
-          <div className="hidden md:flex flex-1" />
-
-          {/* Actions */}
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-          </div>
+          <ThemeToggle />
         </header>
 
         {/* Page content — desktop full scroll, mobile with bottom nav */}
