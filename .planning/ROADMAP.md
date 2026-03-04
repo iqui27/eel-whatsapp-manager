@@ -1,143 +1,180 @@
-# EEL — Dashboard Overhaul Roadmap
+# EEL Eleicao — Roadmap
 
-> Transformar o EEL de um dashboard funcional básico em um produto de nível startup unicórnio.
-> Bonito, minimalista, UI/UX intuitiva, mobile-ready, dark/light mode.
-
-## Decisões Técnicas
-
-| Decisão | Escolha | Motivo |
-|---------|---------|--------|
-| **Database** | Supabase (PostgreSQL) | Migrar de JSON local para banco real |
-| **Tema** | Dark + Light com toggle | Usuário escolhe |
-| **Charts** | Recharts | Leve, React-native, boa DX |
-| **Animations** | Framer Motion | Padrão React para micro-interações |
-| **Toasts** | Sonner | Melhor DX, bonito por padrão |
-| **Icons** | Lucide React | Já no projeto, substituir emojis |
-| **Design** | Paper (Pencil) first | Design completo antes de codar |
-| **Mobile** | Responsivo, mobile-friendly | Funcionar em celular |
-| **ORM** | Drizzle ORM | Type-safe, leve, edge-compatible |
-
-## Stack Final
-
-- Next.js 16 + React 19
-- Tailwind CSS 4 + shadcn/ui
-- Supabase PostgreSQL + Drizzle ORM
-- Recharts (gráficos)
-- Framer Motion (animações)
-- Sonner (toasts)
-- Lucide React (ícones)
+> Transform EEL from a chip warming dashboard into a full electoral WhatsApp campaign operations center.
+> Visual direction: V2 Editorial Light (Radix Command). MVP-first, ship fast.
 
 ---
 
-## Fases
+## Phase Overview
 
-### Phase 1: Design System + Paper Prototyping 🎨
-**Status:** Em progresso
-**Goal:** Design completo no Paper antes de escrever código
-
-**Screens a criar:**
-1. Design System Components (palette, typography, buttons, inputs, cards, tables)
-2. Dashboard Desktop (sidebar + KPIs + charts + activity feed)
-3. Dashboard Mobile (responsive)
-4. Chips Page (desktop + mobile)
-5. Contacts Page (desktop + mobile)
-6. Clusters Page (desktop + mobile)
-7. History Page (desktop + mobile)
-8. Settings Page (desktop + mobile)
-9. Login Page (dark theme premium)
-
-**Requirements:** [DESIGN-01, DESIGN-02, DESIGN-03]
+| Phase | Name | Priority | Depends On | Plans |
+|-------|------|----------|------------|-------|
+| 01 | V2 Shell + Design Tokens | — | — | TBD |
+| 02 | DB Schema Expansion | — | — | TBD |
+| 03 | Import + Segmentation | P0 | 01, 02 | TBD |
+| 04 | Campaign Editor + Send | P0 | 02, 03 | TBD |
+| 05 | Dashboard V2 + Chat Panel | P0/P1 | 01, 02, 04 | TBD |
+| 06 | HITL Conversations + CRM | P1 | 02, 05 | TBD |
+| 07 | Compliance + Admin | P2 | 02 | TBD |
+| 08 | Reports + Polish | P2 | 04, 06 | TBD |
 
 ---
 
-### Phase 2: Foundation — Supabase + Design System Code 🏗️
-**Status:** Pendente
-**Goal:** Migrar dados para Supabase e implementar design system em código
+### Phase 01: V2 Shell + Design Tokens
+**Status:** Not started
+**Goal:** Replace existing layout shell with V2 Editorial Light direction — new sidebar, topbar, color tokens, typography, and component foundation
 
-**Tasks:**
-- [ ] Setup Drizzle ORM + Supabase connection
-- [ ] Schema: chips, contacts, clusters, logs, sessions, config
-- [ ] Migration script (JSON → PostgreSQL)
-- [ ] Implementar design tokens (CSS variables dark/light)
-- [ ] Atualizar shadcn components com novo tema
-- [ ] Sidebar component (collapsible, animated)
-- [ ] Skeleton loaders, Sonner toasts
-- [ ] Substituir todos os emojis por Lucide icons
+**Requirements:** [SHELL-01, SHELL-02, SHELL-03, SHELL-04]
 
-**Requirements:** [INFRA-01, INFRA-02, DS-01, DS-02]
+- SHELL-01: V2 design tokens in CSS (warm white bg #F8F6F1, slate theme, compact density, serif headlines)
+- SHELL-02: New SidebarLayout matching V2 wireframe (Brand + 8-item menu + footer with API status + block risk)
+- SHELL-03: New Topbar with global search, period selector, critical alerts badge, user profile
+- SHELL-04: Shared page layout component (sidebar + topbar + content area) reusable across all pages
+
+**Plans:** TBD
 
 ---
 
-### Phase 3: Layout & Navigation Overhaul 📐
-**Status:** Pendente
-**Goal:** Nova sidebar, command palette, navigation patterns
+### Phase 02: DB Schema Expansion
+**Status:** Not started
+**Goal:** Extend Supabase/Drizzle schema to support electoral features — voters, campaigns, segments, conversations, compliance, permissions
 
-**Tasks:**
-- [ ] Sidebar collapsible com Framer Motion
-- [ ] Dark/Light toggle no header
-- [ ] Command palette (⌘K) com busca global
-- [ ] Breadcrumbs
-- [ ] Layout responsivo mobile-first
-- [ ] Bottom navigation (mobile)
+**Requirements:** [DB-01, DB-02, DB-03, DB-04, DB-05]
 
-**Requirements:** [NAV-01, NAV-02, NAV-03]
+- DB-01: Voters table (name, cpf, phone, zone, section, tags[], engagement_score, opt_in_status, opt_in_date)
+- DB-02: Campaigns table (name, template, variables, status, schedule, ab_variant, segment_id, stats)
+- DB-03: Segments table (name, filters JSON, audience_count) + segment_voters junction
+- DB-04: Conversations table (voter_id, status, assigned_agent, messages JSON[], handoff_reason, created_at)
+- DB-05: Compliance tables (consent_logs, audit_trail) + users/roles tables (user, role, region_scope, permissions)
 
----
-
-### Phase 4: Dashboard Premium + Charts 📊
-**Status:** Pendente
-**Goal:** Dashboard de nível unicórnio com dados reais
-
-**Tasks:**
-- [ ] KPI cards com micro-animações e gradientes
-- [ ] Line chart: warming timeline (últimos 7/30 dias)
-- [ ] Donut chart: success vs error rate
-- [ ] Bar chart: chips mais ativos
-- [ ] Activity feed em tempo real
-- [ ] Status indicators animados
-- [ ] Empty states ilustrados
-
-**Requirements:** [DASH-01, DASH-02, DASH-03]
+**Plans:** TBD
 
 ---
 
-### Phase 5: Pages Overhaul 📱
-**Status:** Pendente
-**Goal:** Todas as páginas redesenhadas com UX premium
+### Phase 03: Import + Segmentation (P0)
+**Status:** Not started
+**Goal:** Working voter import flow (CSV upload → field mapping → validation → processing) and segment builder with AND/OR filters and audience preview
 
-**Tasks:**
-- [ ] Chips: tabela avançada, bulk actions, filtros compostos
-- [ ] Contacts: busca avançada, edição inline, tags visuais
-- [ ] Clusters: visual pipeline, drag & drop reorder
-- [ ] History: timeline visual, infinite scroll, export
-- [ ] Settings: seções colapsáveis, validação em tempo real
-- [ ] Login: split screen premium, animação de entrada
+**Requirements:** [IMP-01, IMP-02, SEG-01, SEG-02]
 
-**Requirements:** [PAGES-01, PAGES-02, PAGES-03, PAGES-04, PAGES-05]
+- IMP-01: CSV upload stepper (Upload → Mapping → Validation → Processing) with required fields (name, phone, zone/section)
+- IMP-02: Import validation (deduplication by phone, quality indicator, error panel, preview table)
+- SEG-01: Visual filter builder (AND/OR logic) with demographic, behavioral, geographic tags
+- SEG-02: Segment preview showing audience count, coverage, risk level + save segment action
 
----
-
-### Phase 6: Polish & Animations ✨
-**Status:** Pendente
-**Goal:** Micro-interações, page transitions, onboarding
-
-**Tasks:**
-- [ ] Framer Motion page transitions
-- [ ] Hover/click micro-interações em todos os elementos
-- [ ] Empty states com ilustrações SVG
-- [ ] Onboarding flow (primeiro uso)
-- [ ] Loading states premium (skeleton + shimmer)
-- [ ] Final QA: mobile, dark mode, performance
-
-**Requirements:** [POLISH-01, POLISH-02, POLISH-03]
+**Plans:** TBD
 
 ---
 
-## Referências de Design
+### Phase 04: Campaign Editor + Send (P0)
+**Status:** Not started
+**Goal:** Full campaign creation flow — message editor with dynamic variables, WhatsApp preview, A/B testing, time-window scheduling, and real-time send monitoring
 
-Inspiração visual para o Paper:
-- Linear.app (sidebar + navigation)
-- Vercel Dashboard (minimalismo + dark mode)
-- Stripe Dashboard (charts + data density)
-- Cal.com (open source elegance)
-- Raycast (command palette)
+**Requirements:** [CAMP-01, CAMP-02, CAMP-03, CAMP-04]
+
+- CAMP-01: Split-pane editor (left: message with {nome}, {bairro}, {interesse} variables, right: WhatsApp preview bubble)
+- CAMP-02: CTA score checker, word counter (120 word limit), message quality indicators
+- CAMP-03: A/B test toggle with split percentage, variant editor
+- CAMP-04: Time-window scheduling (morning/afternoon/evening) + segment selector + send with real-time delivery monitoring
+
+**Plans:** TBD
+
+---
+
+### Phase 05: Dashboard V2 + Chat Panel (P0/P1)
+**Status:** Not started
+**Goal:** Rebuild dashboard in V2 Editorial Light style with KPI row, operations table, command panel, and integrated chat queue panel — chat list with history visible directly in the dashboard
+
+**Requirements:** [DASH-01, DASH-02, DASH-03, DASH-04, DASH-05]
+
+- DASH-01: V2 KPI row (4 cards: delivered, opened, responses, blocks) with election-specific metrics
+- DASH-02: Operations table (DataGrid style) showing active campaigns, delivery status, engagement metrics
+- DASH-03: Command panel (right side) with quick actions — warm all, create campaign, import contacts, view compliance
+- DASH-04: Chat queue panel (right side, below command panel) showing prioritized conversations with preview text
+- DASH-05: Wizard onboarding steps (3-step: Import → Segment → Campaign) with AI recommendations and guided mode
+
+**Plans:** TBD
+
+---
+
+### Phase 06: HITL Conversations + CRM (P1)
+**Status:** Not started
+**Goal:** Full conversation management — priority queue, active chat with voter context, handoff controls, voter CRM profile with engagement timeline
+
+**Requirements:** [HITL-01, HITL-02, CRM-01, CRM-02]
+
+- HITL-01: Three-column layout (left: priority queue, center: active chat, right: voter context + tags + history)
+- HITL-02: Handoff controls (auto handoff with reason, pause bot during human reply, auto-return by timeout, agent/region distribution)
+- CRM-01: Voter profile page (header with main data + engagement score, full interaction timeline, notes, checklist, next actions)
+- CRM-02: Engagement scoring (hot/warm/cold), trigger-based follow-up suggestions, visit/event/donation/response checklist
+
+**Plans:** TBD
+
+---
+
+### Phase 07: Compliance + Admin (P2)
+**Status:** Not started
+**Goal:** LGPD compliance module (opt-in tracking, anonymization, audit trail) and multi-user admin with role-based permissions scoped by region
+
+**Requirements:** [LGPD-01, LGPD-02, ADM-01, ADM-02]
+
+- LGPD-01: Consent management (active/expired/revoked opt-in cards, consent table, anonymization rules per profile)
+- LGPD-02: Audit trail timeline with export, compliance status cards
+- ADM-01: User management (list, roles: coordenador/cabo/voluntario, invite/remove)
+- ADM-02: Permission matrix (module × action), region-scoped access, permission change log
+
+**Plans:** TBD
+
+---
+
+### Phase 08: Reports + Polish (P2)
+**Status:** Not started
+**Goal:** Automated reports (daily/weekly performance, ROI, cost per contact), mobile offline capture, priority inbox, and final responsive/accessibility polish
+
+**Requirements:** [REP-01, REP-02, MOB-01, MOB-02, POL-01]
+
+- REP-01: Automated reports page (daily/weekly performance charts, ROI calculation, cost per engaged contact)
+- REP-02: Exportable report data (PDF/CSV), scheduled email delivery
+- MOB-01: Mobile offline capture form (minimal fields, offline/online indicator, local sync queue)
+- MOB-02: Mobile priority inbox (urgent conversations, quick reply templates, handoff badge)
+- POL-01: Final responsive pass, accessibility audit, performance optimization
+
+**Plans:** TBD
+
+---
+
+## Dependency Graph
+
+```
+Phase 01 (Shell) ──────────────────────┐
+                                       ├── Phase 05 (Dashboard V2)
+Phase 02 (DB Schema) ─┬── Phase 03 ───┤
+                       │   (Import)    ├── Phase 04 (Campaigns) ──┐
+                       │               │                          ├── Phase 08 (Reports)
+                       ├── Phase 07 ───┘                          │
+                       │   (Compliance)                           │
+                       └── Phase 06 (HITL/CRM) ───────────────────┘
+```
+
+## Wave Execution Plan
+
+| Wave | Phases | Parallelizable |
+|------|--------|----------------|
+| 1 | 01 (Shell) + 02 (DB) | Yes — no file overlap |
+| 2 | 03 (Import/Seg) | After DB schema exists |
+| 3 | 04 (Campaigns) + 07 (Compliance) | After segments exist; compliance independent |
+| 4 | 05 (Dashboard V2) | After shell + campaigns exist |
+| 5 | 06 (HITL/CRM) | After dashboard + DB |
+| 6 | 08 (Reports + Polish) | After campaigns + HITL |
+
+## Technical Decisions
+
+| Decision | Choice | Reason |
+|----------|--------|--------|
+| Visual direction | V2 Editorial Light (Radix Command) | Selected by user from 4 Paper options |
+| Existing stack | Keep Next.js 16 + shadcn + Drizzle | Already deployed and working |
+| Chat location | Integrated in dashboard panel | User requirement — no separate chat page |
+| User experience | Wizard + guided mode + microcopy | "Magical" product feel for non-technical operators |
+| New shadcn components | Install as needed (Dialog, Sheet, Table, Tabs, Textarea, DataTable) | Many primitives currently missing |
+| Form validation | Add zod + react-hook-form | Currently manual validation everywhere |
+| Data fetching | Add SWR or React Query | Replace raw useEffect + fetch pattern |

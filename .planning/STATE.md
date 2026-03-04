@@ -1,67 +1,70 @@
-# EEL — Project State
+# EEL Eleicao — Project State
 
-## Current Phase
-**Phase 5: Pages Overhaul** — Próximo
+## Current Position
+**Starting Phase 01 (V2 Shell + Design Tokens) + Phase 02 (DB Schema Expansion)**
+Wave 1 — both phases can run in parallel.
 
-## Completed Phases
-- ✅ **Phase 1** — Design System + Paper Prototyping (9 artboards no Paper/Pencil)
-- ✅ **Phase 2** — Foundation: Supabase + Design System Code (`6e9c73b`)
-- ✅ **Phase 3** — Layout & Navigation Overhaul (`47875c8`, `f09cfe1`)
-- ✅ **Phase 4** — Dashboard Premium + Charts (`b489910`)
+## Project History
 
-## Position
-Phase 4 completa.
+### EEL v1 (Chip Warming Manager) — COMPLETE
+All 6 original phases shipped and deployed to `zap.iqui27.app`:
+- Phase 1: Design System + Paper Prototyping
+- Phase 2: Foundation (Supabase/Drizzle)
+- Phase 3: Layout & Navigation
+- Phase 4: Dashboard Premium + Charts
+- Phase 5: Pages Overhaul
+- Phase 6: Polish & Animations
+- Deploy: Evolution API v2, auth fixes, standalone output
 
-### Phase 4 — O que foi feito
-- Recharts instalado
-- **Todas as API routes migradas** de JSON para Drizzle/Supabase:
-  - chips, contacts, clusters, logs, settings, auth (login/logout), setup, warming, cron/warming
-  - `warming-compat.ts`: adapter bridge para manter warming.ts sem reescrita
-- **Dashboard completamente reescrito** (page.tsx):
-  - 4 KPI cards animados (Framer Motion stagger): chips, conectados, aquecimentos, taxa de sucesso
-  - AreaChart 7 dias (Recharts): linhas success/error com fill gradients
-  - PieChart donut: success rate com % no centro
-  - Lista de chips (top 5) com StatusBadge
-  - Activity feed (últimos 8 logs) com ícones check/x e tempo relativo
-  - Stats row: contatos, clusters, ok, erros — todos links para respectivas páginas
-  - Skeleton loading, Sonner toasts, botão refresh com spin animation
-- Build limpo: 22 rotas, 0 erros TypeScript
+### EEL Eleicao (Electoral Campaign Dashboard) — IN PROGRESS
+Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap created.
 
 ## Decisions Made
-- [x] Database: Supabase PostgreSQL
-- [x] ORM: Drizzle (postgres-js)
-- [x] Dark + Light mode (padrão dark)
-- [x] Charts: Recharts — em uso no dashboard
-- [x] Animations: Framer Motion — sidebar + dashboard cards
-- [x] Toasts: Sonner
-- [x] Icons: Lucide
-- [x] Mobile: bottom nav + drawer
+- [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
+- [x] Database: Supabase PostgreSQL (already in use)
+- [x] ORM: Drizzle (already in use)
+- [x] Chat in dashboard: Panel integrated in main view, not separate page
+- [x] UX philosophy: Wizard + guided mode + explanatory microcopy
+- [x] MVP priority: P0 = Import → Segmentation → Campaigns → Send/Monitor
+- [x] Keep existing stack (Next.js 16, React 19, shadcn/ui, Tailwind 4)
 
 ## Blockers
-Nenhum.
+None.
 
-## Key Files
+## Key Files (Current)
 ```
+.planning/
+  PROJECT.md           # Product definition
+  ROADMAP.md           # 8-phase roadmap with requirements
+  STATE.md             # This file
+  DESIGN-BRIEF.md      # Original design tokens
+  PAPER-WIREFRAMES-ELEICAO.md  # Full IA + wireframe specs
+  SUPABASE-SCHEMA.md   # Existing DB schema
+
 src/app/
-  page.tsx              # Dashboard premium com Recharts + Framer Motion
-  api/chips/route.ts    # → db-chips
-  api/contacts/route.ts # → db-contacts
-  api/clusters/route.ts # → db-contacts
-  api/logs/route.ts     # → db-logs
-  api/settings/route.ts # → db-config
-  api/auth/*/route.ts   # → db-auth
-  api/setup/route.ts    # → db-config
-  api/warming/route.ts  # → db-chips + warming-compat
-  api/cron/warming/route.ts
-src/lib/
-  warming-compat.ts     # Adapter Drizzle Config/Chip → legacy AppConfig/Chip
+  page.tsx              # Dashboard (to be rebuilt as V2)
+  layout.tsx            # Root layout (Geist fonts, ThemeProvider)
+  template.tsx          # Framer Motion page transitions
+  chips/page.tsx        # Chips CRUD
+  contacts/page.tsx     # Contacts CRUD
+  clusters/page.tsx     # Clusters card list
+  history/page.tsx      # Logs table
+  settings/page.tsx     # Settings sections
+  login/page.tsx        # Login
+  setup/page.tsx        # Setup wizard
+
+src/db/
+  index.ts              # Drizzle client
+  schema.ts             # Current tables: config, chips, contacts, clusters, logs, sessions
+
+src/components/
+  SidebarLayout.tsx     # Current shell (to be replaced with V2)
+  command-palette.tsx   # Cmd+K palette
+  theme-provider.tsx    # Dark/light theme
+  ui/                   # shadcn primitives (button, card, input, label, select, skeleton, switch)
 ```
 
-## Next Actions (Phase 5)
-1. **Chips page** — tabela premium com filtros, badge status, toggle inline, ações edit/delete
-2. **Contacts page** — busca, filtros, toggle inline, detail panel
-3. **Clusters page** — lista visual com drag-drop reorder, preview de mensagens
-4. **History page** — tabela de logs com filtros, paginação, export
-5. **Settings page** — seções colapsáveis, validação em tempo real
-6. **Login page** — split screen premium
-7. Migrar warming.ts para usar db-* libs (remover dependência dos JSON antigos)
+## Next Actions
+1. Plan Phase 01 (V2 Shell) — detailed PLAN.md with tasks
+2. Plan Phase 02 (DB Schema) — detailed PLAN.md with tasks
+3. Execute Wave 1 in parallel
