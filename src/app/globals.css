@@ -65,7 +65,7 @@
   --radius: 0.5rem; /* 8px — sharp, modern */
 
   /* backgrounds */
-  --background: #FAFAFA;
+  --background: #F8F6F1;
   --foreground: #0A0A0A;
 
   /* surfaces */
@@ -94,8 +94,8 @@
   --destructive: #EF4444;
 
   /* borders + inputs */
-  --border: #E5E7EB;
-  --input: #E5E7EB;
+  --border: #E2DFD8;
+  --input: #E2DFD8;
   --ring: #2563EB;
 
   /* semantic */
@@ -112,13 +112,13 @@
   --chart-5: #EF4444;
 
   /* sidebar */
-  --sidebar: #FFFFFF;
+  --sidebar: #F2F0EB;
   --sidebar-foreground: #0A0A0A;
   --sidebar-primary: #2563EB;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #EFF6FF;
-  --sidebar-accent-foreground: #2563EB;
-  --sidebar-border: #E5E7EB;
+  --sidebar-accent: #E8E5DE;
+  --sidebar-accent-foreground: #1A1A1A;
+  --sidebar-border: #DDD9D1;
   --sidebar-ring: #2563EB;
 }
 
@@ -271,5 +271,16 @@
   @keyframes shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+  }
+
+  /* V2 Editorial Light tokens */
+  .v2-headline {
+    font-family: Georgia, 'Times New Roman', serif;
+    letter-spacing: -0.02em;
+  }
+  .v2-density-compact {
+    --space-card-padding: 12px;
+    --space-card-gap: 8px;
+    --space-table-row-height: 40px;
   }
 }
