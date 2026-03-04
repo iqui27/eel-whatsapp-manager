@@ -1,11 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Loader2, Lock } from 'lucide-react';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,7 +19,8 @@ export default function LoginPage() {
         body: JSON.stringify({ password }),
       });
       if (!res.ok) throw new Error();
-      router.push('/');
+      // Hard navigate so the browser sends the new auth cookie
+      window.location.href = '/';
     } catch {
       setError('Senha incorreta. Tente novamente.');
     } finally {
