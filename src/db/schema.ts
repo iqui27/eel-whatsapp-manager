@@ -128,6 +128,83 @@ export const sessions = pgTable(
   (t) => [index('idx_sessions_token').on(t.token)],
 );
 
+// ─── Voters ──────────────────────────────────────────────────────────────────
+export const voters = pgTable('voters', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  name: text('name').notNull(),
+  cpf: text('cpf'),
+  phone: text('phone').notNull(),
+  zone: text('zone'),
+  section: text('section'),
+  city: text('city'),
+  neighborhood: text('neighborhood'),
+  tags: text('tags').array().default(sql`'{}'`),
+  engagementScore: integer('engagement_score').default(0),
+  optInStatus: text('opt_in_status', { enum: ['active', 'expired', 'revoked', 'pending'] }).default('pending'),
+  optInDate: timestamp('opt_in_date', { withTimezone: true }),
+  lastContacted: timestamp('last_contacted', { withTimezone: true }),
+  contactCount: integer('contact_count').default(0),
+  enabled: boolean('enabled').default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_voters_phone').on(t.phone),
+  index('idx_voters_zone').on(t.zone),
+  index('idx_voters_opt_in').on(t.optInStatus),
+  index('idx_voters_engagement').on(t.engagementScore),
+]);
+
+// ─── Segments ─────────────────────────────────────────────────────────────────
+// Declared before campaigns because campaigns references segments via FK
+export const segments = pgTable('segments', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  name: text('name').notNull(),
+  filters: text('filters').notNull(),
+  audienceCount: integer('audience_count').default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
+});
+
+// ─── Campaigns ────────────────────────────────────────────────────────────────
+export const campaigns = pgTable('campaigns', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  name: text('name').notNull(),
+  template: text('template').notNull(),
+  variables: text('variables').array().default(sql`'{}'`),
+  status: text('status', { enum: ['draft', 'scheduled', 'sending', 'sent', 'paused', 'cancelled'] }).default('draft'),
+  segmentId: uuid('segment_id').references(() => segments.id, { onDelete: 'set null' }),
+  scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
+  windowStart: time('window_start').default('08:00'),
+  windowEnd: time('window_end').default('22:00'),
+  abEnabled: boolean('ab_enabled').default(false),
+  abVariantB: text('ab_variant_b'),
+  abSplitPercent: integer('ab_split_percent').default(50),
+  totalSent: integer('total_sent').default(0),
+  totalDelivered: integer('total_delivered').default(0),
+  totalRead: integer('total_read').default(0),
+  totalReplied: integer('total_replied').default(0),
+  totalFailed: integer('total_failed').default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_campaigns_status').on(t.status),
+  index('idx_campaigns_segment').on(t.segmentId),
+]);
+
+// ─── Junction: Segment ↔ Voter ────────────────────────────────────────────────
+export const segmentVoters = pgTable(
+  'segment_voters',
+  {
+    segmentId: uuid('segment_id')
+      .notNull()
+      .references(() => segments.id, { onDelete: 'cascade' }),
+    voterId: uuid('voter_id')
+      .notNull()
+      .references(() => voters.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.segmentId, t.voterId] })],
+);
+
 // ─── Types (inferred from schema) ───────────────────────────────────────────
 export type Config = typeof config.$inferSelect;
 export type NewConfig = typeof config.$inferInsert;
@@ -146,3 +223,12 @@ export type NewLog = typeof logs.$inferInsert;
 
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
+
+export type Voter = typeof voters.$inferSelect;
+export type NewVoter = typeof voters.$inferInsert;
+
+export type Campaign = typeof campaigns.$inferSelect;
+export type NewCampaign = typeof campaigns.$inferInsert;
+
+export type Segment = typeof segments.$inferSelect;
+export type NewSegment = typeof segments.$inferInsert;
