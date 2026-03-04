@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2, Lock } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,18 +14,13 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
-      const response = await fetch('/api/auth/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
       });
-
-      if (!response.ok) {
-        throw new Error('Senha incorreta');
-      }
-
+      if (!res.ok) throw new Error();
       router.push('/');
     } catch {
       setError('Senha incorreta. Tente novamente.');
@@ -34,58 +30,124 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#0B1220]">
-      {/* Left panel – brand */}
-      <div className="hidden lg:flex w-1/2 flex-col justify-center px-16 gap-4">
-        <div className="text-[48px] font-bold text-white leading-none">EEL</div>
-        <div className="text-[18px] text-[#A1A1AA]">WhatsApp Manager</div>
-        <p className="text-[14px] text-[#52525B] max-w-xs mt-4 leading-relaxed">
+    <div
+      className="min-h-screen flex"
+      style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}
+    >
+      {/* Left panel — brand */}
+      <div className="hidden lg:flex w-1/2 flex-col justify-center px-16 gap-6"
+        style={{ borderRight: '1px solid var(--border)' }}
+      >
+        {/* Logo mark */}
+        <div className="flex items-center gap-3">
+          <div
+            className="flex h-12 w-12 items-center justify-center rounded-xl text-xl font-bold"
+            style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
+          >
+            E
+          </div>
+          <div>
+            <div className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>EEL</div>
+            <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>WhatsApp Manager</div>
+          </div>
+        </div>
+
+        <p className="text-sm leading-relaxed max-w-xs" style={{ color: 'var(--muted-foreground)' }}>
           Gerencie seus chips WhatsApp e automatize o aquecimento de números com a Evolution API.
         </p>
-        <div className="flex items-center gap-2 mt-8">
-          <div className="w-2 h-2 rounded-full bg-[#22C55E]" />
-          <span className="text-[13px] text-[#71717A]">Sistema operacional</span>
+
+        {/* Feature pills */}
+        <div className="flex flex-col gap-2">
+          {['Gestão de chips em tempo real', 'Aquecimento automático de números', 'Dashboard com métricas detalhadas'].map(f => (
+            <div key={f} className="flex items-center gap-2">
+              <div className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--success)' }} />
+              <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{f}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Right panel – login form */}
+      {/* Right panel — form */}
       <div className="flex flex-1 items-center justify-center px-8">
-        <div className="w-full max-w-sm bg-[#111827] border border-[#1F2937] rounded-2xl p-8 flex flex-col gap-6">
+        <div
+          className="w-full max-w-sm rounded-2xl p-8 flex flex-col gap-6"
+          style={{
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+          }}
+        >
           {/* Mobile brand */}
-          <div className="lg:hidden text-center">
-            <div className="text-[32px] font-bold text-white">EEL</div>
-            <div className="text-[13px] text-[#71717A]">WhatsApp Manager</div>
+          <div className="lg:hidden flex flex-col items-center gap-2 pb-2">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-lg font-bold"
+              style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
+            >
+              E
+            </div>
+            <div className="text-center">
+              <div className="font-bold" style={{ color: 'var(--foreground)' }}>EEL</div>
+              <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>WhatsApp Manager</div>
+            </div>
           </div>
 
           <div>
-            <h1 className="text-[22px] font-semibold text-white">Bem-vindo</h1>
-            <p className="text-[14px] text-[#71717A] mt-1">Digite sua senha para continuar</p>
+            <h1 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>Bem-vindo</h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>Digite sua senha para continuar</p>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] text-[#A1A1AA] font-medium">Senha</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                autoFocus
-                className="h-11 rounded-lg border border-[#374151] bg-[#1F2937] text-white text-[14px] px-3 outline-none focus:border-[#3B82F6] placeholder:text-[#4B5563]"
-              />
+            <div className="space-y-1.5">
+              <label
+                className="text-xs font-medium uppercase tracking-wide"
+                style={{ color: 'var(--muted-foreground)' }}
+              >
+                Senha
+              </label>
+              <div className="relative flex items-center">
+                <Lock
+                  className="absolute left-3 h-3.5 w-3.5 pointer-events-none"
+                  style={{ color: 'var(--muted-foreground)' }}
+                />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoFocus
+                  className="flex h-11 w-full rounded-lg pl-9 pr-3 text-sm focus:outline-none focus:ring-2 transition-colors"
+                  style={{
+                    border: '1px solid var(--border)',
+                    background: 'var(--background)',
+                    color: 'var(--foreground)',
+                    '--tw-ring-color': 'var(--ring)',
+                  } as React.CSSProperties}
+                />
+              </div>
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 text-[13px] text-[#EF4444]">
-                <span>⚠️</span> {error}
+              <div
+                className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs"
+                style={{
+                  background: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
+                  color: 'var(--destructive)',
+                  border: '1px solid color-mix(in srgb, var(--destructive) 25%, transparent)',
+                }}
+              >
+                <span>⚠</span> {error}
               </div>
             )}
 
             <button
               type="submit"
               disabled={loading || !password}
-              className="h-11 rounded-lg bg-[#3B82F6] text-white text-[14px] font-medium border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#2563EB] transition-colors"
+              className="flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: 'var(--primary)',
+                color: 'var(--primary-foreground)',
+              }}
             >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
           </form>

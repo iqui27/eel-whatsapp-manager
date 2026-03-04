@@ -1,462 +1,193 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Trash2, Layers, Loader2, X, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import SidebarLayout from '@/components/SidebarLayout';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface Cluster {
-  id: string;
-  name: string;
-  messages: string[];
-  maxMessagesPerDay: number;
-  priority: number;
-  windowStart?: string;
-  windowEnd?: string;
-  enabled: boolean;
+  id: string; name: string; messages: string[] | null;
+  maxMessagesPerDay: number | null; priority: number | null;
+  windowStart: string | null; windowEnd: string | null; enabled: boolean | null;
 }
-
-interface Contact {
-  id: string;
-  clusterIds: string[];
-}
-
-const initialCluster = {
-  name: '',
-  messagesText: '',
-  maxMessagesPerDay: 10,
-  priority: 1,
-  windowStart: '08:00',
-  windowEnd: '22:00',
-};
-
-const initialEditCluster = {
-  id: '',
-  name: '',
-  messagesText: '',
-  maxMessagesPerDay: 10,
-  priority: 1,
-  windowStart: '08:00',
-  windowEnd: '22:00',
-};
 
 export default function ClustersPage() {
   const router = useRouter();
   const [clusters, setClusters] = useState<Cluster[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newCluster, setNewCluster] = useState(initialCluster);
+  const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editingCluster, setEditingCluster] = useState(initialEditCluster);
-  const [savingEdit, setSavingEdit] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: '', messagesText: '', maxMessagesPerDay: 10, priority: 1, windowStart: '08:00', windowEnd: '22:00' });
 
-  useEffect(() => {
-    void fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setError(null);
+  const fetchClusters = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      const [clustersRes, contactsRes] = await Promise.all([
-        fetch('/api/clusters'),
-        fetch('/api/contacts'),
-      ]);
+      const res = await fetch('/api/clusters');
+      if (res.status === 401) { router.push('/login'); return; }
+      setClusters(await res.json());
+    } catch { toast.error('Erro ao carregar clusters'); }
+    finally { setLoading(false); }
+  }, [router]);
 
-      if (!clustersRes.ok || !contactsRes.ok) {
-        if (clustersRes.status === 401 || contactsRes.status === 401) {
-          router.push('/login');
-          return;
-        }
-        throw new Error('Falha ao carregar clusters');
-      }
+  useEffect(() => { fetchClusters(); }, [fetchClusters]);
 
-      const clustersData = await clustersRes.json() as Cluster[];
-      const contactsData = await contactsRes.json() as Contact[];
-      setClusters(clustersData);
-      setContacts(contactsData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar clusters');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getContactsCount = (clusterId: string) => contacts.filter((contact) => contact.clusterIds.includes(clusterId)).length;
-
-  const handleAddCluster = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSaving(true);
-
-    const messages = newCluster.messagesText
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
-
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault(); setSaving(true);
+    const messages = form.messagesText.split('\n').map(m => m.trim()).filter(Boolean);
+    if (messages.length === 0) { toast.error('Adicione pelo menos uma mensagem'); setSaving(false); return; }
     try {
-      const response = await fetch('/api/clusters', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newCluster.name,
-          messages,
-          maxMessagesPerDay: Number(newCluster.maxMessagesPerDay),
-          priority: Number(newCluster.priority),
-          windowStart: newCluster.windowStart,
-          windowEnd: newCluster.windowEnd,
-          enabled: true,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json() as { error?: string };
-        throw new Error(data.error ?? 'Erro ao criar cluster');
-      }
-
-      setNewCluster(initialCluster);
-      setShowAddForm(false);
-      await fetchData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao criar cluster');
-    } finally {
-      setSaving(false);
-    }
+      const res = await fetch('/api/clusters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, messages }) });
+      if (res.ok) { toast.success('Cluster criado'); setForm({ name: '', messagesText: '', maxMessagesPerDay: 10, priority: 1, windowStart: '08:00', windowEnd: '22:00' }); setShowForm(false); fetchClusters(true); }
+      else { const d = await res.json(); toast.error(d.error || 'Erro ao criar cluster'); }
+    } catch { toast.error('Erro ao criar cluster'); }
+    finally { setSaving(false); }
   };
 
-  const handleToggle = async (cluster: Cluster) => {
+  const handleToggle = async (c: Cluster) => {
     try {
-      await fetch('/api/clusters', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: cluster.id,
-          updates: { enabled: !cluster.enabled },
-        }),
-      });
-      await fetchData();
-    } catch {
-      setError('Erro ao atualizar cluster');
-    }
+      await fetch('/api/clusters', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id, updates: { enabled: !c.enabled } }) });
+      fetchClusters(true);
+    } catch { toast.error('Erro ao atualizar cluster'); }
   };
 
-  const handleDelete = async (cluster: Cluster) => {
-    if (!window.confirm(`Excluir o cluster "${cluster.name}"?`)) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/clusters?id=${cluster.id}`, { method: 'DELETE' });
-      if (!response.ok) {
-        throw new Error('Falha ao excluir');
-      }
-      await fetchData();
-    } catch {
-      setError('Erro ao excluir cluster');
-    }
+  const handleDelete = async (c: Cluster) => {
+    if (!confirm(`Excluir cluster "${c.name}"?`)) return;
+    try { await fetch(`/api/clusters?id=${c.id}`, { method: 'DELETE' }); toast.success('Cluster removido'); fetchClusters(true); }
+    catch { toast.error('Erro ao deletar cluster'); }
   };
-
-  const handleOpenEdit = (cluster: Cluster) => {
-    setEditingCluster({
-      id: cluster.id,
-      name: cluster.name,
-      messagesText: cluster.messages.join('\n'),
-      maxMessagesPerDay: cluster.maxMessagesPerDay,
-      priority: cluster.priority,
-      windowStart: cluster.windowStart ?? '08:00',
-      windowEnd: cluster.windowEnd ?? '22:00',
-    });
-  };
-
-  const handleUpdateCluster = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!editingCluster.id) {
-      return;
-    }
-
-    setSavingEdit(true);
-    const messages = editingCluster.messagesText
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    try {
-      const response = await fetch('/api/clusters', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: editingCluster.id,
-          updates: {
-            name: editingCluster.name,
-            messages,
-            maxMessagesPerDay: Number(editingCluster.maxMessagesPerDay),
-            priority: Number(editingCluster.priority),
-            windowStart: editingCluster.windowStart,
-            windowEnd: editingCluster.windowEnd,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json() as { error?: string };
-        throw new Error(data.error ?? 'Erro ao atualizar cluster');
-      }
-
-      setEditingCluster(initialEditCluster);
-      await fetchData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao atualizar cluster');
-    } finally {
-      setSavingEdit(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <SidebarLayout currentPage="clusters">
-        <div className="flex items-center justify-center h-full">
-          <p>Carregando...</p>
-        </div>
-      </SidebarLayout>
-    );
-  }
 
   return (
-    <SidebarLayout currentPage="clusters">
-      <div className="flex flex-col gap-6">
-        <div className="flex justify-between items-center">
+    <SidebarLayout currentPage="clusters" pageTitle="Clusters">
+      <div className="p-6 space-y-5">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-[24px] text-[#18181b] font-bold">Clusters</h1>
-            <p className="text-[14px] text-[#71717a] mt-1">Agrupe contatos e personalize mensagens de aquecimento</p>
+            <h1 className="text-xl font-semibold text-foreground">Clusters</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">{clusters.length} cluster{clusters.length !== 1 ? 's' : ''} de mensagens</p>
           </div>
-          <button
-            onClick={() => setShowAddForm((prev) => !prev)}
-            className="flex items-center rounded-lg py-2.5 px-4 gap-2 bg-[#3b82f6] text-white border-none text-[14px] font-medium cursor-pointer"
-          >
-            + Novo Cluster
+          <button onClick={() => setShowForm(v => !v)} className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            <Plus className="h-4 w-4" /> Novo cluster
           </button>
         </div>
 
-        {error && (
-          <div className="flex items-center gap-2 rounded-lg bg-[#fef2f2] border border-[#fecaca] px-4 py-3">
-            <span className="text-[#ef4444] text-[14px]">{error}</span>
-            <button
-              onClick={() => setError(null)}
-              className="ml-auto text-[#ef4444] text-[18px] border-none bg-transparent cursor-pointer leading-none"
-            >
-              ×
-            </button>
-          </div>
-        )}
-
-        {showAddForm && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Novo Cluster</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAddCluster} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Nome do Cluster</Label>
-                    <Input
-                      value={newCluster.name}
-                      onChange={(event) => setNewCluster((prev) => ({ ...prev, name: event.target.value }))}
-                      placeholder="Clientes"
-                      required
-                    />
+        <AnimatePresence>
+          {showForm && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+              <form onSubmit={handleAdd} className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground">Novo cluster</h2>
+                  <button type="button" onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Nome</label>
+                    <input type="text" placeholder="Ex: Boas-vindas" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Máx. mensagens por dia</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={newCluster.maxMessagesPerDay}
-                      onChange={(event) => setNewCluster((prev) => ({ ...prev, maxMessagesPerDay: Number(event.target.value) }))}
-                      required
-                    />
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Máx. por dia</label>
+                    <input type="number" min={1} value={form.maxMessagesPerDay} onChange={e => setForm(f => ({ ...f, maxMessagesPerDay: +e.target.value }))}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Prioridade (1 = primeiro)</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={newCluster.priority}
-                      onChange={(event) => setNewCluster((prev) => ({ ...prev, priority: Number(event.target.value) }))}
-                      required
-                    />
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Prioridade</label>
+                    <input type="number" min={1} value={form.priority} onChange={e => setForm(f => ({ ...f, priority: +e.target.value }))}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-2">
-                      <Label>Janela início</Label>
-                      <Input
-                        type="time"
-                        value={newCluster.windowStart}
-                        onChange={(event) => setNewCluster((prev) => ({ ...prev, windowStart: event.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Janela fim</Label>
-                      <Input
-                        type="time"
-                        value={newCluster.windowEnd}
-                        onChange={(event) => setNewCluster((prev) => ({ ...prev, windowEnd: event.target.value }))}
-                      />
-                    </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Janela início</label>
+                    <input type="time" value={form.windowStart} onChange={e => setForm(f => ({ ...f, windowStart: e.target.value }))}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Janela fim</label>
+                    <input type="time" value={form.windowEnd} onChange={e => setForm(f => ({ ...f, windowEnd: e.target.value }))}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Mensagens (1 por linha, com Spintax)</Label>
-                  <textarea
-                    value={newCluster.messagesText}
-                    onChange={(event) => setNewCluster((prev) => ({ ...prev, messagesText: event.target.value }))}
-                    placeholder="Olá {tudo bem|como vai}?"
-                    rows={6}
-                    className="w-full rounded-md border border-[#e4e4e7] bg-white p-3 text-[14px] outline-none"
-                    required
-                  />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Mensagens <span className="text-muted-foreground/60">(uma por linha)</span></label>
+                  <textarea rows={5} placeholder={"Olá! Como posso ajudar?\nBem-vindo ao nosso serviço!\n{Opção A|Opção B} — use spintax com { | }"} value={form.messagesText}
+                    onChange={e => setForm(f => ({ ...f, messagesText: e.target.value }))}
+                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
+                  <p className="text-xs text-muted-foreground">{form.messagesText.split('\n').filter(m => m.trim()).length} mensagem{form.messagesText.split('\n').filter(m => m.trim()).length !== 1 ? 's' : ''}</p>
                 </div>
-
-                <Button type="submit" disabled={saving}>
-                  {saving ? 'Salvando...' : 'Salvar Cluster'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        {editingCluster.id && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Editar Cluster</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleUpdateCluster} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Nome do Cluster</Label>
-                    <Input
-                      value={editingCluster.name}
-                      onChange={(event) => setEditingCluster((prev) => ({ ...prev, name: event.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Máx. mensagens por dia</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={editingCluster.maxMessagesPerDay}
-                      onChange={(event) => setEditingCluster((prev) => ({ ...prev, maxMessagesPerDay: Number(event.target.value) }))}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Prioridade (1 = primeiro)</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={editingCluster.priority}
-                      onChange={(event) => setEditingCluster((prev) => ({ ...prev, priority: Number(event.target.value) }))}
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-2">
-                      <Label>Janela início</Label>
-                      <Input
-                        type="time"
-                        value={editingCluster.windowStart}
-                        onChange={(event) => setEditingCluster((prev) => ({ ...prev, windowStart: event.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Janela fim</Label>
-                      <Input
-                        type="time"
-                        value={editingCluster.windowEnd}
-                        onChange={(event) => setEditingCluster((prev) => ({ ...prev, windowEnd: event.target.value }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Mensagens (1 por linha, com Spintax)</Label>
-                  <textarea
-                    value={editingCluster.messagesText}
-                    onChange={(event) => setEditingCluster((prev) => ({ ...prev, messagesText: event.target.value }))}
-                    rows={6}
-                    className="w-full rounded-md border border-[#e4e4e7] bg-white p-3 text-[14px] outline-none"
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={savingEdit}>
-                    {savingEdit ? 'Salvando...' : 'Salvar Alterações'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setEditingCluster(initialEditCluster)} disabled={savingEdit}>
-                    Cancelar
-                  </Button>
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => setShowForm(false)} className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent">Cancelar</button>
+                  <button type="submit" disabled={saving} className="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
+                    {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}{saving ? 'Salvando...' : 'Salvar'}
+                  </button>
                 </div>
               </form>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="rounded-xl overflow-clip bg-white border border-solid border-[#e4e4e7]">
-          <div className="flex h-12 items-center px-4 bg-[#f4f4f5]">
-            <div className="text-[13px] w-[180px] text-[#52525b] font-semibold shrink-0">Nome</div>
-            <div className="text-[13px] w-[120px] text-[#52525b] font-semibold shrink-0">Contatos</div>
-            <div className="text-[13px] w-[220px] text-[#52525b] font-semibold shrink-0">Mensagens</div>
-            <div className="text-[13px] w-[130px] text-[#52525b] font-semibold shrink-0">Máx/Dia</div>
-            <div className="text-[13px] w-[110px] text-[#52525b] font-semibold shrink-0">Prioridade</div>
-            <div className="text-[13px] w-[140px] text-[#52525b] font-semibold shrink-0">Janela</div>
-            <div className="text-[13px] w-[130px] text-[#52525b] font-semibold shrink-0">Ações</div>
-          </div>
-
-          {clusters.map((cluster, index) => (
-            <div
-              key={cluster.id}
-              className={`flex h-14 items-center px-4 ${index < clusters.length - 1 ? 'border-b border-b-solid border-b-[#f4f4f5]' : ''}`}
-            >
-              <div className="text-[14px] w-[180px] text-[#18181b] shrink-0">{cluster.name}</div>
-              <div className="text-[14px] w-[120px] text-[#71717a] shrink-0">{getContactsCount(cluster.id)}</div>
-              <div className="text-[14px] w-[220px] text-[#71717a] truncate shrink-0">{cluster.messages[0] ?? '—'}</div>
-              <div className="text-[14px] w-[130px] text-[#71717a] shrink-0">{cluster.maxMessagesPerDay}</div>
-              <div className="text-[14px] w-[110px] text-[#71717a] shrink-0">{cluster.priority}</div>
-              <div className="text-[14px] w-[140px] text-[#71717a] shrink-0">{cluster.windowStart ?? '--:--'} - {cluster.windowEnd ?? '--:--'}</div>
-              <div className="flex w-[130px] gap-2 items-center shrink-0">
-                <Switch checked={cluster.enabled} onCheckedChange={() => void handleToggle(cluster)} />
-                <button
-                  onClick={() => handleOpenEdit(cluster)}
-                  className="text-[14px] border-none bg-transparent cursor-pointer"
-                  title="Editar cluster"
-                >
-                  ✏️
-                </button>
-                <button
-                  onClick={() => void handleDelete(cluster)}
-                  className="text-[14px] border-none bg-transparent cursor-pointer"
-                >
-                  🗑️
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {clusters.length === 0 && (
-            <div className="flex h-24 items-center justify-center text-[#71717a]">
-              Nenhum cluster cadastrado
-            </div>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
+
+        {loading ? (
+          <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-20 rounded-xl border border-border bg-card shimmer" />)}</div>
+        ) : clusters.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-border text-muted-foreground gap-3">
+            <Layers className="h-10 w-10 opacity-30" />
+            <p className="text-sm">Nenhum cluster criado.</p>
+            <button onClick={() => setShowForm(true)} className="text-sm text-primary hover:underline">Criar primeiro cluster</button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {clusters.sort((a, b) => (a.priority ?? 1) - (b.priority ?? 1)).map((cluster, i) => {
+              const isOpen = expanded === cluster.id;
+              const msgs = cluster.messages ?? [];
+              return (
+                <motion.div key={cluster.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                  className={cn('rounded-xl border border-border bg-card overflow-hidden', !cluster.enabled && 'opacity-60')}>
+                  <div className="flex items-center gap-4 px-4 py-3.5">
+                    {/* Priority badge */}
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                      {cluster.priority ?? 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground">{cluster.name}</p>
+                      <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+                        <span>{msgs.length} mensagem{msgs.length !== 1 ? 's' : ''}</span>
+                        <span>·</span>
+                        <span>Máx. {cluster.maxMessagesPerDay ?? 10}/dia</span>
+                        <span>·</span>
+                        <span>{cluster.windowStart ?? '08:00'} – {cluster.windowEnd ?? '22:00'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Switch checked={cluster.enabled ?? false} onCheckedChange={() => handleToggle(cluster)} />
+                      <button onClick={() => handleDelete(cluster)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => setExpanded(isOpen ? null : cluster.id)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">
+                        {isOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <AnimatePresence>
+                    {isOpen && (
+                      <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+                        <div className="border-t border-border px-4 py-3 space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Mensagens</p>
+                          {msgs.map((msg, j) => (
+                            <div key={j} className="flex items-start gap-2.5 rounded-lg bg-muted/50 px-3 py-2">
+                              <MessageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground mt-0.5" />
+                              <p className="text-xs text-foreground leading-relaxed">{msg}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </SidebarLayout>
   );
