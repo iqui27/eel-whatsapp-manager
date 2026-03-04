@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EEL — WhatsApp Manager
 
-## Getting Started
+Dashboard de gerenciamento de chips WhatsApp com suporte a clusters, aquecimento automático, contatos e logs.
 
-First, run the development server:
+## 🌐 Hospedagem
+
+| Ambiente | URL | Servidor |
+|----------|-----|----------|
+| **Produção** | https://zap.iqui27.app | Contabo Pessoal (`193.187.129.114`) |
+
+### Infraestrutura de Produção
+
+- **VPS**: Contabo Pessoal — `root@193.187.129.114` (Ubuntu 24.04, 8GB RAM, 145GB SSD)
+- **SSH**: chave `id_ed25519` salva no Bitwarden como "Contabo Pessoal"
+- **App**: `/opt/zap-app` — Node 22, porta `3002`
+- **Processo**: `systemd` → `zap-app.service` (auto-start habilitado)
+- **Proxy**: Nginx reverse proxy (`/etc/nginx/sites-enabled/zap.iqui27.app`)
+- **SSL**: Let's Encrypt via Certbot (renova automaticamente, expira 02/06/2026)
+- **Banco**: Supabase PostgreSQL (`db.xmmweyxoilvrnocshmyq.supabase.co`)
+
+### Comandos úteis no servidor
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Ver status da app
+systemctl status zap-app
+
+# Reiniciar
+systemctl restart zap-app
+
+# Ver logs em tempo real
+journalctl -u zap-app -f
+
+# Rebuild e deploy após mudanças
+cd /opt/zap-app
+git pull  # se usar git no servidor
+npm run build
+systemctl restart zap-app
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🛠 Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Framework**: Next.js 16 (App Router)
+- **Banco**: Supabase PostgreSQL + Drizzle ORM
+- **UI**: Tailwind CSS v4 + shadcn/ui + Framer Motion
+- **Charts**: Recharts
+- **Auth**: Session-based (cookies httpOnly, DB-backed)
+- **WhatsApp**: Evolution API v2
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🗂 Estrutura
 
-## Learn More
+```
+src/
+├── app/              # Rotas Next.js (App Router)
+│   ├── api/          # API routes (chips, clusters, contacts, logs, auth, cron)
+│   ├── chips/        # Gerenciamento de chips
+│   ├── clusters/     # Clusters de envio
+│   ├── contacts/     # Contatos
+│   ├── history/      # Histórico de logs
+│   ├── settings/     # Configurações (Evolution API URL/key)
+│   ├── setup/        # Setup inicial (primeira vez)
+│   └── login/        # Autenticação
+├── components/       # Componentes reutilizáveis
+├── db/               # Schema Drizzle + conexão Supabase
+└── lib/              # Lógica de negócio, Evolution API, warming
+```
 
-To learn more about Next.js, take a look at the following resources:
+## ⚙️ Variáveis de Ambiente
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```env
+DATABASE_URL=postgresql://...@db.xmmweyxoilvrnocshmyq.supabase.co:5432/postgres
+NODE_ENV=production
+PORT=3002
+CRON_SECRET=...
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🚀 Setup Inicial (primeiro acesso)
 
-## Deploy on Vercel
+1. Acesse https://zap.iqui27.app/setup
+2. Defina a senha de acesso
+3. Configure a URL e API Key da Evolution API
+4. Adicione os chips e comece a usar
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 💻 Desenvolvimento Local
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm install
+# Crie .env.local com DATABASE_URL
+npm run dev
+```
+
+Acesse [http://localhost:3000](http://localhost:3000).
+
+## 🗄 Migrations
+
+```bash
+# Aplicar schema no banco
+npx drizzle-kit push
+
+# Ver schema atual
+npx drizzle-kit studio
+```
