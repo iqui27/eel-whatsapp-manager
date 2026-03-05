@@ -5,12 +5,13 @@
 **Phase 02 (DB Schema) — COMPLETE** ✅
 **Phase 03 (Import + Segmentation) — COMPLETE** ✅
 **Phase 04 (Campaign Editor + Send) — COMPLETE** ✅
-Wave 1 + Wave 2 + Wave 3 complete.
+**Phase 05 (Dashboard V2 + Chat Panel) — COMPLETE** ✅
+Waves 1–4 complete.
 
-Progress: Phase 01 (2/2) + Phase 02 (2/2) + Phase 03 (2/2) + Phase 04 (2/2) = 8 plans done.
+Progress: Phase 01 (2/2) + Phase 02 (2/2) + Phase 03 (2/2) + Phase 04 (2/2) + Phase 05 (2/2) = 10 plans done.
 
-Last session: 2026-03-04 — Completed Phase 04 (Campaign editor + A/B test + scheduling + monitor)
-Stopped at: Phase 05 (Dashboard V2 + Chat Panel) — next up
+Last session: 2026-03-04 — Completed Phase 05 (Dashboard V2: KPIs, operations table, command panel, chat queue)
+Stopped at: Phase 06 (HITL Conversations + CRM) — next up
 
 ## Project History
 
@@ -36,6 +37,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - 04-01: Campaign list + split-pane editor + WhatsApp preview + CTA score + variable insertion
 - 04-02: A/B test panel + scheduling wizard + simulated send API + auto-refresh monitor page
 
+**Phase 05 — Dashboard V2 + Chat Panel — COMPLETE** ✅
+- 05-01: Electoral KPI row + operations table + command panel + onboarding wizard
+- 05-02: Conversations API route + chat queue panel (15s auto-refresh, priority dots)
+
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
 - [x] Database: Supabase PostgreSQL (already in use)
@@ -59,6 +64,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [x] campaign send is simulated (setTimeout) — real Evolution API integration is a separate hotfix phase
 - [x] monitor auto-refresh via polling (3s interval) — adequate for MVP; WebSocket/SSE deferred
 - [x] template field in campaigns table (not 'message') — schema uses English field names throughout
+- [x] dashboard KPI "Taxa de abertura" mocked at 62% — no WhatsApp read-tracking in DB; labeled "(sem rastreio)"
+- [x] useCountUp extracted to src/lib/use-count-up.ts — shared hook, 'use client' safe
+- [x] chat queue panel uses polling (15s) not WebSocket — simple and reliable for MVP
+- [x] onboarding wizard dismissed via localStorage key — acceptable for MVP single-user context
 
 ## Blockers
 None.
@@ -102,7 +111,9 @@ src/components/
 | 03-import-segmentation | 02 | 15 min | 2/2 | 1 created |
 | 04-campaigns | 01 | 30 min | 5/5 | 4 created |
 | 04-campaigns | 02 | 25 min | 5/5 | 5 created |
+| 05-dashboard-v2 | 01 | 20 min | 5/5 | 2 modified/created |
+| 05-dashboard-v2 | 02 | 15 min | 4/4 | 2 created |
 
 ## Next Actions
-1. Execute Phase 05 (Dashboard V2 + Chat Panel) — V2 KPI row, operations table, command panel, chat queue
-2. Execute Phase 06 (HITL Conversations + CRM) — priority queue, active chat, voter profile
+1. Execute Phase 06 (HITL Conversations + CRM) — priority queue, active chat, voter context panel, voter profile page
+2. Execute Phase 07 (Compliance + Admin) — LGPD consent management, audit trail, user/role admin
