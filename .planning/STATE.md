@@ -4,12 +4,13 @@
 **Phase 01 (V2 Shell) — COMPLETE** ✅
 **Phase 02 (DB Schema) — COMPLETE** ✅
 **Phase 03 (Import + Segmentation) — COMPLETE** ✅
-Wave 1 + Wave 2 complete.
+**Phase 04 (Campaign Editor + Send) — COMPLETE** ✅
+Wave 1 + Wave 2 + Wave 3 complete.
 
-Progress: Phase 01 (2/2) + Phase 02 (2/2) + Phase 03 (2/2) = 6 plans done.
+Progress: Phase 01 (2/2) + Phase 02 (2/2) + Phase 03 (2/2) + Phase 04 (2/2) = 8 plans done.
 
-Last session: 2026-03-04 — Completed Phase 03 (Import wizard + Segmentation page)
-Stopped at: Phase 04 (Campaign Editor + Send) — next up
+Last session: 2026-03-04 — Completed Phase 04 (Campaign editor + A/B test + scheduling + monitor)
+Stopped at: Phase 05 (Dashboard V2 + Chat Panel) — next up
 
 ## Project History
 
@@ -31,6 +32,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - 03-01: 4-step CSV import wizard (Upload → Mapping → Validation → Processing) + `/api/voters/import` bulk endpoint
 - 03-02: Segmentation page (filter builder AND/OR + audience preview panel + saved segments table)
 
+**Phase 04 — Campaign Editor + Send — COMPLETE** ✅
+- 04-01: Campaign list + split-pane editor + WhatsApp preview + CTA score + variable insertion
+- 04-02: A/B test panel + scheduling wizard + simulated send API + auto-refresh monitor page
+
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
 - [x] Database: Supabase PostgreSQL (already in use)
@@ -50,6 +55,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [x] filters stored as JSON string in segments table — API serializes object→string if needed
 - [x] audience calculation is client-side mock — real server-side filtering deferred to Phase 05 (query complexity vs value)
 - [x] import deduplication by phone number via `inArray` query — covers 95% of duplicate cases
+- [x] CTA score is a pure function in src/lib/cta-score.ts — zero React imports, fully testable
+- [x] campaign send is simulated (setTimeout) — real Evolution API integration is a separate hotfix phase
+- [x] monitor auto-refresh via polling (3s interval) — adequate for MVP; WebSocket/SSE deferred
+- [x] template field in campaigns table (not 'message') — schema uses English field names throughout
 
 ## Blockers
 None.
@@ -91,7 +100,9 @@ src/components/
 | 02-db-schema | 02 | 22 min | 2/2 | 1+6 created |
 | 03-import-segmentation | 01 | 25 min | 4/4 | 2 created |
 | 03-import-segmentation | 02 | 15 min | 2/2 | 1 created |
+| 04-campaigns | 01 | 30 min | 5/5 | 4 created |
+| 04-campaigns | 02 | 25 min | 5/5 | 5 created |
 
 ## Next Actions
-1. Execute Phase 04 (Campaign Editor + Send) — split-pane editor, WhatsApp preview, A/B test, scheduling, send monitoring
-2. Execute Phase 05 (Dashboard V2 + Chat Panel) — KPI row, operations table, chat queue
+1. Execute Phase 05 (Dashboard V2 + Chat Panel) — V2 KPI row, operations table, command panel, chat queue
+2. Execute Phase 06 (HITL Conversations + CRM) — priority queue, active chat, voter profile
