@@ -9,12 +9,11 @@
 **Phase 06 (HITL Conversations + CRM) — COMPLETE** ✅
 **Phase 07 (Compliance + Admin) — COMPLETE** ✅
 **Phase 08 (Reports + Polish) — COMPLETE** ✅
-🎉 ALL PHASES COMPLETE — EEL Eleicao v1 SHIPPED
+**Phase 09 (Real Data + Integrations) — PLANNING COMPLETE** 📋
 
-Progress: Phase 01–08 (2/2 each) = 16 plans done.
+Progress: Phase 01–08 (2/2 each) = 16 plans done. Phase 09 = 7 plans planned (0 done).
 
-Last session: 2026-03-05 — Completed Phase 08 (Reports + Polish: relatorios page, final dashboard links, 39 pages total)
-Project: COMPLETE
+Last session: 2026-03-05 — Phase 09 planning complete (7 plans, 2 waves, 30 audit issues addressed)
 
 ## Project History
 
@@ -55,6 +54,11 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 **Phase 08 — Reports + Polish — COMPLETE** ✅
 - 08-01: Reports page (/relatorios) — period KPI cards, SVG bar chart, campaign performance table, CSV export
 - 08-02: Final polish — "Ver relatórios" dashboard quick-action, empty state audit, nav verification
+
+**Phase 09 — Real Data + Integrations — IN PROGRESS** 📋
+- 7 plans across 2 waves covering 30 audit issues
+- Wave 1 (parallel): Plans 01, 02, 04, 05 — webhook, send pipeline, CRM, segmentation
+- Wave 2 (depends on Wave 1): Plans 03, 06, 07 — conversations, dashboard/reports, campaign edit
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -140,12 +144,22 @@ src/components/
 | 08-reports-polish | 02 | 10 min | 4/4 | 1 modified |
 
 ## Next Actions
-🎉 All 8 phases complete. EEL Eleicao is feature-complete.
+Phase 09 execution ready. Run `/gsd-execute-phase 09-real-data` to begin.
 
-**Remaining optional items (post-MVP):**
-- Real Evolution API integration for campaign send (currently simulated)
+**Wave 1 (parallel — no dependencies):**
+- 09-01: Webhook + Inbound Pipeline
+- 09-02: Campaign Send Pipeline  
+- 09-04: CRM Voter Operations
+- 09-05: Segmentation Real Data
+
+**Wave 2 (after Wave 1):**
+- 09-03: Conversations WhatsApp Integration (needs 09-01)
+- 09-06: Dashboard + Reports Real Data (needs 09-02, 09-05)
+- 09-07: Campaign Fixes + Voter Links (needs 09-02, 09-04)
+
+**Deferred (post-Phase 09):**
 - WebSocket/SSE for real-time chat (currently polling)
 - DB-level permission enforcement in API routes
-- Mobile offline capture form (MOB-01/MOB-02 from roadmap)
+- Mobile offline capture form (MOB-01/MOB-02)
+- Scheduled sends via background worker/cron
 - Email scheduled report delivery (REP-02 partial)
-- Production deployment to zap.iqui27.app (requires DB migration run)

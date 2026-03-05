@@ -17,6 +17,7 @@
 | 06 | HITL Conversations + CRM | P1 | 02, 05 | TBD |
 | 07 | Compliance + Admin | P2 | 02 | TBD |
 | 08 | Reports + Polish | P2 | 04, 06 | TBD |
+| 09 | Real Data + Integrations | P0 | 01-08 | 7 plans |
 
 ---
 
@@ -146,6 +147,48 @@ Plans:
 - POL-01: Final responsive pass, accessibility audit, performance optimization
 
 **Plans:** TBD
+
+---
+
+### Phase 09: Real Data + Integrations
+**Status:** Planning complete
+**Goal:** Fix all mock data, broken flows, and missing integrations so every page uses real data and the chip-warming infrastructure connects to the electoral features. 30 audit issues addressed.
+
+**Requirements:** [RD-01, RD-02, RD-03, RD-04, RD-05, RD-06, RD-07, RD-08, RD-09, RD-10, RD-11, RD-12, RD-13, RD-14, RD-15, RD-16, RD-17, RD-18, RD-19, RD-20, RD-21, RD-22, RD-23]
+
+- RD-01: Webhook uses Drizzle DB imports (not old JSON-file @/lib/config and @/lib/chips)
+- RD-02: Inbound WhatsApp messages stored in conversations table via webhook
+- RD-03: Campaign send uses Evolution API (not setTimeout mock)
+- RD-04: Campaign send resolves real segment voters (not hardcoded audienceSize=150)
+- RD-05: Campaign editor has chip selector for choosing send chip
+- RD-06: Agent replies in HITL chat sent via WhatsApp Evolution API
+- RD-07: New conversation dialog has voter search + chip selector
+- RD-08: DELETE handler for conversations
+- RD-09: Voter API supports ?id= parameter for direct fetch
+- RD-10: CRM has manual "Add voter" button with dialog form
+- RD-11: CRM has delete voter functionality
+- RD-12: CRM voter list supports pagination
+- RD-13: Segment audience count from real voter query (not random)
+- RD-14: Saving segment materializes voter IDs in segmentVoters table
+- RD-15: Segment filter options from real voter data (not hardcoded)
+- RD-16: Segments can be edited and deleted
+- RD-17: Dashboard KPIs from real campaign aggregates (not hardcoded openRate=62)
+- RD-18: Reports KPIs and bar chart from real DB data (not KPI_DATA/DAILY_BARS constants)
+- RD-19: Monitor page delivery log shows real send progress
+- RD-20: Campaign list shows segment name (not UUID)
+- RD-21: Campaign edit page is functional (not stub redirect)
+- RD-22: Voter profile "Ver conversas" filters by voterId
+- RD-23: Voter profile "Criar campanha" pre-fills voter context
+
+**Plans:** 7 plans
+Plans:
+- [ ] 09-01-PLAN.md — Webhook + Inbound Pipeline (fix imports, store messages)
+- [ ] 09-02-PLAN.md — Campaign Send Pipeline (real Evolution API send, chip selector)
+- [ ] 09-03-PLAN.md — Conversations WhatsApp Integration (agent reply send, new convo dialog)
+- [ ] 09-04-PLAN.md — CRM Voter Operations (add/delete voter, pagination, ID fetch)
+- [ ] 09-05-PLAN.md — Segmentation Real Data (audience calc, materialization, edit/delete)
+- [ ] 09-06-PLAN.md — Dashboard + Reports Real Data (real KPIs, bar chart, monitor log)
+- [ ] 09-07-PLAN.md — Campaign Fixes + Voter Links (edit page, profile action links)
 
 ---
 
