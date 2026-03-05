@@ -91,6 +91,7 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [x] CRM checklist + notes: localStorage per voter key — DB persistence deferred, MVP acceptable
 - [x] Voter profile fetches all voters then filters by ID client-side (API doesn't support ?id= param)
 - [x] Interaction timeline: merges conversations + consent logs client-side with unified sort
+- [Phase 09-real-data]: Webhook uses 'open' status for new conversations (not 'pending' which is not in schema enum)
 
 ## Blockers
 None.
@@ -142,6 +143,7 @@ src/components/
 | 07-compliance-admin | 02 | 15 min | 4/4 | 2 created |
 | 08-reports-polish | 01 | 15 min | 4/4 | 1 created |
 | 08-reports-polish | 02 | 10 min | 4/4 | 1 modified |
+| Phase 09-real-data P01 | 3 | 2 tasks | 1 files |
 
 ## Next Actions
 Phase 09 execution ready. Run `/gsd-execute-phase 09-real-data` to begin.
