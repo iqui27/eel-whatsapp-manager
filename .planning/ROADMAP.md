@@ -17,7 +17,7 @@
 | 06 | HITL Conversations + CRM | P1 | 02, 05 | TBD |
 | 07 | Compliance + Admin | P2 | 02 | TBD |
 | 08 | Reports + Polish | P2 | 04, 06 | TBD |
-| 09 | 1/7 | In Progress|  | 7 plans |
+| 09 | 2/7 | In Progress|  | 7 plans |
 
 ---
 
@@ -151,7 +151,7 @@ Plans:
 ---
 
 ### Phase 09: Real Data + Integrations
-**Status:** Planning complete
+**Status:** In progress
 **Goal:** Fix all mock data, broken flows, and missing integrations so every page uses real data and the chip-warming infrastructure connects to the electoral features. 30 audit issues addressed.
 
 **Requirements:** [RD-01, RD-02, RD-03, RD-04, RD-05, RD-06, RD-07, RD-08, RD-09, RD-10, RD-11, RD-12, RD-13, RD-14, RD-15, RD-16, RD-17, RD-18, RD-19, RD-20, RD-21, RD-22, RD-23]
@@ -180,10 +180,10 @@ Plans:
 - RD-22: Voter profile "Ver conversas" filters by voterId
 - RD-23: Voter profile "Criar campanha" pre-fills voter context
 
-**Plans:** 1/7 plans executed
+**Plans:** 2/7 plans executed
 Plans:
-- [ ] 09-01-PLAN.md — Webhook + Inbound Pipeline (fix imports, store messages)
-- [ ] 09-02-PLAN.md — Campaign Send Pipeline (real Evolution API send, chip selector)
+- [x] 09-01-PLAN.md — Webhook + Inbound Pipeline (fix imports, store messages)
+- [x] 09-02-PLAN.md — Campaign Send Pipeline (real Evolution API send, chip selector)
 - [ ] 09-03-PLAN.md — Conversations WhatsApp Integration (agent reply send, new convo dialog)
 - [ ] 09-04-PLAN.md — CRM Voter Operations (add/delete voter, pagination, ID fetch)
 - [ ] 09-05-PLAN.md — Segmentation Real Data (audience calc, materialization, edit/delete)

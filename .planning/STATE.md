@@ -1,4 +1,30 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+last_updated: "2026-03-05T23:56:50.355Z"
+progress:
+  total_phases: 9
+  completed_phases: 8
+  total_plans: 23
+  completed_plans: 18
+  percent: 78
+---
+
 # EEL Eleicao — Project State
+
+## Current Execution
+**Current Phase:** 09
+**Current Phase Name:** real data
+**Current Plan:** 3
+**Total Phases:** 9
+**Total Plans in Phase:** 7
+**Status:** Executing
+**Progress:** [████████░░] 78%
+**Last Activity:** 2026-03-05
+**Last Activity Description:** Completed 09-02 Campaign Send Pipeline; Wave 1 follow-up plans 09-04 and 09-05 remain before Wave 2
+**Stopped At:** Completed 09-real-data-02-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -9,11 +35,12 @@
 **Phase 06 (HITL Conversations + CRM) — COMPLETE** ✅
 **Phase 07 (Compliance + Admin) — COMPLETE** ✅
 **Phase 08 (Reports + Polish) — COMPLETE** ✅
-**Phase 09 (Real Data + Integrations) — PLANNING COMPLETE** 📋
+**Phase 09 (Real Data + Integrations) — IN PROGRESS** 📋
+- Plans completed: 2/7 (`09-01`, `09-02`)
 
-Progress: Phase 01–08 (2/2 each) = 16 plans done. Phase 09 = 7 plans planned (0 done).
+Progress: [████████░░] 78%
 
-Last session: 2026-03-05 — Phase 09 planning complete (7 plans, 2 waves, 30 audit issues addressed)
+Last session: 2026-03-05T23:56:50.352Z
 
 ## Project History
 
@@ -92,6 +119,9 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [x] Voter profile fetches all voters then filters by ID client-side (API doesn't support ?id= param)
 - [x] Interaction timeline: merges conversations + consent logs client-side with unified sort
 - [Phase 09-real-data]: Webhook uses 'open' status for new conversations (not 'pending' which is not in schema enum)
+- [Phase 09-real-data]: Campaign send now resolves real segment voters and dispatches via Evolution API sendText with real sent/delivered/failed counters.
+- [Phase 09-real-data]: Scheduled campaigns persist as status=scheduled with scheduledAt and the send route rejects premature manual sends.
+- [Phase 09-real-data]: Campaign chip selection is preserved client-side per campaign and forwarded to the send endpoint, avoiding a schema change in this plan.
 
 ## Blockers
 None.
@@ -144,13 +174,14 @@ src/components/
 | 08-reports-polish | 01 | 15 min | 4/4 | 1 created |
 | 08-reports-polish | 02 | 10 min | 4/4 | 1 modified |
 | Phase 09-real-data P01 | 3 | 2 tasks | 1 files |
+| Phase 09-real-data P02 | 2 min | 2 tasks | 3 files |
 
 ## Next Actions
-Phase 09 execution ready. Run `/gsd-execute-phase 09-real-data` to begin.
+Continue Phase 09 Wave 1 execution with the remaining real-data plans before Wave 2.
 
 **Wave 1 (parallel — no dependencies):**
-- 09-01: Webhook + Inbound Pipeline
-- 09-02: Campaign Send Pipeline  
+- 09-01: Webhook + Inbound Pipeline ✅
+- 09-02: Campaign Send Pipeline ✅
 - 09-04: CRM Voter Operations
 - 09-05: Segmentation Real Data
 
