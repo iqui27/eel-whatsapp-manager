@@ -6,6 +6,12 @@ import { loadChips, updateChip } from '@/lib/db-chips';
 import { addConversation, addMessage } from '@/lib/db-conversations';
 import { searchVoters } from '@/lib/db-voters';
 
+// ─── Dedup cache — prevents storing duplicate webhook deliveries ─────────────
+// Evolution API occasionally fires the same event twice within a few seconds.
+// We keep processed message IDs in a Set (per process lifetime) and skip dupes.
+const processedMessageIds = new Set<string>();
+const DEDUP_CACHE_MAX = 2000; // prevent unbounded growth
+
 export async function POST(request: NextRequest) {
   let body: Record<string, unknown>;
 
@@ -58,6 +64,21 @@ export async function POST(request: NextRequest) {
 
         // Skip group chats — only handle 1:1 conversations
         if (remoteJid.includes('@g.us')) continue;
+
+        // Dedup — skip if we've already processed this message ID
+        const msgId = key.id as string | undefined;
+        if (msgId) {
+          if (processedMessageIds.has(msgId)) {
+            console.log('[webhook] Skipping duplicate message', msgId);
+            continue;
+          }
+          if (processedMessageIds.size >= DEDUP_CACHE_MAX) {
+            // Trim oldest entries when cache grows too large
+            const oldest = processedMessageIds.values().next().value;
+            if (oldest) processedMessageIds.delete(oldest);
+          }
+          processedMessageIds.add(msgId);
+        }
 
         // Extract clean phone number (strip @s.whatsapp.net)
         const phone = remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
