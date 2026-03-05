@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
   const id = searchParams.get('id');
+  const voterId = searchParams.get('voterId');
 
   try {
     if (id) {
@@ -26,6 +27,10 @@ export async function GET(request: NextRequest) {
       return conv
         ? NextResponse.json(conv)
         : NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    if (voterId) {
+      const all = await loadConversations();
+      return NextResponse.json(all.filter(c => c.voterId === voterId));
     }
     const data = await loadConversations(status ?? undefined);
     return NextResponse.json(data);
