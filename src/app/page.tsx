@@ -19,6 +19,7 @@ import {
 import { useCountUp } from '@/lib/use-count-up';
 import { cn } from '@/lib/utils';
 import type { Campaign, Segment } from '@/db/schema';
+import ChatQueuePanel from '@/components/ChatQueuePanel';
 import {
   Send,
   MessageCircle,
@@ -581,13 +582,14 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {/* ── Right: Command panel ── */}
+          {/* ── Right: Command panel + Chat queue ── */}
           <div className="lg:sticky lg:top-24 h-fit space-y-4">
             <CommandPanel
               status={systemStatus}
               onWarmAll={handleWarmAll}
               warmingAll={warmingAll}
             />
+            <ChatQueuePanel />
           </div>
         </div>
       </div>
