@@ -1,0 +1,480 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import SidebarLayout from '@/components/SidebarLayout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { calculateCtaScore, scoreBg } from '@/lib/cta-score';
+import type { Segment, Campaign } from '@/db/schema';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Save,
+  Check,
+  X,
+  MessageSquare,
+  Smartphone,
+  FlaskConical,
+} from 'lucide-react';
+
+// ─── Variable definitions ─────────────────────────────────────────────────────
+
+const VARIABLES = [
+  { key: '{nome}',      label: 'Nome',      preview: 'João' },
+  { key: '{bairro}',   label: 'Bairro',    preview: 'Centro' },
+  { key: '{interesse}',label: 'Interesse', preview: 'Saúde' },
+  { key: '{data}',     label: 'Data',      preview: new Date().toLocaleDateString('pt-BR') },
+  { key: '{candidato}',label: 'Candidato', preview: 'Dr. Silva' },
+];
+
+// ─── WhatsApp Preview ─────────────────────────────────────────────────────────
+
+function WhatsAppPreview({ message }: { message: string }) {
+  // Replace variables with preview values
+  let preview = message;
+  for (const v of VARIABLES) {
+    preview = preview.replaceAll(v.key, v.preview);
+  }
+
+  const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div className="flex flex-col h-full rounded-2xl overflow-hidden border border-border shadow-sm">
+      {/* WA top bar */}
+      <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#128C7E' }}>
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white text-sm font-bold shrink-0">
+          EE
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-white leading-tight">EEL Eleição</div>
+          <div className="text-xs text-white/70">online</div>
+        </div>
+        <Smartphone className="h-4 w-4 text-white/60" />
+      </div>
+
+      {/* WA chat area */}
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-2 min-h-[200px]"
+        style={{ backgroundColor: '#ECE5DD' }}
+      >
+        {preview.trim() ? (
+          <div className="flex justify-start">
+            <div
+              className="relative max-w-[280px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl bg-white px-3.5 py-2.5 shadow-sm"
+            >
+              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{preview}</p>
+              <div className="flex items-center justify-end gap-1 mt-1.5">
+                <span className="text-[10px] text-gray-400">{now}</span>
+                <svg className="h-3 w-3 text-blue-500" viewBox="0 0 16 11" fill="currentColor">
+                  <path d="M11.071.653a.75.75 0 0 1 .05 1.059L5.64 8.24a.75.75 0 0 1-1.089.03L1.43 5.15a.75.75 0 1 1 1.06-1.062l2.578 2.578L10.012.704a.75.75 0 0 1 1.059-.05z"/>
+                  <path d="M14.571.653a.75.75 0 0 1 .05 1.059L9.14 8.24a.75.75 0 0 1-1.058.05.75.75 0 0 0 1.03-.02l5.4-6.558a.75.75 0 0 1 1.059-.059z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-gray-400 italic pt-8">
+            Digite uma mensagem para ver a prévia
+          </div>
+        )}
+      </div>
+
+      {/* WA footer */}
+      <div className="flex items-center justify-center gap-1.5 px-4 py-2 bg-white border-t border-gray-200">
+        <svg className="h-3 w-3 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+        </svg>
+        <span className="text-[10px] text-gray-400">Mensagens protegidas com criptografia de ponta a ponta</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Quality checks ───────────────────────────────────────────────────────────
+
+function QualityChecks({ message }: { message: string }) {
+  const result = calculateCtaScore(message);
+  const { checks, score, wordCount } = result;
+
+  const items = [
+    { label: 'Tem chamada para ação clara', ok: checks.hasActionVerb },
+    { label: 'Usa variável de nome ({nome})', ok: message.includes('{nome}') },
+    { label: 'Abaixo de 120 palavras', ok: checks.underWordLimit },
+    { label: 'Sem urgência excessiva (!!! ???)', ok: checks.noPunctSpam && checks.noAllCaps },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">CTA Score</span>
+        <span className={cn('rounded-full border px-2.5 py-0.5 text-sm font-semibold', scoreBg(score))}>
+          {score}/100
+        </span>
+      </div>
+      <div className="space-y-1.5">
+        {items.map(item => (
+          <div key={item.label} className="flex items-center gap-2 text-xs">
+            {item.ok
+              ? <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />
+              : <X className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />}
+            <span className={item.ok ? 'text-foreground' : 'text-muted-foreground'}>{item.label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border">
+        <span>{wordCount} palavras</span>
+        <span className={cn(
+          wordCount > 120 ? 'text-red-600 font-medium' :
+          wordCount > 80 ? 'text-amber-600' : 'text-green-600'
+        )}>
+          {wordCount > 120 ? `${wordCount - 120} acima do limite` : `${120 - wordCount} restantes`}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function NovaCampanhaPage() {
+  const router = useRouter();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [campaignName, setCampaignName] = useState('');
+  const [segmentId, setSegmentId] = useState('');
+  const [message, setMessage] = useState('');
+  const [abEnabled, setAbEnabled] = useState(false);
+  const [variantB, setVariantB] = useState('');
+  const [splitPct, setSplitPct] = useState(50);
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load segments for selector
+  useEffect(() => {
+    fetch('/api/segments')
+      .then(r => r.ok ? r.json() : [])
+      .then(setSegments)
+      .catch(() => {});
+  }, []);
+
+  // Auto-grow textarea
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessage(e.target.value);
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(160, el.scrollHeight)}px`;
+  };
+
+  // Insert variable at cursor
+  const insertVariable = useCallback((variable: string) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const newMessage = message.slice(0, start) + variable + message.slice(end);
+    setMessage(newMessage);
+    // Restore focus + cursor after React re-render
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + variable.length;
+      el.setSelectionRange(pos, pos);
+    });
+  }, [message]);
+
+  const saveDraft = async (): Promise<string | null> => {
+    if (!campaignName.trim()) {
+      toast.error('Dê um nome para a campanha');
+      return null;
+    }
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: campaignName.trim(),
+          template: message,
+          segmentId: segmentId || null,
+          status: 'draft',
+          abEnabled,
+          abVariantB: abEnabled ? variantB : null,
+          abSplitPercent: abEnabled ? splitPct : 50,
+        }),
+      });
+      if (res.ok) {
+        const saved: Campaign = await res.json();
+        toast.success('Rascunho salvo');
+        return saved.id;
+      } else {
+        toast.error('Erro ao salvar rascunho');
+        return null;
+      }
+    } catch {
+      toast.error('Erro ao salvar rascunho');
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    await saveDraft();
+  };
+
+  const handleContinue = async () => {
+    const id = await saveDraft();
+    if (id) router.push(`/campanhas/${id}/agendar`);
+  };
+
+  // Word count for textarea footer
+  const wordCount = message.trim() ? message.trim().split(/\s+/).length : 0;
+
+  return (
+    <SidebarLayout currentPage="campanhas" pageTitle="Nova Campanha">
+      <div className="flex flex-col h-full">
+        {/* ── Metadata bar ── */}
+        <div className="border-b border-border bg-background px-6 py-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <Link href="/campanhas">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+                <ArrowLeft className="h-4 w-4" />
+                Campanhas
+              </Button>
+            </Link>
+            <Separator orientation="vertical" className="h-5" />
+            <Input
+              placeholder="Nome da campanha (ex: Apoiadores Zona Sul — Semana 2)"
+              value={campaignName}
+              onChange={e => setCampaignName(e.target.value)}
+              className="flex-1 min-w-[260px] max-w-[480px] text-base font-medium border-0 shadow-none focus-visible:ring-0 px-0 placeholder:font-normal"
+            />
+            <div className="ml-auto flex items-center gap-2">
+              <select
+                className="rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring min-w-[180px]"
+                value={segmentId}
+                onChange={e => setSegmentId(e.target.value)}
+              >
+                <option value="">Nenhum segmento</option>
+                {segments.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              {segmentId && (
+                <Badge variant="secondary" className="text-xs">
+                  {segments.find(s => s.id === segmentId)?.audienceCount
+                    ? `~${segments.find(s => s.id === segmentId)?.audienceCount} eleitores`
+                    : 'Segmento selecionado'}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Split pane ── */}
+        <div className="flex-1 overflow-auto p-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px] h-full">
+
+            {/* Left — editor */}
+            <div className="space-y-4">
+              <Card className="h-full">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <MessageSquare className="h-4 w-4 text-primary" />
+                    Editor de Mensagem
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Variable toolbar */}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+                      Inserir variável
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {VARIABLES.map(v => (
+                        <button
+                          key={v.key}
+                          type="button"
+                          onClick={() => insertVariable(v.key)}
+                          className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/15 transition-colors font-mono"
+                        >
+                          {v.key}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Textarea */}
+                  <div className="space-y-1.5">
+                    <textarea
+                      ref={textareaRef}
+                      value={message}
+                      onChange={handleMessageChange}
+                      placeholder="Olá {nome}! Aqui é a equipe do {candidato}. Gostaríamos de contar com o seu apoio em {bairro}..."
+                      className="w-full min-h-[160px] resize-none rounded-lg border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+                    />
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="italic">
+                        Use variáveis para personalizar. Evite urgência excessiva e linguagem de spam.
+                      </span>
+                      <span className={cn(
+                        'font-medium tabular-nums',
+                        wordCount > 120 ? 'text-red-600' :
+                        wordCount > 80 ? 'text-amber-600' : 'text-muted-foreground'
+                      )}>
+                        {wordCount}/120 palavras
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quality indicators */}
+                  <Separator />
+                  <QualityChecks message={message} />
+                </CardContent>
+              </Card>
+
+              {/* A/B Test Panel */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-base">
+                    <div className="flex items-center gap-2">
+                      <FlaskConical className="h-4 w-4 text-primary" />
+                      Teste A/B
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="ab-toggle" className="text-sm font-normal text-muted-foreground cursor-pointer">
+                        {abEnabled ? 'Ativado' : 'Desativado'}
+                      </Label>
+                      <Switch
+                        id="ab-toggle"
+                        checked={abEnabled}
+                        onCheckedChange={setAbEnabled}
+                      />
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                {abEnabled && (
+                  <CardContent className="space-y-4">
+                    {/* Split percentage slider */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Divisão</span>
+                        <span className="font-medium tabular-nums">
+                          Variante A: {splitPct}% · Variante B: {100 - splitPct}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={10}
+                        max={90}
+                        step={5}
+                        value={splitPct}
+                        onChange={e => setSplitPct(Number(e.target.value))}
+                        className="w-full accent-primary"
+                      />
+                      <div className="flex overflow-hidden rounded-full h-2">
+                        <div
+                          className="bg-primary transition-all duration-200"
+                          style={{ width: `${splitPct}%` }}
+                        />
+                        <div
+                          className="bg-primary/30 flex-1"
+                        />
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Variant B editor */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-primary/10 text-primary text-xs font-bold px-2 py-0.5">B</span>
+                        <p className="text-sm font-medium text-foreground">Mensagem Variante B</p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {VARIABLES.map(v => (
+                          <button
+                            key={v.key}
+                            type="button"
+                            onClick={() => setVariantB(prev => prev + v.key)}
+                            className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors font-mono"
+                          >
+                            {v.key}
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        value={variantB}
+                        onChange={e => setVariantB(e.target.value)}
+                        placeholder="Mensagem alternativa para o grupo B..."
+                        className="w-full min-h-[120px] resize-none rounded-lg border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+                      />
+                      <QualityChecks message={variantB} />
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            </div>
+
+            {/* Right — WhatsApp preview */}
+            <div className="lg:sticky lg:top-6 h-fit">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                    <Smartphone className="h-4 w-4 text-primary" />
+                    Prévia WhatsApp
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-2">
+                  <WhatsAppPreview message={message} />
+                  <p className="text-[10px] text-muted-foreground text-center mt-2 px-2">
+                    As variáveis são substituídas por valores reais no envio
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Bottom action bar ── */}
+        <div className="border-t border-border bg-background px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <Link href="/campanhas">
+              <Button variant="ghost" size="sm">
+                <ArrowLeft className="mr-1.5 h-4 w-4" />
+                Cancelar
+              </Button>
+            </Link>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={handleSaveDraft}
+                disabled={isSaving || !campaignName.trim()}
+              >
+                <Save className="mr-1.5 h-4 w-4" />
+                Salvar rascunho
+              </Button>
+              <Button
+                onClick={handleContinue}
+                disabled={isSaving || !campaignName.trim() || !message.trim()}
+              >
+                Continuar
+                <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </SidebarLayout>
+  );
+}
+
+
