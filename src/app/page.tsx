@@ -276,6 +276,10 @@ function CommandPanel({
           <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
           <span className="font-medium">Ver compliance</span>
         </Link>
+        <Link href="/relatorios" className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-sm transition-colors hover:bg-accent">
+          <BarChart3 className="h-4 w-4 text-purple-500 shrink-0" />
+          <span className="font-medium">Ver relatórios</span>
+        </Link>
 
         {/* System status */}
         <div className="mt-4 pt-4 border-t border-border space-y-2">
