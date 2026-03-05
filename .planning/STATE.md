@@ -7,12 +7,13 @@
 **Phase 04 (Campaign Editor + Send) — COMPLETE** ✅
 **Phase 05 (Dashboard V2 + Chat Panel) — COMPLETE** ✅
 **Phase 06 (HITL Conversations + CRM) — COMPLETE** ✅
-Waves 1–5 complete.
+**Phase 07 (Compliance + Admin) — COMPLETE** ✅
+Waves 1–6 complete.
 
-Progress: Phase 01 (2/2) + Phase 02 (2/2) + Phase 03 (2/2) + Phase 04 (2/2) + Phase 05 (2/2) + Phase 06 (2/2) = 12 plans done.
+Progress: Phase 01 (2/2) + Phase 02 (2/2) + Phase 03 (2/2) + Phase 04 (2/2) + Phase 05 (2/2) + Phase 06 (2/2) + Phase 07 (2/2) = 14 plans done.
 
-Last session: 2026-03-05 — Completed Phase 06 (HITL Conversations + CRM: three-column chat UI, voter CRM profile, compliance API)
-Stopped at: Phase 07 (Compliance + Admin) — next up
+Last session: 2026-03-05 — Completed Phase 07 (Compliance LGPD + Admin: consent management, audit timeline, user management, permissions matrix)
+Stopped at: Phase 08 (Reports + Polish) — next up
 
 ## Project History
 
@@ -45,6 +46,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 **Phase 06 — HITL Conversations + CRM — COMPLETE** ✅
 - 06-01: Three-column HITL conversations UI (queue / live-chat / voter-context) + messages API
 - 06-02: CRM voter list (debounced search, engagement bars, tags) + voter profile page (engagement circle, editable tags, timeline, checklist/notes) + compliance API
+
+**Phase 07 — Compliance + Admin — COMPLETE** ✅
+- 07-01: LGPD compliance page (opt-in status cards, consent table with revoke/anonymize, audit timeline with CSV export)
+- 07-02: Admin panel (users table with inline role editing, invite dialog, permissions matrix tab) + /api/users CRUD
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -122,7 +127,10 @@ src/components/
 | 04-campaigns | 02 | 25 min | 5/5 | 5 created |
 | 05-dashboard-v2 | 01 | 20 min | 5/5 | 2 modified/created |
 | 05-dashboard-v2 | 02 | 15 min | 4/4 | 2 created |
+| 06-hitl-crm | 01 | 20 min | 3/3 | 3 created |
+| 06-hitl-crm | 02 | 20 min | 5/5 | 4 created |
+| 07-compliance-admin | 01 | 15 min | 4/4 | 3 modified/created |
+| 07-compliance-admin | 02 | 15 min | 4/4 | 2 created |
 
 ## Next Actions
-1. Execute Phase 07 (Compliance + Admin) — LGPD consent management, audit trail, user/role admin
-2. Execute Phase 08 (Reports + Polish) — analytics reports, final UX polish
+1. Execute Phase 08 (Reports + Polish) — analytics reports, final UX polish, /relatorios page
