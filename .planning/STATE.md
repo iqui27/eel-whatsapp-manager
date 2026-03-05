@@ -8,12 +8,13 @@
 **Phase 05 (Dashboard V2 + Chat Panel) — COMPLETE** ✅
 **Phase 06 (HITL Conversations + CRM) — COMPLETE** ✅
 **Phase 07 (Compliance + Admin) — COMPLETE** ✅
-Waves 1–6 complete.
+**Phase 08 (Reports + Polish) — COMPLETE** ✅
+🎉 ALL PHASES COMPLETE — EEL Eleicao v1 SHIPPED
 
-Progress: Phase 01 (2/2) + Phase 02 (2/2) + Phase 03 (2/2) + Phase 04 (2/2) + Phase 05 (2/2) + Phase 06 (2/2) + Phase 07 (2/2) = 14 plans done.
+Progress: Phase 01–08 (2/2 each) = 16 plans done.
 
-Last session: 2026-03-05 — Completed Phase 07 (Compliance LGPD + Admin: consent management, audit timeline, user management, permissions matrix)
-Stopped at: Phase 08 (Reports + Polish) — next up
+Last session: 2026-03-05 — Completed Phase 08 (Reports + Polish: relatorios page, final dashboard links, 39 pages total)
+Project: COMPLETE
 
 ## Project History
 
@@ -50,6 +51,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 **Phase 07 — Compliance + Admin — COMPLETE** ✅
 - 07-01: LGPD compliance page (opt-in status cards, consent table with revoke/anonymize, audit timeline with CSV export)
 - 07-02: Admin panel (users table with inline role editing, invite dialog, permissions matrix tab) + /api/users CRUD
+
+**Phase 08 — Reports + Polish — COMPLETE** ✅
+- 08-01: Reports page (/relatorios) — period KPI cards, SVG bar chart, campaign performance table, CSV export
+- 08-02: Final polish — "Ver relatórios" dashboard quick-action, empty state audit, nav verification
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -131,6 +136,16 @@ src/components/
 | 06-hitl-crm | 02 | 20 min | 5/5 | 4 created |
 | 07-compliance-admin | 01 | 15 min | 4/4 | 3 modified/created |
 | 07-compliance-admin | 02 | 15 min | 4/4 | 2 created |
+| 08-reports-polish | 01 | 15 min | 4/4 | 1 created |
+| 08-reports-polish | 02 | 10 min | 4/4 | 1 modified |
 
 ## Next Actions
-1. Execute Phase 08 (Reports + Polish) — analytics reports, final UX polish, /relatorios page
+🎉 All 8 phases complete. EEL Eleicao is feature-complete.
+
+**Remaining optional items (post-MVP):**
+- Real Evolution API integration for campaign send (currently simulated)
+- WebSocket/SSE for real-time chat (currently polling)
+- DB-level permission enforcement in API routes
+- Mobile offline capture form (MOB-01/MOB-02 from roadmap)
+- Email scheduled report delivery (REP-02 partial)
+- Production deployment to zap.iqui27.app (requires DB migration run)
