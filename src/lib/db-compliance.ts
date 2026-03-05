@@ -51,6 +51,31 @@ export async function getConsentHistory(voterId: string): Promise<ConsentLog[]> 
     .orderBy(desc(consentLogs.createdAt));
 }
 
+export type ConsentLogWithVoter = ConsentLog & { voterName: string | null; voterPhone: string | null };
+
+export async function getAllConsentLogs(action?: string): Promise<ConsentLogWithVoter[]> {
+  const rows = await db
+    .select({
+      id: consentLogs.id,
+      voterId: consentLogs.voterId,
+      action: consentLogs.action,
+      channel: consentLogs.channel,
+      ipAddress: consentLogs.ipAddress,
+      metadata: consentLogs.metadata,
+      createdAt: consentLogs.createdAt,
+      voterName: voters.name,
+      voterPhone: voters.phone,
+    })
+    .from(consentLogs)
+    .leftJoin(voters, eq(consentLogs.voterId, voters.id))
+    .orderBy(desc(consentLogs.createdAt));
+
+  if (action) {
+    return rows.filter(r => r.action === action);
+  }
+  return rows;
+}
+
 export async function getConsentStats(): Promise<Record<string, number>> {
   const rows = await db
     .select({

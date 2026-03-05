@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/db-auth';
-import { logConsent, getConsentHistory, getConsentStats } from '@/lib/db-compliance';
+import { logConsent, getConsentHistory, getConsentStats, getAllConsentLogs } from '@/lib/db-compliance';
 
 async function verifyAuth(request: NextRequest) {
   const token = request.cookies.get('auth')?.value;
@@ -14,14 +14,26 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const voterId = searchParams.get('voterId');
+  const action = searchParams.get('action') ?? undefined;
+  const all = searchParams.get('all');
+  const stats = searchParams.get('stats');
 
   try {
+    if (stats === '1') {
+      const data = await getConsentStats();
+      return NextResponse.json(data);
+    }
     if (voterId) {
       const history = await getConsentHistory(voterId);
       return NextResponse.json(history);
     }
-    const stats = await getConsentStats();
-    return NextResponse.json(stats);
+    if (all === '1') {
+      const logs = await getAllConsentLogs(action);
+      return NextResponse.json(logs);
+    }
+    // Default: return stats
+    const data = await getConsentStats();
+    return NextResponse.json(data);
   } catch (err) {
     console.error('GET compliance error:', err);
     return NextResponse.json({ error: 'Erro ao carregar compliance' }, { status: 500 });
