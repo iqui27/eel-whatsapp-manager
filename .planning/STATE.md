@@ -6,12 +6,13 @@
 **Phase 03 (Import + Segmentation) — COMPLETE** ✅
 **Phase 04 (Campaign Editor + Send) — COMPLETE** ✅
 **Phase 05 (Dashboard V2 + Chat Panel) — COMPLETE** ✅
-Waves 1–4 complete.
+**Phase 06 (HITL Conversations + CRM) — COMPLETE** ✅
+Waves 1–5 complete.
 
-Progress: Phase 01 (2/2) + Phase 02 (2/2) + Phase 03 (2/2) + Phase 04 (2/2) + Phase 05 (2/2) = 10 plans done.
+Progress: Phase 01 (2/2) + Phase 02 (2/2) + Phase 03 (2/2) + Phase 04 (2/2) + Phase 05 (2/2) + Phase 06 (2/2) = 12 plans done.
 
-Last session: 2026-03-04 — Completed Phase 05 (Dashboard V2: KPIs, operations table, command panel, chat queue)
-Stopped at: Phase 06 (HITL Conversations + CRM) — next up
+Last session: 2026-03-05 — Completed Phase 06 (HITL Conversations + CRM: three-column chat UI, voter CRM profile, compliance API)
+Stopped at: Phase 07 (Compliance + Admin) — next up
 
 ## Project History
 
@@ -41,6 +42,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - 05-01: Electoral KPI row + operations table + command panel + onboarding wizard
 - 05-02: Conversations API route + chat queue panel (15s auto-refresh, priority dots)
 
+**Phase 06 — HITL Conversations + CRM — COMPLETE** ✅
+- 06-01: Three-column HITL conversations UI (queue / live-chat / voter-context) + messages API
+- 06-02: CRM voter list (debounced search, engagement bars, tags) + voter profile page (engagement circle, editable tags, timeline, checklist/notes) + compliance API
+
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
 - [x] Database: Supabase PostgreSQL (already in use)
@@ -68,6 +73,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [x] useCountUp extracted to src/lib/use-count-up.ts — shared hook, 'use client' safe
 - [x] chat queue panel uses polling (15s) not WebSocket — simple and reliable for MVP
 - [x] onboarding wizard dismissed via localStorage key — acceptable for MVP single-user context
+- [x] HITL chat: raw db.update() in API route for handoffReason/priority (updateConversationStatus helper insufficient)
+- [x] CRM checklist + notes: localStorage per voter key — DB persistence deferred, MVP acceptable
+- [x] Voter profile fetches all voters then filters by ID client-side (API doesn't support ?id= param)
+- [x] Interaction timeline: merges conversations + consent logs client-side with unified sort
 
 ## Blockers
 None.
@@ -115,5 +124,5 @@ src/components/
 | 05-dashboard-v2 | 02 | 15 min | 4/4 | 2 created |
 
 ## Next Actions
-1. Execute Phase 06 (HITL Conversations + CRM) — priority queue, active chat, voter context panel, voter profile page
-2. Execute Phase 07 (Compliance + Admin) — LGPD consent management, audit trail, user/role admin
+1. Execute Phase 07 (Compliance + Admin) — LGPD consent management, audit trail, user/role admin
+2. Execute Phase 08 (Reports + Polish) — analytics reports, final UX polish
