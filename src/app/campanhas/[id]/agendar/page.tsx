@@ -16,10 +16,11 @@ import {
   Clock,
   Users,
   Zap,
+  Send,
   AlertTriangle,
   CalendarCheck,
 } from 'lucide-react';
-import type { Campaign, Segment } from '@/db/schema';
+import type { Campaign, Segment, Chip } from '@/db/schema';
 
 // ─── Time window options ───────────────────────────────────────────────────────
 
@@ -57,6 +58,8 @@ export default function AgendarCampanhaPage() {
   const [scheduleDate, setScheduleDate] = useState(today);
   const [selectedWindows, setSelectedWindows] = useState<TimeWindow[]>(['morning']);
   const [sendRate, setSendRate] = useState<SendRate>('normal');
+  const [selectedChipId, setSelectedChipId] = useState('auto');
+  const [connectedChips, setConnectedChips] = useState<Chip[]>([]);
 
   const loadCampaign = useCallback(async () => {
     try {
@@ -85,6 +88,20 @@ export default function AgendarCampanhaPage() {
 
   useEffect(() => { loadCampaign(); }, [loadCampaign]);
 
+  useEffect(() => {
+    fetch('/api/chips')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: Chip[]) => {
+        setConnectedChips(data.filter((chip) => chip.status === 'connected'));
+      })
+      .catch(() => {});
+
+    if (typeof window !== 'undefined' && params.id) {
+      const stored = localStorage.getItem(`campaign-chip:${params.id}`);
+      if (stored) setSelectedChipId(stored);
+    }
+  }, [params.id]);
+
   const toggleWindow = (w: TimeWindow) => {
     setSelectedWindows(prev =>
       prev.includes(w)
@@ -97,7 +114,7 @@ export default function AgendarCampanhaPage() {
     if (!campaign) return;
     setIsSending(true);
     try {
-      // 1. Update campaign with scheduling info
+      // Persist scheduling only (do not trigger send immediately)
       const scheduledAt = new Date(`${scheduleDate}T08:00:00`).toISOString();
       const patchRes = await fetch('/api/campaigns', {
         method: 'PUT',
@@ -114,22 +131,41 @@ export default function AgendarCampanhaPage() {
         return;
       }
 
-      // 2. Trigger simulated send
-      const sendRes = await fetch(`/api/campaigns/${campaign.id}/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sendRate, windows: selectedWindows }),
-      });
+      setCampaign((prev) => prev
+        ? { ...prev, status: 'scheduled', scheduledAt: new Date(scheduledAt) }
+        : prev);
 
-      if (sendRes.ok) {
-        toast.success('Campanha agendada! Redirecionando para o monitor...');
-        setTimeout(() => router.push(`/campanhas/${campaign.id}/monitor`), 800);
-      } else {
-        toast.error('Campanha agendada mas não foi possível iniciar o envio');
-        router.push('/campanhas');
-      }
+      toast.success(`Campanha agendada para ${new Date(scheduledAt).toLocaleString('pt-BR')}`);
+      setTimeout(() => router.push(`/campanhas/${campaign.id}/monitor`), 800);
     } catch {
       toast.error('Erro ao agendar campanha');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleSendNow = async () => {
+    if (!campaign) return;
+    setIsSending(true);
+
+    try {
+      const payload = selectedChipId && selectedChipId !== 'auto' ? { chipId: selectedChipId } : {};
+      const res = await fetch(`/api/campaigns/${campaign.id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data?.error ?? 'Não foi possível iniciar o envio');
+        return;
+      }
+
+      toast.success('Envio iniciado');
+      router.push(`/campanhas/${campaign.id}/monitor`);
+    } catch {
+      toast.error('Erro ao iniciar envio');
     } finally {
       setIsSending(false);
     }
@@ -180,7 +216,14 @@ export default function AgendarCampanhaPage() {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Campanha</span>
-              <span className="text-sm font-semibold text-foreground">{campaign.name}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-foreground">{campaign.name}</span>
+                {campaign.status === 'scheduled' && campaign.scheduledAt && (
+                  <Badge variant="secondary" className="text-xs">
+                    Agendada para {new Date(campaign.scheduledAt).toLocaleString('pt-BR')}
+                  </Badge>
+                )}
+              </div>
             </div>
             {segment ? (
               <div className="flex items-center justify-between">
@@ -203,6 +246,17 @@ export default function AgendarCampanhaPage() {
                 <span className="text-xs text-muted-foreground italic">Nenhum selecionado</span>
               </div>
             )}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Chip de envio</span>
+              <span className="text-xs text-muted-foreground">
+                {selectedChipId === 'auto'
+                  ? 'Auto (primeiro chip conectado)'
+                  : (() => {
+                    const chip = connectedChips.find((c) => c.id === selectedChipId);
+                    return chip ? `${chip.name} (${chip.phone})` : 'Chip selecionado';
+                  })()}
+              </span>
+            </div>
             {campaign.abEnabled && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Teste A/B</span>
@@ -340,6 +394,15 @@ export default function AgendarCampanhaPage() {
                 Agendar campanha
               </>
             )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleSendNow}
+            disabled={isSending}
+            className="min-w-[180px]"
+          >
+            <Send className="mr-1.5 h-4 w-4" />
+            Enviar agora
           </Button>
         </div>
       </div>

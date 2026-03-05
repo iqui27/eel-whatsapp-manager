@@ -10,9 +10,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { calculateCtaScore, scoreBg } from '@/lib/cta-score';
-import type { Segment, Campaign } from '@/db/schema';
+import type { Segment, Campaign, Chip } from '@/db/schema';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -156,6 +163,8 @@ export default function NovaCampanhaPage() {
   const [variantB, setVariantB] = useState('');
   const [splitPct, setSplitPct] = useState(50);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [connectedChips, setConnectedChips] = useState<Chip[]>([]);
+  const [selectedChipId, setSelectedChipId] = useState('auto');
   const [isSaving, setIsSaving] = useState(false);
 
   // Load segments for selector
@@ -163,6 +172,13 @@ export default function NovaCampanhaPage() {
     fetch('/api/segments')
       .then(r => r.ok ? r.json() : [])
       .then(setSegments)
+      .catch(() => {});
+
+    fetch('/api/chips')
+      .then(r => r.ok ? r.json() : [])
+      .then((chips: Chip[]) => {
+        setConnectedChips(chips.filter((chip) => chip.status === 'connected'));
+      })
       .catch(() => {});
   }, []);
 
@@ -212,6 +228,9 @@ export default function NovaCampanhaPage() {
       });
       if (res.ok) {
         const saved: Campaign = await res.json();
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`campaign-chip:${saved.id}`, selectedChipId);
+        }
         toast.success('Rascunho salvo');
         return saved.id;
       } else {
@@ -275,6 +294,21 @@ export default function NovaCampanhaPage() {
                     : 'Segmento selecionado'}
                 </Badge>
               )}
+              <div className="min-w-[240px]">
+                <Select value={selectedChipId} onValueChange={setSelectedChipId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Chip de envio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto (primeiro chip conectado)</SelectItem>
+                    {connectedChips.map(chip => (
+                      <SelectItem key={chip.id} value={chip.id}>
+                        {chip.name} ({chip.phone})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
@@ -476,5 +510,3 @@ export default function NovaCampanhaPage() {
     </SidebarLayout>
   );
 }
-
-
