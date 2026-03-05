@@ -13,6 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { calculateCtaScore, scoreBg } from '@/lib/cta-score';
 import type { Segment, Campaign } from '@/db/schema';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   ArrowLeft,
   ArrowRight,
@@ -21,6 +23,7 @@ import {
   X,
   MessageSquare,
   Smartphone,
+  FlaskConical,
 } from 'lucide-react';
 
 // ─── Variable definitions ─────────────────────────────────────────────────────
@@ -149,6 +152,9 @@ export default function NovaCampanhaPage() {
   const [campaignName, setCampaignName] = useState('');
   const [segmentId, setSegmentId] = useState('');
   const [message, setMessage] = useState('');
+  const [abEnabled, setAbEnabled] = useState(false);
+  const [variantB, setVariantB] = useState('');
+  const [splitPct, setSplitPct] = useState(50);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -199,6 +205,9 @@ export default function NovaCampanhaPage() {
           template: message,
           segmentId: segmentId || null,
           status: 'draft',
+          abEnabled,
+          abVariantB: abEnabled ? variantB : null,
+          abSplitPercent: abEnabled ? splitPct : 50,
         }),
       });
       if (res.ok) {
@@ -330,6 +339,88 @@ export default function NovaCampanhaPage() {
                   <Separator />
                   <QualityChecks message={message} />
                 </CardContent>
+              </Card>
+
+              {/* A/B Test Panel */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-base">
+                    <div className="flex items-center gap-2">
+                      <FlaskConical className="h-4 w-4 text-primary" />
+                      Teste A/B
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="ab-toggle" className="text-sm font-normal text-muted-foreground cursor-pointer">
+                        {abEnabled ? 'Ativado' : 'Desativado'}
+                      </Label>
+                      <Switch
+                        id="ab-toggle"
+                        checked={abEnabled}
+                        onCheckedChange={setAbEnabled}
+                      />
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                {abEnabled && (
+                  <CardContent className="space-y-4">
+                    {/* Split percentage slider */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Divisão</span>
+                        <span className="font-medium tabular-nums">
+                          Variante A: {splitPct}% · Variante B: {100 - splitPct}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={10}
+                        max={90}
+                        step={5}
+                        value={splitPct}
+                        onChange={e => setSplitPct(Number(e.target.value))}
+                        className="w-full accent-primary"
+                      />
+                      <div className="flex overflow-hidden rounded-full h-2">
+                        <div
+                          className="bg-primary transition-all duration-200"
+                          style={{ width: `${splitPct}%` }}
+                        />
+                        <div
+                          className="bg-primary/30 flex-1"
+                        />
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Variant B editor */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-primary/10 text-primary text-xs font-bold px-2 py-0.5">B</span>
+                        <p className="text-sm font-medium text-foreground">Mensagem Variante B</p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {VARIABLES.map(v => (
+                          <button
+                            key={v.key}
+                            type="button"
+                            onClick={() => setVariantB(prev => prev + v.key)}
+                            className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors font-mono"
+                          >
+                            {v.key}
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        value={variantB}
+                        onChange={e => setVariantB(e.target.value)}
+                        placeholder="Mensagem alternativa para o grupo B..."
+                        className="w-full min-h-[120px] resize-none rounded-lg border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+                      />
+                      <QualityChecks message={variantB} />
+                    </div>
+                  </CardContent>
+                )}
               </Card>
             </div>
 

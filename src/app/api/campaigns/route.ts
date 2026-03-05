@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/db-config';
 import { validateSession } from '@/lib/db-auth';
 import {
-  loadCampaigns, addCampaign, updateCampaign, deleteCampaign, getCampaignsByStatus,
+  loadCampaigns, getCampaign, addCampaign, updateCampaign, deleteCampaign, getCampaignsByStatus,
 } from '@/lib/db-campaigns';
 import type { Campaign } from '@/db/schema';
 
@@ -22,8 +22,15 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
+  const id = searchParams.get('id');
 
   try {
+    if (id) {
+      const campaign = await getCampaign(id);
+      return campaign
+        ? NextResponse.json([campaign])
+        : NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
+    }
     const data = status
       ? await getCampaignsByStatus(status as NonNullable<Campaign['status']>)
       : await loadCampaigns();
@@ -42,9 +49,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    if (!body.name || !body.template) {
-      return NextResponse.json({ error: 'name e template são obrigatórios' }, { status: 400 });
+    if (!body.name) {
+      return NextResponse.json({ error: 'name é obrigatório' }, { status: 400 });
     }
+    if (!body.template) body.template = '';
     const campaign = await addCampaign(body);
     return NextResponse.json(campaign, { status: 201 });
   } catch (error) {
