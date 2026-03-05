@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/db-auth';
-import { loadConversations, getConversation, addConversation, updateConversationStatus } from '@/lib/db-conversations';
+import { loadConversations, getConversation, addConversation } from '@/lib/db-conversations';
+import { db } from '@/db';
+import { conversations } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import type { Conversation } from '@/db/schema';
 
 async function verifyAuth(request: NextRequest) {
@@ -54,10 +57,15 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    if (!body.id || !body.status) {
-      return NextResponse.json({ error: 'id e status são obrigatórios' }, { status: 400 });
+    if (!body.id) {
+      return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
     }
-    await updateConversationStatus(body.id, body.status as NonNullable<Conversation['status']>);
+    const updates: Partial<Conversation> & { updatedAt: Date } = { updatedAt: new Date() };
+    if (body.status !== undefined) updates.status = body.status as NonNullable<Conversation['status']>;
+    if (body.handoffReason !== undefined) updates.handoffReason = body.handoffReason;
+    if (body.assignedAgent !== undefined) updates.assignedAgent = body.assignedAgent;
+    if (body.priority !== undefined) updates.priority = body.priority;
+    await db.update(conversations).set(updates).where(eq(conversations.id, body.id));
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('PUT conversations error:', err);
