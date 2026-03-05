@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
@@ -133,12 +133,14 @@ const CHECKLIST_ITEMS = [
 
 export default function VoterProfilePage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const voterId = params.id;
 
   const [voter, setVoter] = useState<Voter | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [consentLogs, setConsentLogs] = useState<ConsentLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   // Tags editing
   const [tags, setTags] = useState<string[]>([]);
@@ -153,26 +155,44 @@ export default function VoterProfilePage() {
   const [notes, setNotes] = useState('');
 
   const load = useCallback(async () => {
+    setIsLoading(true);
+    setNotFound(false);
     try {
-      const [vRes, cRes, clRes] = await Promise.all([
-        fetch(`/api/voters?search=${voterId}`),
+      const voterRes = await fetch(`/api/voters?id=${voterId}`);
+      if (voterRes.status === 401) {
+        router.push('/login');
+        return;
+      }
+      if (voterRes.status === 404) {
+        setVoter(null);
+        setConversations([]);
+        setConsentLogs([]);
+        setNotFound(true);
+        return;
+      }
+      if (!voterRes.ok) {
+        throw new Error('Erro ao carregar eleitor');
+      }
+
+      const voterData: Voter = await voterRes.json();
+      setVoter(voterData);
+      setTags(voterData.tags ?? []);
+
+      const [cRes, clRes] = await Promise.all([
         fetch(`/api/conversations?voterId=${voterId}`),
         fetch(`/api/compliance?voterId=${voterId}`),
       ]);
-      // Voter: search by id won't work directly; use GET all and find
-      // Use the existing GET route which returns all voters, then find by id
-      const voterAll: Voter[] = vRes.ok ? await vRes.json() : [];
-      const found = voterAll.find(v => v.id === voterId);
-      if (found) {
-        setVoter(found);
-        setTags(found.tags ?? []);
+
+      if (cRes.status === 401 || clRes.status === 401) {
+        router.push('/login');
+        return;
       }
       if (cRes.ok) setConversations(await cRes.json());
       if (clRes.ok) setConsentLogs(await clRes.json());
     } catch { /* silent */ } finally {
       setIsLoading(false);
     }
-  }, [voterId]);
+  }, [router, voterId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -247,7 +267,7 @@ export default function VoterProfilePage() {
     );
   }
 
-  if (!voter) {
+  if (notFound || !voter) {
     return (
       <SidebarLayout currentPage="crm" pageTitle="Perfil do Eleitor">
         <div className="p-6 text-center text-muted-foreground">
