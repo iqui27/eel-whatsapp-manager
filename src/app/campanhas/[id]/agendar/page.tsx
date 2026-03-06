@@ -69,6 +69,7 @@ export default function AgendarCampanhaPage() {
         const c = data.find(x => x.id === params.id) ?? data[0];
         if (c) {
           setCampaign(c);
+          setSelectedChipId(c.chipId ?? 'auto');
           // Load segment if attached
           if (c.segmentId) {
             const sres = await fetch(`/api/segments?id=${c.segmentId}`);
@@ -96,10 +97,6 @@ export default function AgendarCampanhaPage() {
       })
       .catch(() => {});
 
-    if (typeof window !== 'undefined' && params.id) {
-      const stored = localStorage.getItem(`campaign-chip:${params.id}`);
-      if (stored) setSelectedChipId(stored);
-    }
   }, [params.id]);
 
   const toggleWindow = (w: TimeWindow) => {
@@ -122,6 +119,7 @@ export default function AgendarCampanhaPage() {
         body: JSON.stringify({
           id: campaign.id,
           scheduledAt,
+          chipId: selectedChipId !== 'auto' ? selectedChipId : null,
           status: 'scheduled',
         }),
       });
@@ -132,7 +130,12 @@ export default function AgendarCampanhaPage() {
       }
 
       setCampaign((prev) => prev
-        ? { ...prev, status: 'scheduled', scheduledAt: new Date(scheduledAt) }
+        ? {
+          ...prev,
+          status: 'scheduled',
+          scheduledAt: new Date(scheduledAt),
+          chipId: selectedChipId !== 'auto' ? selectedChipId : null,
+        }
         : prev);
 
       toast.success(`Campanha agendada para ${new Date(scheduledAt).toLocaleString('pt-BR')}`);

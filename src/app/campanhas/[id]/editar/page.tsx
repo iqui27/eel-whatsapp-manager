@@ -219,13 +219,7 @@ export default function EditarCampanhaPage() {
       setVariantB(campaign.abVariantB ?? '');
       setSplitPct(campaign.abSplitPercent ?? 50);
       setCampaignStatus(campaign.status ?? 'draft');
-
-      if (typeof window !== 'undefined') {
-        const storedChip = localStorage.getItem(`campaign-chip:${campaign.id}`);
-        if (storedChip) {
-          setSelectedChipId(storedChip);
-        }
-      }
+      setSelectedChipId(campaign.chipId ?? 'auto');
     } catch {
       toast.error('Erro ao carregar campanha');
     } finally {
@@ -281,6 +275,7 @@ export default function EditarCampanhaPage() {
           name: campaignName.trim(),
           template: message,
           segmentId: segmentId || null,
+          chipId: selectedChipId !== 'auto' ? selectedChipId : null,
           abEnabled,
           abVariantB: abEnabled ? variantB : null,
           abSplitPercent: abEnabled ? splitPct : 50,
@@ -297,9 +292,6 @@ export default function EditarCampanhaPage() {
         return;
       }
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(`campaign-chip:${params.id}`, selectedChipId);
-      }
       toast.success('Campanha atualizada');
       router.push('/campanhas');
     } catch {

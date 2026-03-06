@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/db-auth';
-import { loadConversations, getConversation, addConversation } from '@/lib/db-conversations';
+import {
+  addConversation,
+  getConversation,
+  getConversationsByVoter,
+  loadConversations,
+} from '@/lib/db-conversations';
 import { db } from '@/db';
 import { conversationMessages, conversations } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -29,8 +34,7 @@ export async function GET(request: NextRequest) {
         : NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
     if (voterId) {
-      const all = await loadConversations();
-      return NextResponse.json(all.filter(c => c.voterId === voterId));
+      return NextResponse.json(await getConversationsByVoter(voterId));
     }
     const data = await loadConversations(status ?? undefined);
     return NextResponse.json(data);
@@ -47,6 +51,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
+    if (body.chipId === 'auto' || body.chipId === '') {
+      body.chipId = null;
+    }
     const conv = await addConversation(body);
     return NextResponse.json(conv, { status: 201 });
   } catch (err) {

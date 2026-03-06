@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { campaigns, voters, chips, type Voter } from '@/db/schema';
-import { and, eq, inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { validateSession } from '@/lib/db-auth';
 import { loadConfig } from '@/lib/db-config';
 import { getSegmentVoterIds } from '@/lib/db-segments';
@@ -68,38 +68,25 @@ export async function POST(
 
     const segmentVoters = await db.select().from(voters).where(inArray(voters.id, voterIds));
 
+    const connectedChips = await db
+      .select()
+      .from(chips)
+      .where(eq(chips.status, 'connected'));
+
     let selectedChip = null;
+    const requestedChipId = body.chipId && body.chipId !== 'auto' ? body.chipId : null;
+    const preferredChipId = requestedChipId ?? campaign.chipId ?? null;
 
-    if (body.chipId) {
-      const chipCandidates = await db
-        .select()
-        .from(chips)
-        .where(
-          and(
-            eq(chips.status, 'connected'),
-            inArray(chips.id, [body.chipId]),
-          ),
-        )
-        .limit(1);
-
-      if (chipCandidates[0]) {
-        selectedChip = chipCandidates[0];
-      } else {
-        const byName = await db
-          .select()
-          .from(chips)
-          .where(eq(chips.status, 'connected'));
-        selectedChip = byName.find((c) => c.instanceName === body.chipId || c.name === body.chipId) ?? null;
-      }
+    if (preferredChipId) {
+      selectedChip = connectedChips.find((chip) =>
+        chip.id === preferredChipId
+        || chip.instanceName === preferredChipId
+        || chip.name === preferredChipId,
+      ) ?? null;
     }
 
     if (!selectedChip) {
-      const [firstConnected] = await db
-        .select()
-        .from(chips)
-        .where(eq(chips.status, 'connected'))
-        .limit(1);
-      selectedChip = firstConnected ?? null;
+      selectedChip = connectedChips[0] ?? null;
     }
 
     if (!selectedChip) {

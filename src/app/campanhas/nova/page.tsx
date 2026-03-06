@@ -223,6 +223,7 @@ export default function NovaCampanhaPage() {
           name: campaignName.trim(),
           template: message,
           segmentId: segmentId || null,
+          chipId: selectedChipId !== 'auto' ? selectedChipId : null,
           status: 'draft',
           abEnabled,
           abVariantB: abEnabled ? variantB : null,
@@ -231,9 +232,6 @@ export default function NovaCampanhaPage() {
       });
       if (res.ok) {
         const saved: Campaign = await res.json();
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(`campaign-chip:${saved.id}`, selectedChipId);
-        }
         toast.success('Rascunho salvo');
         return saved.id;
       } else {

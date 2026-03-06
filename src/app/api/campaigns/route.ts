@@ -53,6 +53,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'name é obrigatório' }, { status: 400 });
     }
     if (!body.template) body.template = '';
+    if (body.chipId === 'auto' || body.chipId === '') {
+      body.chipId = null;
+    }
     const campaign = await addCampaign(body);
     return NextResponse.json(campaign, { status: 201 });
   } catch (error) {
@@ -73,6 +76,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
     }
     const { id, ...updates } = body;
+    if (updates.chipId === 'auto' || updates.chipId === '') {
+      updates.chipId = null;
+    }
     const campaign = await updateCampaign(id, updates);
     return NextResponse.json(campaign);
   } catch (error) {

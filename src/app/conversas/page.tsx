@@ -267,6 +267,7 @@ function NewConvDialog({
     try {
       const payload = {
         voterId,
+        chipId: selectedChipId !== 'auto' ? selectedChipId : null,
         voterName: name.trim(),
         voterPhone: phone.trim(),
         status: 'open',
@@ -367,7 +368,7 @@ function NewConvDialog({
             <p className="text-[11px] text-muted-foreground">
               {selectedChipId === 'auto'
                 ? 'O envio usará o primeiro chip conectado disponível.'
-                : 'A seleção ajuda a identificar o chip desejado; o envio ainda usa o chip conectado padrão.'}
+                : 'As próximas respostas desta conversa usarão este chip enquanto ele estiver conectado.'}
             </p>
           </div>
         </div>

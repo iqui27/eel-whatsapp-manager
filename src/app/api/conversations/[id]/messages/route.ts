@@ -53,8 +53,12 @@ export async function POST(
       }
 
       const chips = await loadChips();
-      const connectedChip = chips.find((chip) => chip.status === 'connected' && chip.instanceName);
-      const instanceName = connectedChip?.instanceName ?? config.instanceName;
+      const connectedChips = chips.filter((chip) => chip.status === 'connected' && chip.instanceName);
+      const boundChip = conversation.chipId
+        ? connectedChips.find((chip) => chip.id === conversation.chipId)
+        : undefined;
+      const fallbackChip = connectedChips[0];
+      const instanceName = boundChip?.instanceName ?? fallbackChip?.instanceName ?? config.instanceName;
       if (!instanceName) {
         return NextResponse.json({ error: 'Nenhum chip conectado disponível para envio' }, { status: 500 });
       }
