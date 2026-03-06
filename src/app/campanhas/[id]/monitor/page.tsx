@@ -26,15 +26,41 @@ import {
   RefreshCw,
   Loader2,
 } from 'lucide-react';
-import type { Campaign, Segment } from '@/db/schema';
+import type { Campaign, CampaignDeliveryEvent, Segment } from '@/db/schema';
 
 const LOG_STATUS_CLASSES: Record<string, string> = {
+  claimed: 'bg-slate-500/10 text-slate-600 border-slate-200',
   andamento: 'bg-amber-500/10 text-amber-600 border-amber-200',
   entregue:  'bg-green-500/10 text-green-600 border-green-200',
   respondeu: 'bg-blue-500/10 text-blue-600 border-blue-200',
   falha:     'bg-red-500/10 text-red-600 border-red-200',
   concluido: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
 };
+
+type CampaignMonitor = Campaign & {
+  deliveryEvents?: CampaignDeliveryEvent[];
+};
+
+function formatEventTime(date: Date | string | null) {
+  if (!date) {
+    return '—';
+  }
+
+  return new Date(date).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function mapEventTypeToStatus(eventType: string) {
+  if (eventType === 'scheduled_claimed') return 'claimed';
+  if (eventType === 'message_sent') return 'entregue';
+  if (eventType === 'message_failed' || eventType === 'send_failed') return 'falha';
+  if (eventType === 'send_completed') return 'concluido';
+  return 'andamento';
+}
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
@@ -72,16 +98,16 @@ function StatCard({
 
 export default function MonitorPage() {
   const params = useParams<{ id: string }>();
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [campaign, setCampaign] = useState<CampaignMonitor | null>(null);
   const [segmentName, setSegmentName] = useState<string>('Carregando segmento...');
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   const fetchCampaign = useCallback(async () => {
     try {
-      const res = await fetch(`/api/campaigns?id=${params.id}`);
+      const res = await fetch(`/api/campaigns?id=${params.id}&include=deliveryEvents`);
       if (res.ok) {
-        const data: Campaign[] = await res.json();
+        const data: CampaignMonitor[] = await res.json();
         setCampaign(data[0] ?? null);
       }
     } catch {
@@ -142,40 +168,10 @@ export default function MonitorPage() {
   const replied = campaign?.totalReplied ?? 0;
   const progressPct = sent > 0 ? Math.round((delivered / sent) * 100) : 0;
   const logUpdatedAt = campaign?.updatedAt ?? campaign?.createdAt;
-  const logTimestamp = logUpdatedAt
+  const legacyLogTimestamp = logUpdatedAt
     ? new Date(logUpdatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     : lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const deliveryLog = [
-    {
-      event: sent > 0
-        ? `Enviando ${sent.toLocaleString('pt-BR')} mensagens para ${segmentName}`
-        : `Campanha pronta para ${segmentName}`,
-      status: isSending ? 'andamento' : campaign?.status === 'sent' ? 'concluido' : 'andamento',
-      time: logTimestamp,
-    },
-    {
-      event: `Entregues: ${delivered.toLocaleString('pt-BR')} / ${sent.toLocaleString('pt-BR')}`,
-      status: 'entregue',
-      time: logTimestamp,
-    },
-    {
-      event: `Falhas: ${failed.toLocaleString('pt-BR')}`,
-      status: 'falha',
-      time: logTimestamp,
-    },
-    {
-      event: `Respostas: ${replied.toLocaleString('pt-BR')}`,
-      status: 'respondeu',
-      time: logTimestamp,
-    },
-    ...(campaign?.status === 'sent'
-      ? [{
-        event: `Envio concluído para ${segmentName}`,
-        status: 'concluido',
-        time: logTimestamp,
-      }]
-      : []),
-  ];
+  const deliveryEvents = campaign?.deliveryEvents ?? [];
 
   const STATUS_LABELS: Record<string, string> = {
     draft: 'Rascunho',
@@ -337,17 +333,32 @@ export default function MonitorPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {deliveryLog.map((row, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="text-sm text-foreground">{row.event}</TableCell>
-                    <TableCell>
-                      <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium', LOG_STATUS_CLASSES[row.status])}>
-                        {row.status}
-                      </span>
+                {deliveryEvents.length > 0 ? (
+                  deliveryEvents.map((event) => {
+                    const status = mapEventTypeToStatus(event.eventType);
+                    return (
+                      <TableRow key={event.id}>
+                        <TableCell className="text-sm text-foreground">{event.message}</TableCell>
+                        <TableCell>
+                          <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium', LOG_STATUS_CLASSES[status])}>
+                            {status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatEventTime(event.createdAt)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell className="text-sm text-muted-foreground" colSpan={3}>
+                      {campaign.status === 'scheduled' || campaign.status === 'draft'
+                        ? 'Nenhum evento persistido ainda. A timeline será preenchida quando o dispatcher ou o envio manual iniciar a campanha.'
+                        : `Campanha legada sem delivery events persistidos. Última atividade registrada às ${legacyLogTimestamp}.`}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{row.time}</TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </CardContent>

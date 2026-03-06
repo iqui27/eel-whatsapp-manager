@@ -23,6 +23,22 @@ export async function getCampaign(id: string): Promise<Campaign | undefined> {
   return rows[0];
 }
 
+export async function getCampaignWithDeliveryEvents(
+  id: string,
+  limit = 100,
+): Promise<(Campaign & { deliveryEvents: CampaignDeliveryEvent[] }) | undefined> {
+  const campaign = await getCampaign(id);
+  if (!campaign) {
+    return undefined;
+  }
+
+  const deliveryEvents = await listCampaignDeliveryEvents(id, limit);
+  return {
+    ...campaign,
+    deliveryEvents,
+  };
+}
+
 export async function addCampaign(
   data: Omit<NewCampaign, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<Campaign> {

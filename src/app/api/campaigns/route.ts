@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/db-config';
 import { validateSession } from '@/lib/db-auth';
 import {
-  loadCampaigns, getCampaign, addCampaign, updateCampaign, deleteCampaign, getCampaignsByStatus,
+  loadCampaigns,
+  getCampaign,
+  getCampaignWithDeliveryEvents,
+  addCampaign,
+  updateCampaign,
+  deleteCampaign,
+  getCampaignsByStatus,
 } from '@/lib/db-campaigns';
 import type { Campaign } from '@/db/schema';
 
@@ -23,10 +29,13 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
   const id = searchParams.get('id');
+  const include = searchParams.get('include');
 
   try {
     if (id) {
-      const campaign = await getCampaign(id);
+      const campaign = include === 'deliveryEvents'
+        ? await getCampaignWithDeliveryEvents(id)
+        : await getCampaign(id);
       return campaign
         ? NextResponse.json([campaign])
         : NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });

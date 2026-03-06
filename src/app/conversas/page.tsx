@@ -368,7 +368,7 @@ function NewConvDialog({
             <p className="text-[11px] text-muted-foreground">
               {selectedChipId === 'auto'
                 ? 'O envio usará o primeiro chip conectado disponível.'
-                : 'As próximas respostas desta conversa usarão este chip enquanto ele estiver conectado.'}
+                : 'As próximas respostas desta conversa usarão este chip salvo na conversa enquanto ele estiver conectado.'}
             </p>
           </div>
         </div>
