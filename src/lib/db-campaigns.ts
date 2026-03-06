@@ -5,11 +5,14 @@
 import { db } from '@/db';
 import {
   campaigns,
+  campaignDeliveryEvents,
   type Campaign, type NewCampaign,
+  type CampaignDeliveryEvent,
+  type NewCampaignDeliveryEvent,
 } from '@/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { and, asc, desc, eq, lte, sql } from 'drizzle-orm';
 
-export type { Campaign, NewCampaign };
+export type { Campaign, NewCampaign, CampaignDeliveryEvent, NewCampaignDeliveryEvent };
 
 export async function loadCampaigns(): Promise<Campaign[]> {
   return db.select().from(campaigns).orderBy(desc(campaigns.createdAt));
@@ -51,4 +54,54 @@ export async function getCampaignsByStatus(status: CampaignStatus): Promise<Camp
     .from(campaigns)
     .where(eq(campaigns.status, status))
     .orderBy(desc(campaigns.createdAt));
+}
+
+export async function getDueScheduledCampaigns(now = new Date()): Promise<Campaign[]> {
+  return db
+    .select()
+    .from(campaigns)
+    .where(
+      and(
+        eq(campaigns.status, 'scheduled'),
+        lte(campaigns.scheduledAt, now),
+      ),
+    )
+    .orderBy(asc(campaigns.scheduledAt), asc(campaigns.createdAt));
+}
+
+export async function claimScheduledCampaign(id: string): Promise<Campaign | undefined> {
+  const rows = await db
+    .update(campaigns)
+    .set({
+      status: 'sending',
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(campaigns.id, id),
+        eq(campaigns.status, 'scheduled'),
+        lte(campaigns.scheduledAt, sql`now()`),
+      ),
+    )
+    .returning();
+  return rows[0];
+}
+
+export async function addCampaignDeliveryEvent(
+  data: Omit<NewCampaignDeliveryEvent, 'id' | 'createdAt'>,
+): Promise<CampaignDeliveryEvent> {
+  const rows = await db.insert(campaignDeliveryEvents).values(data).returning();
+  return rows[0];
+}
+
+export async function listCampaignDeliveryEvents(
+  campaignId: string,
+  limit = 100,
+): Promise<CampaignDeliveryEvent[]> {
+  return db
+    .select()
+    .from(campaignDeliveryEvents)
+    .where(eq(campaignDeliveryEvents.campaignId, campaignId))
+    .orderBy(desc(campaignDeliveryEvents.createdAt))
+    .limit(limit);
 }

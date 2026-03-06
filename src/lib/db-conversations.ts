@@ -8,7 +8,7 @@ import {
   type Conversation, type NewConversation,
   type ConversationMessage,
 } from '@/db/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 
 export type { Conversation, NewConversation, ConversationMessage };
 
@@ -29,6 +29,14 @@ export async function loadConversations(status?: string): Promise<Conversation[]
 export async function getConversation(id: string): Promise<Conversation | undefined> {
   const rows = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
   return rows[0];
+}
+
+export async function getConversationsByVoter(voterId: string): Promise<Conversation[]> {
+  return db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.voterId, voterId))
+    .orderBy(desc(conversations.priority), desc(conversations.lastMessageAt));
 }
 
 export async function addConversation(

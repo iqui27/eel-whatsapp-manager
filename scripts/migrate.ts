@@ -9,6 +9,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import postgres from 'postgres';
+import { readdirSync } from 'fs';
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -21,38 +22,42 @@ async function main() {
   const sql = postgres(url!, { max: 1 });
 
   try {
-    const migrationPath = join(process.cwd(), 'drizzle', '0001_electoral_tables.sql');
-    const migration = readFileSync(migrationPath, 'utf-8');
+    const drizzleDir = join(process.cwd(), 'drizzle');
+    const migrationFiles = readdirSync(drizzleDir)
+      .filter((file) => /^\d+.*\.sql$/.test(file))
+      .sort();
 
-    // Split on Drizzle's statement-breakpoint marker
-    const statements = migration
-      .split('--> statement-breakpoint')
-      .map(s => s.trim())
-      .filter(Boolean);
+    for (const migrationFile of migrationFiles) {
+      const migrationPath = join(drizzleDir, migrationFile);
+      const migration = readFileSync(migrationPath, 'utf-8');
 
-    console.log(`📋  Running ${statements.length} statements…\n`);
+      const statements = migration
+        .split('--> statement-breakpoint')
+        .map((statement) => statement.trim())
+        .filter(Boolean);
 
-    for (let i = 0; i < statements.length; i++) {
-      const stmt = statements[i];
-      // Show first line as label
-      const label = stmt.split('\n')[0].slice(0, 80);
-      try {
-        await sql.unsafe(stmt);
-        console.log(`  ✓ [${i + 1}/${statements.length}] ${label}`);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        // Ignore "already exists" errors — idempotent
-        if (msg.includes('already exists')) {
-          console.log(`  ⚠  [${i + 1}/${statements.length}] Already exists — skipped`);
-        } else {
-          console.error(`  ✗ [${i + 1}/${statements.length}] FAILED: ${label}`);
-          console.error(`     ${msg}`);
-          throw err;
+      console.log(`📋  Running ${migrationFile} (${statements.length} statements)…\n`);
+
+      for (let i = 0; i < statements.length; i++) {
+        const stmt = statements[i];
+        const label = stmt.split('\n')[0].slice(0, 80);
+        try {
+          await sql.unsafe(stmt);
+          console.log(`  ✓ [${i + 1}/${statements.length}] ${label}`);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.includes('already exists')) {
+            console.log(`  ⚠  [${i + 1}/${statements.length}] Already exists — skipped`);
+          } else {
+            console.error(`  ✗ [${i + 1}/${statements.length}] FAILED: ${label}`);
+            console.error(`     ${msg}`);
+            throw err;
+          }
         }
       }
     }
 
-    console.log('\n✅  Migration complete — all electoral tables are ready.');
+    console.log('\n✅  Migrations complete.');
   } finally {
     await sql.end();
   }

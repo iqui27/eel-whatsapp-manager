@@ -8,6 +8,7 @@ import {
   time,
   index,
   primaryKey,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -173,6 +174,7 @@ export const campaigns = pgTable('campaigns', {
   variables: text('variables').array().default(sql`'{}'`),
   status: text('status', { enum: ['draft', 'scheduled', 'sending', 'sent', 'paused', 'cancelled'] }).default('draft'),
   segmentId: uuid('segment_id').references(() => segments.id, { onDelete: 'set null' }),
+  chipId: uuid('chip_id').references(() => chips.id, { onDelete: 'set null' }),
   scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
   windowStart: time('window_start').default('08:00'),
   windowEnd: time('window_end').default('22:00'),
@@ -189,6 +191,23 @@ export const campaigns = pgTable('campaigns', {
 }, (t) => [
   index('idx_campaigns_status').on(t.status),
   index('idx_campaigns_segment').on(t.segmentId),
+  index('idx_campaigns_chip').on(t.chipId),
+]);
+
+export const campaignDeliveryEvents = pgTable('campaign_delivery_events', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: uuid('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  chipId: uuid('chip_id').references(() => chips.id, { onDelete: 'set null' }),
+  voterId: uuid('voter_id').references(() => voters.id, { onDelete: 'set null' }),
+  voterPhone: text('voter_phone'),
+  eventType: text('event_type').notNull(),
+  message: text('message').notNull(),
+  metadata: jsonb('metadata').$type<Record<string, unknown> | null>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_campaign_delivery_events_campaign').on(t.campaignId),
+  index('idx_campaign_delivery_events_created_at').on(t.createdAt),
+  index('idx_campaign_delivery_events_event_type').on(t.eventType),
 ]);
 
 // ─── Junction: Segment ↔ Voter ────────────────────────────────────────────────
@@ -230,6 +249,9 @@ export type NewVoter = typeof voters.$inferInsert;
 export type Campaign = typeof campaigns.$inferSelect;
 export type NewCampaign = typeof campaigns.$inferInsert;
 
+export type CampaignDeliveryEvent = typeof campaignDeliveryEvents.$inferSelect;
+export type NewCampaignDeliveryEvent = typeof campaignDeliveryEvents.$inferInsert;
+
 export type Segment = typeof segments.$inferSelect;
 export type NewSegment = typeof segments.$inferInsert;
 
@@ -237,6 +259,7 @@ export type NewSegment = typeof segments.$inferInsert;
 export const conversations = pgTable('conversations', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   voterId: uuid('voter_id').references(() => voters.id, { onDelete: 'set null' }),
+  chipId: uuid('chip_id').references(() => chips.id, { onDelete: 'set null' }),
   voterName: text('voter_name').notNull(),
   voterPhone: text('voter_phone').notNull(),
   status: text('status', { enum: ['open', 'assigned', 'waiting', 'resolved', 'bot'] }).default('bot'),
@@ -248,6 +271,7 @@ export const conversations = pgTable('conversations', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
 }, (t) => [
   index('idx_conversations_voter').on(t.voterId),
+  index('idx_conversations_chip').on(t.chipId),
   index('idx_conversations_status').on(t.status),
   index('idx_conversations_priority').on(t.priority),
 ]);
