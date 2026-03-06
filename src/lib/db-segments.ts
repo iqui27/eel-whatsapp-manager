@@ -79,3 +79,57 @@ export async function updateSegmentCount(segmentId: string): Promise<void> {
     .set({ audienceCount: result?.total ?? 0, updatedAt: new Date() })
     .where(eq(segments.id, segmentId));
 }
+
+function segmentMatchesSingleVoter(segment: Segment, voterId: string) {
+  try {
+    const parsed = JSON.parse(segment.filters) as {
+      filters?: Array<{ key?: string; value?: unknown }>;
+    };
+
+    return parsed.filters?.some(
+      (filter) => filter.key === '__singleVoterId' && filter.value === voterId,
+    ) ?? false;
+  } catch {
+    return false;
+  }
+}
+
+export async function ensureSingleVoterSegment(
+  voterId: string,
+  voterName?: string | null,
+): Promise<Segment> {
+  const normalizedName = voterName?.trim() || 'Eleitor';
+  const segmentName = `Eleitor individual • ${normalizedName}`;
+  const filters = JSON.stringify({
+    operator: 'AND',
+    source: 'crm',
+    mode: 'single_voter',
+    filters: [
+      {
+        key: '__singleVoterId',
+        value: voterId,
+      },
+    ],
+  });
+
+  const existing = (await loadSegments()).find((segment) => segmentMatchesSingleVoter(segment, voterId));
+
+  let segment = existing;
+  if (!segment) {
+    segment = await addSegment({
+      name: segmentName,
+      filters,
+      audienceCount: 0,
+    });
+  } else if (segment.name !== segmentName || segment.filters !== filters) {
+    segment = (await updateSegment(segment.id, {
+      name: segmentName,
+      filters,
+    })) ?? segment;
+  }
+
+  await setSegmentVoters(segment.id, [voterId]);
+  await updateSegmentCount(segment.id);
+
+  return (await getSegment(segment.id)) ?? segment;
+}

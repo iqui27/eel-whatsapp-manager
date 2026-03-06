@@ -506,7 +506,7 @@ export default function VoterProfilePage() {
                   </Button>
                 </Link>
                 <Link
-                  href={`/campanhas/nova?voterId=${voter.id}&voterName=${encodeURIComponent(voter.name)}`}
+                  href={`/campanhas/nova?voterId=${voter.id}&voterName=${encodeURIComponent(voter.name)}&source=crm`}
                 >
                   <Button variant="outline" size="sm" className="w-full gap-1.5 justify-start">
                     <User className="h-4 w-4" />

@@ -158,6 +158,7 @@ export default function NovaCampanhaPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const voterContextId = searchParams.get('voterId');
   const voterContextName = searchParams.get('voterName');
+  const campaignSource = searchParams.get('source');
 
   const [campaignName, setCampaignName] = useState('');
   const [segmentId, setSegmentId] = useState('');
@@ -168,6 +169,8 @@ export default function NovaCampanhaPage() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [connectedChips, setConnectedChips] = useState<Chip[]>([]);
   const [selectedChipId, setSelectedChipId] = useState('auto');
+  const [prefilledSegmentName, setPrefilledSegmentName] = useState<string | null>(null);
+  const [isBootstrappingSegment, setIsBootstrappingSegment] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Load segments for selector
@@ -184,6 +187,57 @@ export default function NovaCampanhaPage() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!voterContextId || campaignSource !== 'crm') {
+      setPrefilledSegmentName(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const bootstrapSegment = async () => {
+      setIsBootstrappingSegment(true);
+      try {
+        const response = await fetch('/api/segments/from-voter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            voterId: voterContextId,
+            voterName: voterContextName,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Erro ao preparar segmento do eleitor');
+        }
+
+        const segment: Segment = await response.json();
+        if (cancelled) return;
+
+        setSegmentId(segment.id);
+        setPrefilledSegmentName(segment.name);
+        setSegments((current) => {
+          const remaining = current.filter((item) => item.id !== segment.id);
+          return [segment, ...remaining];
+        });
+      } catch {
+        if (!cancelled) {
+          toast.error('Não foi possível preparar o segmento individual deste eleitor');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsBootstrappingSegment(false);
+        }
+      }
+    };
+
+    bootstrapSegment();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignSource, voterContextId, voterContextName]);
 
   // Auto-grow textarea
   const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -324,7 +378,11 @@ export default function NovaCampanhaPage() {
                     Campanha direcionada para {voterContextName}
                   </Badge>
                   <p className="text-sm text-muted-foreground">
-                    Campanhas enviam para segmentos. Para alcançar um eleitor específico, crie um segmento com esse contato antes do disparo.
+                    {isBootstrappingSegment
+                      ? 'Preparando o segmento individual deste eleitor...'
+                      : prefilledSegmentName
+                        ? `Segmento individual pré-selecionado: ${prefilledSegmentName}. Você ainda pode trocar o segmento antes de salvar.`
+                        : 'Campanhas enviam para segmentos. O segmento individual deste eleitor será preparado automaticamente quando possível.'}
                   </p>
                 </div>
               </div>
