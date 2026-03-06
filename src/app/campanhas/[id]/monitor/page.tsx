@@ -26,22 +26,14 @@ import {
   RefreshCw,
   Loader2,
 } from 'lucide-react';
-import type { Campaign } from '@/db/schema';
-
-// ─── Mock delivery log ────────────────────────────────────────────────────────
-
-const MOCK_LOG = [
-  { phone: '***-1234', status: 'entregue',  time: '09:02' },
-  { phone: '***-5678', status: 'entregue',  time: '09:02' },
-  { phone: '***-9012', status: 'respondeu', time: '09:03' },
-  { phone: '***-3456', status: 'falha',     time: '09:04' },
-  { phone: '***-7890', status: 'entregue',  time: '09:04' },
-];
+import type { Campaign, Segment } from '@/db/schema';
 
 const LOG_STATUS_CLASSES: Record<string, string> = {
+  andamento: 'bg-amber-500/10 text-amber-600 border-amber-200',
   entregue:  'bg-green-500/10 text-green-600 border-green-200',
   respondeu: 'bg-blue-500/10 text-blue-600 border-blue-200',
   falha:     'bg-red-500/10 text-red-600 border-red-200',
+  concluido: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
 };
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
@@ -81,6 +73,7 @@ function StatCard({
 export default function MonitorPage() {
   const params = useParams<{ id: string }>();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [segmentName, setSegmentName] = useState<string>('Carregando segmento...');
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
@@ -103,6 +96,38 @@ export default function MonitorPage() {
     fetchCampaign();
   }, [fetchCampaign]);
 
+  useEffect(() => {
+    if (!campaign?.segmentId) {
+      setSegmentName('Sem segmento');
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchSegmentName = async () => {
+      try {
+        const res = await fetch(`/api/segments?id=${campaign.segmentId}`);
+        if (!res.ok) {
+          if (!cancelled) setSegmentName('Segmento removido');
+          return;
+        }
+
+        const data: Segment[] = await res.json();
+        if (!cancelled) {
+          setSegmentName(data[0]?.name ?? 'Segmento removido');
+        }
+      } catch {
+        if (!cancelled) setSegmentName('Segmento removido');
+      }
+    };
+
+    fetchSegmentName();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [campaign?.segmentId]);
+
   // Auto-refresh while sending
   useEffect(() => {
     if (!campaign || campaign.status !== 'sending') return;
@@ -116,6 +141,41 @@ export default function MonitorPage() {
   const failed = campaign?.totalFailed ?? 0;
   const replied = campaign?.totalReplied ?? 0;
   const progressPct = sent > 0 ? Math.round((delivered / sent) * 100) : 0;
+  const logUpdatedAt = campaign?.updatedAt ?? campaign?.createdAt;
+  const logTimestamp = logUpdatedAt
+    ? new Date(logUpdatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    : lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const deliveryLog = [
+    {
+      event: sent > 0
+        ? `Enviando ${sent.toLocaleString('pt-BR')} mensagens para ${segmentName}`
+        : `Campanha pronta para ${segmentName}`,
+      status: isSending ? 'andamento' : campaign?.status === 'sent' ? 'concluido' : 'andamento',
+      time: logTimestamp,
+    },
+    {
+      event: `Entregues: ${delivered.toLocaleString('pt-BR')} / ${sent.toLocaleString('pt-BR')}`,
+      status: 'entregue',
+      time: logTimestamp,
+    },
+    {
+      event: `Falhas: ${failed.toLocaleString('pt-BR')}`,
+      status: 'falha',
+      time: logTimestamp,
+    },
+    {
+      event: `Respostas: ${replied.toLocaleString('pt-BR')}`,
+      status: 'respondeu',
+      time: logTimestamp,
+    },
+    ...(campaign?.status === 'sent'
+      ? [{
+        event: `Envio concluído para ${segmentName}`,
+        status: 'concluido',
+        time: logTimestamp,
+      }]
+      : []),
+  ];
 
   const STATUS_LABELS: Record<string, string> = {
     draft: 'Rascunho',
@@ -241,6 +301,11 @@ export default function MonitorPage() {
                 <span>{progressPct}% entregue</span>
                 <span>Última atualização: {lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
               </div>
+              {campaign.status === 'sent' && (
+                <div className="rounded-lg border border-green-200 bg-green-500/5 px-3 py-2 text-sm text-green-700">
+                  Campanha concluída para {segmentName} com {delivered.toLocaleString('pt-BR')} entregas, {failed.toLocaleString('pt-BR')} falhas e {replied.toLocaleString('pt-BR')} respostas.
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -259,22 +324,22 @@ export default function MonitorPage() {
             <CardTitle className="flex items-center gap-2 text-base">
               <BarChart3 className="h-4 w-4 text-primary" />
               Log de Entregas
-              <Badge variant="secondary" className="ml-auto text-xs">Amostra</Badge>
+              <Badge variant="secondary" className="ml-auto text-xs">Tempo real</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40">
-                  <TableHead>Telefone</TableHead>
+                  <TableHead>Evento</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Horário</TableHead>
+                  <TableHead>Atualizado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {MOCK_LOG.map((row, i) => (
+                {deliveryLog.map((row, i) => (
                   <TableRow key={i}>
-                    <TableCell className="font-mono text-sm text-muted-foreground">{row.phone}</TableCell>
+                    <TableCell className="text-sm text-foreground">{row.event}</TableCell>
                     <TableCell>
                       <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium', LOG_STATUS_CLASSES[row.status])}>
                         {row.status}

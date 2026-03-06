@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Megaphone, Pencil, Trash2, BarChart3, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Campaign } from '@/db/schema';
+import type { Campaign, Segment } from '@/db/schema';
 
 // ─── Status helpers ──────────────────────────────────────────────────────────
 
@@ -61,13 +61,19 @@ function StatusBadge({ status }: { status: string | null }) {
 
 export default function CampanhasPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [segments, setSegments] = useState<Segment[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadCampaigns = useCallback(async () => {
     try {
-      const res = await fetch('/api/campaigns');
-      if (res.ok) setCampaigns(await res.json());
+      const [campaignsRes, segmentsRes] = await Promise.all([
+        fetch('/api/campaigns'),
+        fetch('/api/segments'),
+      ]);
+
+      if (campaignsRes.ok) setCampaigns(await campaignsRes.json());
+      if (segmentsRes.ok) setSegments(await segmentsRes.json());
     } catch {
       /* silently fail */
     } finally {
@@ -114,6 +120,8 @@ export default function CampanhasPage() {
       toast.error('Erro ao duplicar campanha');
     }
   };
+
+  const segmentNames = new Map(segments.map((segment) => [segment.id, segment.name]));
 
   return (
     <SidebarLayout currentPage="campanhas" pageTitle="Campanhas">
@@ -181,7 +189,11 @@ export default function CampanhasPage() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {campaign.segmentId ? (
-                        <span className="font-mono text-xs">{campaign.segmentId.slice(0, 8)}…</span>
+                        segmentNames.has(campaign.segmentId) ? (
+                          <span>{segmentNames.get(campaign.segmentId)}</span>
+                        ) : (
+                          <span className="text-muted-foreground/70 italic">Segmento removido</span>
+                        )
                       ) : (
                         <span className="text-muted-foreground/50">—</span>
                       )}
