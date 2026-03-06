@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 09
 current_phase_name: real data
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 09-real-data-05-PLAN.md
-last_updated: "2026-03-06T00:03:40.123Z"
+stopped_at: Completed 09-real-data-03-PLAN.md
+last_updated: "2026-03-06T00:11:33.889Z"
 last_activity: 2026-03-06
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 23
-  completed_plans: 20
-  percent: 87
+  completed_plans: 21
+  percent: 91
 ---
 
 # EEL Eleicao — Project State
@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 09
 **Current Phase Name:** real data
-**Current Plan:** 5
+**Current Plan:** 6
 **Total Phases:** 9
 **Total Plans in Phase:** 7
 **Status:** Ready to execute
-**Progress:** [█████████░] 87%
+**Progress:** [█████████░] 91%
 **Last Activity:** 2026-03-06
-**Last Activity Description:** Completed 09-04 CRM Voter Operations; only 09-05 remains in Wave 1 before Wave 2
-**Stopped At:** Completed 09-real-data-05-PLAN.md
+**Last Activity Description:** Completed 09-03 Conversations WhatsApp Integration; Wave 1 is complete and Wave 2 continues with 09-06 and 09-07
+**Stopped At:** Completed 09-real-data-03-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -41,11 +41,11 @@ progress:
 **Phase 07 (Compliance + Admin) — COMPLETE** ✅
 **Phase 08 (Reports + Polish) — COMPLETE** ✅
 **Phase 09 (Real Data + Integrations) — IN PROGRESS** 📋
-- Plans completed: 3/7 (`09-01`, `09-02`, `09-04`)
+- Plans completed: 5/7 (`09-01`, `09-02`, `09-03`, `09-04`, `09-05`)
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 91%
 
-Last session: 2026-03-06T00:03:40.120Z
+Last session: 2026-03-06T00:11:33.887Z
 
 ## Project History
 
@@ -131,6 +131,9 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 09-real-data]: CRM voter profile now loads the voter by ID before related conversations/compliance fetches, and CRM mutations refresh pagination boundaries explicitly.
 - [Phase 09-real-data]: Stored segment filters as operator plus filters payloads while keeping legacy array parsing for backward compatibility.
 - [Phase 09-real-data]: Segments API now derives live filter options and campaign usage metadata so the segmentation UI stays bound to real voter data.
+- [Phase 09-real-data]: Agent replies only persist after Evolution sendText succeeds, preventing false-positive chat history.
+- [Phase 09-real-data]: Without a chipId column on conversations, outbound sends resolve to the first connected chip instance and fall back to config.instanceName.
+- [Phase 09-real-data]: New conversations require selecting an existing voter so HITL threads stay linked to CRM data.
 
 ## Blockers
 None.
@@ -186,18 +189,19 @@ src/components/
 | Phase 09-real-data P02 | 2 min | 2 tasks | 3 files |
 | Phase 09-real-data P04 | 4 min | 2 tasks | 4 files |
 | Phase 09-real-data P05 | 23 min | 2 tasks | 2 files |
+| Phase 09-real-data P03 | 7 min | 2 tasks | 3 files |
 
 ## Next Actions
-Continue Phase 09 Wave 1 execution with the remaining real-data plans before Wave 2.
+Continue Phase 09 Wave 2 execution for the remaining real-data plans.
 
 **Wave 1 (parallel — no dependencies):**
 - 09-01: Webhook + Inbound Pipeline ✅
 - 09-02: Campaign Send Pipeline ✅
+- 09-03: Conversations WhatsApp Integration ✅
 - 09-04: CRM Voter Operations ✅
-- 09-05: Segmentation Real Data
+- 09-05: Segmentation Real Data ✅
 
 **Wave 2 (after Wave 1):**
-- 09-03: Conversations WhatsApp Integration (needs 09-01)
 - 09-06: Dashboard + Reports Real Data (needs 09-02, 09-05)
 - 09-07: Campaign Fixes + Voter Links (needs 09-02, 09-04)
 
