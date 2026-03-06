@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { Conversation, ConversationMessage } from '@/db/schema';
+import type { Chip, Conversation, ConversationMessage, Voter } from '@/db/schema';
 import {
   MessageSquare,
   Send,
@@ -64,6 +64,13 @@ const QUEUE_TABS = [
   { id: 'bot',      label: 'Bot' },
 ] as const;
 type QueueTab = typeof QUEUE_TABS[number]['id'];
+
+type VoterSearchResponse = {
+  data: Voter[];
+  total: number;
+  page: number;
+  limit: number;
+};
 
 // ─── Queue Item ───────────────────────────────────────────────────────────────
 
@@ -149,25 +156,118 @@ function NewConvDialog({
   onCreated,
 }: {
   onClose: () => void;
-  onCreated: (conv: Conversation) => void;
+  onCreated: (conv: Conversation) => Promise<void> | void;
 }) {
+  const [query, setQuery] = useState('');
+  const [voterId, setVoterId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [results, setResults] = useState<Voter[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [chips, setChips] = useState<Chip[]>([]);
+  const [chipsLoading, setChipsLoading] = useState(true);
+  const [selectedChipId, setSelectedChipId] = useState('auto');
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadConnectedChips = async () => {
+      setChipsLoading(true);
+      try {
+        const res = await fetch('/api/chips');
+        if (!res.ok) {
+          throw new Error('Erro ao carregar chips');
+        }
+        const allChips: Chip[] = await res.json();
+        if (!cancelled) {
+          setChips(allChips.filter((chip) => chip.status === 'connected'));
+        }
+      } catch {
+        if (!cancelled) {
+          setChips([]);
+          toast.error('Erro ao carregar chips conectados');
+        }
+      } finally {
+        if (!cancelled) {
+          setChipsLoading(false);
+        }
+      }
+    };
+
+    loadConnectedChips();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 2) {
+      setResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsSearching(true);
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/voters?search=${encodeURIComponent(term)}&limit=8`);
+        if (!res.ok) {
+          throw new Error('Erro ao buscar eleitores');
+        }
+        const payload: VoterSearchResponse = await res.json();
+        if (!cancelled) {
+          setResults(payload.data);
+        }
+      } catch {
+        if (!cancelled) {
+          setResults([]);
+          toast.error('Erro ao buscar eleitores');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsSearching(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [query]);
+
+  const handleSelectVoter = (voter: Voter) => {
+    setVoterId(voter.id);
+    setQuery(voter.name);
+    setName(voter.name);
+    setPhone(voter.phone);
+    setResults([]);
+  };
+
   const handleCreate = async () => {
-    if (!name.trim() || !phone.trim()) return;
+    if (!voterId || !name.trim() || !phone.trim()) return;
     setSaving(true);
     try {
+      const payload = {
+        voterId,
+        voterName: name.trim(),
+        voterPhone: phone.trim(),
+        status: 'open',
+        priority: 1,
+      };
       const res = await fetch('/api/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voterName: name.trim(), voterPhone: phone.trim(), status: 'open', priority: 1 }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         const conv: Conversation = await res.json();
         toast.success('Conversa criada');
-        onCreated(conv);
+        await onCreated(conv);
         onClose();
       } else {
         toast.error('Erro ao criar conversa');
@@ -189,12 +289,78 @@ function NewConvDialog({
           </button>
         </div>
         <div className="space-y-3">
-          <Input placeholder="Nome do eleitor" value={name} onChange={e => setName(e.target.value)} />
-          <Input placeholder="Telefone (+55 11 99999-0000)" value={phone} onChange={e => setPhone(e.target.value)} />
+          <div className="space-y-2">
+            <Input
+              placeholder="Buscar eleitor por nome ou telefone"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setVoterId(null);
+                setName('');
+                setPhone('');
+              }}
+            />
+            <div className="rounded-lg border border-border bg-muted/20">
+              {isSearching ? (
+                <p className="px-3 py-2 text-xs text-muted-foreground">Buscando eleitores...</p>
+              ) : results.length > 0 ? (
+                <div className="max-h-48 overflow-y-auto py-1">
+                  {results.map((voter) => (
+                    <button
+                      key={voter.id}
+                      type="button"
+                      onClick={() => handleSelectVoter(voter)}
+                      className="flex w-full items-start justify-between gap-3 px-3 py-2 text-left hover:bg-muted/60"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{voter.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{voter.phone}</p>
+                      </div>
+                      <p className="max-w-[45%] text-[11px] text-muted-foreground text-right">
+                        {voter.tags?.length ? voter.tags.join(', ') : 'Sem tags'}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="px-3 py-2 text-xs text-muted-foreground">
+                  {query.trim().length < 2
+                    ? 'Digite ao menos 2 caracteres para buscar.'
+                    : 'Nenhum eleitor encontrado.'}
+                </p>
+              )}
+            </div>
+          </div>
+          <Input placeholder="Nome do eleitor" value={name} readOnly />
+          <Input placeholder="Telefone (+55 11 99999-0000)" value={phone} readOnly />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="chip-selector">
+              Chip de saída
+            </label>
+            <select
+              id="chip-selector"
+              value={selectedChipId}
+              onChange={(e) => setSelectedChipId(e.target.value)}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              disabled={chipsLoading}
+            >
+              <option value="auto">Auto (primeiro disponível)</option>
+              {chips.map((chip) => (
+                <option key={chip.id} value={chip.id}>
+                  {chip.name} · {chip.phone}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted-foreground">
+              {selectedChipId === 'auto'
+                ? 'O envio usará o primeiro chip conectado disponível.'
+                : 'A seleção ajuda a identificar o chip desejado; o envio ainda usa o chip conectado padrão.'}
+            </p>
+          </div>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleCreate} disabled={saving || !name.trim() || !phone.trim()}>
+          <Button onClick={handleCreate} disabled={saving || !voterId || !name.trim() || !phone.trim()}>
             {saving ? 'Criando...' : 'Criar'}
           </Button>
         </div>
@@ -590,8 +756,9 @@ export default function ConversasPage() {
       {showNewDialog && (
         <NewConvDialog
           onClose={() => setShowNewDialog(false)}
-          onCreated={conv => {
-            setConversations(prev => [conv, ...prev]);
+          onCreated={async (conv) => {
+            await loadConversations();
+            setMessages([]);
             setSelectedId(conv.id);
           }}
         />
