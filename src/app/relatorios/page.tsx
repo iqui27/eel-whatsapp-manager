@@ -25,63 +25,12 @@ import type { Campaign } from '@/db/schema';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Period = '7' | '30' | 'campanha';
-
-interface KpiData {
-  sent: number;
-  delivery: number; // %
-  reply: number;    // %
-  reached: number;
-  trendSent: number;    // % change vs previous period
-  trendDelivery: number;
-  trendReply: number;
-  trendReached: number;
-}
+type Period = '7' | '14';
 
 interface DayBar {
-  label: string;
+  date: string;
   value: number;
 }
-
-// ─── Simulated data per period ────────────────────────────────────────────────
-
-const KPI_DATA: Record<Period, KpiData> = {
-  '7': {
-    sent: 1_840, delivery: 94, reply: 12, reached: 1_420,
-    trendSent: 8, trendDelivery: 2, trendReply: -3, trendReached: 11,
-  },
-  '30': {
-    sent: 7_230, delivery: 91, reply: 9, reached: 5_610,
-    trendSent: 23, trendDelivery: -1, trendReply: 4, trendReached: 18,
-  },
-  campanha: {
-    sent: 15_400, delivery: 88, reply: 7, reached: 10_200,
-    trendSent: 0, trendDelivery: 0, trendReply: 0, trendReached: 0,
-  },
-};
-
-const DAILY_BARS: Record<Period, DayBar[]> = {
-  '7': [
-    { label: 'Seg', value: 210 },
-    { label: 'Ter', value: 380 },
-    { label: 'Qua', value: 290 },
-    { label: 'Qui', value: 440 },
-    { label: 'Sex', value: 320 },
-    { label: 'Sáb', value: 140 },
-    { label: 'Dom', value: 60 },
-  ],
-  '30': [
-    { label: 'S1', value: 1_200 },
-    { label: 'S2', value: 1_840 },
-    { label: 'S3', value: 2_100 },
-    { label: 'S4', value: 2_090 },
-  ],
-  campanha: [
-    { label: 'Jan', value: 3_200 },
-    { label: 'Fev', value: 5_400 },
-    { label: 'Mar', value: 6_800 },
-  ],
-};
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -110,7 +59,64 @@ function pct(numerator: number, denominator: number): string {
   return `${Math.round((numerator / denominator) * 100)}%`;
 }
 
-function exportCsv(campaigns: Campaign[]) {
+function getCampaignDate(campaign: Campaign): Date | null {
+  const source = campaign.updatedAt ?? campaign.createdAt;
+  if (!source) return null;
+  const parsed = new Date(source);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getPeriodDays(period: Period): number {
+  return period === '7' ? 7 : 14;
+}
+
+function filterCampaignsByPeriod(campaigns: Campaign[], period: Period) {
+  const windowDays = getPeriodDays(period);
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - (windowDays - 1));
+
+  return campaigns.filter((campaign) => {
+    const campaignDate = getCampaignDate(campaign);
+    return campaignDate ? campaignDate >= start && campaignDate <= now : false;
+  });
+}
+
+function buildDailyBars(campaigns: Campaign[], period: Period): DayBar[] {
+  const windowDays = getPeriodDays(period);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const totalsByDay = new Map<string, number>();
+  for (const campaign of campaigns) {
+    const campaignDate = getCampaignDate(campaign);
+    if (!campaignDate) continue;
+    const dayKey = campaignDate.toISOString().slice(0, 10);
+    totalsByDay.set(dayKey, (totalsByDay.get(dayKey) ?? 0) + (campaign.totalSent ?? 0));
+  }
+
+  return Array.from({ length: windowDays }, (_, index) => {
+    const date = new Date(now);
+    date.setDate(now.getDate() - (windowDays - index - 1));
+    const key = date.toISOString().slice(0, 10);
+    return {
+      date: date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      value: totalsByDay.get(key) ?? 0,
+    };
+  });
+}
+
+function exportCsv(
+  campaigns: Campaign[],
+  summary: {
+    periodLabel: string;
+    totalSent: number;
+    totalDelivered: number;
+    totalFailed: number;
+    totalReplied: number;
+  },
+) {
   const header = 'Campanha,Status,Enviadas,Entregues (%),Lidas (%),Respondidas (%),Data';
   const rows = campaigns.map(c => {
     const sent = c.totalSent ?? 0;
@@ -127,7 +133,18 @@ function exportCsv(campaigns: Campaign[]) {
       c.createdAt ? new Date(c.createdAt).toLocaleDateString('pt-BR') : '—',
     ].map(v => `"${v}"`).join(',');
   });
-  const csv = [header, ...rows].join('\n');
+  const summaryRows = [
+    'Período,Enviadas,Entregues,Respostas,Bloqueios',
+    [
+      summary.periodLabel,
+      summary.totalSent,
+      summary.totalDelivered,
+      summary.totalReplied,
+      summary.totalFailed,
+    ].map((value) => `"${value}"`).join(','),
+    '',
+  ];
+  const csv = [...summaryRows, header, ...rows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -157,7 +174,7 @@ function BarChart({ bars }: { bars: DayBar[] }) {
           const x = i * (barW + 12);
           const y = chartH - barH;
           return (
-            <g key={bar.label}>
+            <g key={bar.date}>
               <rect
                 x={x}
                 y={y}
@@ -173,9 +190,9 @@ function BarChart({ bars }: { bars: DayBar[] }) {
                 fontSize={10}
                 className="fill-muted-foreground"
               >
-                {bar.label}
+                {bar.date}
               </text>
-              <title>{bar.label}: {bar.value.toLocaleString('pt-BR')}</title>
+              <title>{bar.date}: {bar.value.toLocaleString('pt-BR')}</title>
             </g>
           );
         })}
@@ -235,9 +252,6 @@ export default function RelatoriosPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const kpi = KPI_DATA[period];
-  const bars = DAILY_BARS[period];
-
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -249,6 +263,14 @@ export default function RelatoriosPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const filteredCampaigns = filterCampaignsByPeriod(campaigns, period);
+  const totalSent = filteredCampaigns.reduce((sum, campaign) => sum + (campaign.totalSent ?? 0), 0);
+  const totalDelivered = filteredCampaigns.reduce((sum, campaign) => sum + (campaign.totalDelivered ?? 0), 0);
+  const totalFailed = filteredCampaigns.reduce((sum, campaign) => sum + (campaign.totalFailed ?? 0), 0);
+  const totalReplied = filteredCampaigns.reduce((sum, campaign) => sum + (campaign.totalReplied ?? 0), 0);
+  const bars = buildDailyBars(filteredCampaigns, period);
+  const periodLabel = period === '7' ? 'Últimos 7 dias' : 'Últimos 14 dias';
 
   return (
     <SidebarLayout currentPage="relatorios">
@@ -266,11 +288,21 @@ export default function RelatoriosPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="7">Últimos 7 dias</SelectItem>
-                <SelectItem value="30">Últimos 30 dias</SelectItem>
-                <SelectItem value="campanha">Esta campanha</SelectItem>
+                <SelectItem value="14">Últimos 14 dias</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={() => exportCsv(campaigns)} className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportCsv(filteredCampaigns, {
+                periodLabel,
+                totalSent,
+                totalDelivered,
+                totalFailed,
+                totalReplied,
+              })}
+              className="gap-2"
+            >
               <Download className="h-4 w-4" />
               Exportar CSV
             </Button>
@@ -279,18 +311,15 @@ export default function RelatoriosPage() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard label="Mensagens enviadas" value={kpi.sent} trend={kpi.trendSent} icon={Send} />
-          <KpiCard label="Taxa de entrega" value={kpi.delivery} trend={kpi.trendDelivery} icon={CheckCheck} suffix="%" />
-          <KpiCard label="Taxa de resposta" value={kpi.reply} trend={kpi.trendReply} icon={MessageSquare} suffix="%" />
-          <KpiCard label="Eleitores alcançados" value={kpi.reached} trend={kpi.trendReached} icon={Users} />
+          <KpiCard label="Mensagens enviadas" value={totalSent} trend={0} icon={Send} />
+          <KpiCard label="Entregues" value={totalDelivered} trend={0} icon={CheckCheck} />
+          <KpiCard label="Respostas" value={totalReplied} trend={0} icon={MessageSquare} />
+          <KpiCard label="Bloqueios" value={totalFailed} trend={0} icon={Users} />
         </div>
 
         {/* Bar Chart */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold mb-4 text-foreground">
-            Volume de envios —{' '}
-            {period === '7' ? 'últimos 7 dias' : period === '30' ? 'últimos 30 dias' : 'esta campanha'}
-          </h2>
+          <h2 className="text-sm font-semibold mb-4 text-foreground">Volume de envios — {periodLabel.toLowerCase()}</h2>
           <BarChart bars={bars} />
         </div>
 
@@ -319,14 +348,14 @@ export default function RelatoriosPage() {
                       Carregando…
                     </TableCell>
                   </TableRow>
-                ) : campaigns.length === 0 ? (
+                ) : filteredCampaigns.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
-                      Nenhuma campanha encontrada. Crie campanhas em{' '}
+                      Nenhuma campanha enviada neste período. Crie campanhas em{' '}
                       <a href="/campanhas" className="underline text-primary">Campanhas</a>.
                     </TableCell>
                   </TableRow>
-                ) : campaigns.map(c => {
+                ) : filteredCampaigns.map(c => {
                   const sent = c.totalSent ?? 0;
                   const delivered = c.totalDelivered ?? 0;
                   const read = c.totalRead ?? 0;

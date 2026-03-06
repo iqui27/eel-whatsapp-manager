@@ -59,7 +59,7 @@ function KpiCard({
   delay = 0,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   subLabel: string;
   icon: React.ElementType;
   iconBg: string;
@@ -67,7 +67,7 @@ function KpiCard({
   note?: string;
   delay?: number;
 }) {
-  const animated = useCountUp(value, 700, delay);
+  const animatedValue = useCountUp(typeof value === 'number' ? value : 0, 700, delay);
   return (
     <div className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -77,7 +77,7 @@ function KpiCard({
         </div>
       </div>
       <div className="text-3xl font-bold text-foreground tabular-nums">
-        {animated.toLocaleString('pt-BR')}
+        {typeof value === 'number' ? animatedValue.toLocaleString('pt-BR') : value}
       </div>
       <div className={cn(
         'flex items-center gap-1 text-xs font-medium',
@@ -320,7 +320,7 @@ export default function DashboardPage() {
       const [campRes, segRes, voterRes, chipRes] = await Promise.all([
         fetch('/api/campaigns'),
         fetch('/api/segments'),
-        fetch('/api/voters'),
+        fetch('/api/voters?limit=1'),
         fetch('/api/chips'),
       ]);
 
@@ -329,7 +329,7 @@ export default function DashboardPage() {
       const [campData, segData, voterData, chipData] = await Promise.all([
         campRes.ok ? campRes.json() : [],
         segRes.ok ? segRes.json() : [],
-        voterRes.ok ? voterRes.json() : [],
+        voterRes.ok ? voterRes.json() : { total: 0 },
         chipRes.ok ? chipRes.json() : [],
       ]);
 
@@ -337,7 +337,7 @@ export default function DashboardPage() {
       setSegments(segData);
       setSystemStatus({
         chips: Array.isArray(chipData) ? chipData.filter((c: { enabled?: boolean }) => c.enabled).length : 0,
-        voters: Array.isArray(voterData) ? voterData.length : 0,
+        voters: typeof voterData?.total === 'number' ? voterData.total : 0,
         segments: Array.isArray(segData) ? segData.length : 0,
       });
 
@@ -373,10 +373,13 @@ export default function DashboardPage() {
   };
 
   // ── Derived KPIs ──
+  const totalSent      = campaigns.reduce((acc, c) => acc + (c.totalSent ?? 0), 0);
   const totalDelivered = campaigns.reduce((acc, c) => acc + (c.totalDelivered ?? 0), 0);
   const totalReplied   = campaigns.reduce((acc, c) => acc + (c.totalReplied ?? 0), 0);
   const totalFailed    = campaigns.reduce((acc, c) => acc + (c.totalFailed ?? 0), 0);
-  const openRate       = 62; // mock — no read-tracking yet
+  const deliveryRate   = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : null;
+  const estimatedOpenRate = deliveryRate;
+  const noCampaignData = campaigns.length === 0 || totalSent === 0;
 
   if (isLoading) {
     return (
@@ -431,7 +434,9 @@ export default function DashboardPage() {
               <KpiCard
                 label="Entregues"
                 value={totalDelivered}
-                subLabel={`${campaigns.filter(c => c.status === 'sent').length} campanhas concluídas`}
+                subLabel={noCampaignData
+                  ? 'Nenhuma campanha enviada'
+                  : `${deliveryRate}% de entrega sobre ${totalSent.toLocaleString('pt-BR')} envios`}
                 icon={Send}
                 iconBg="bg-blue-500"
                 trend={totalDelivered > 0 ? 'up' : 'neutral'}
@@ -439,18 +444,20 @@ export default function DashboardPage() {
               />
               <KpiCard
                 label="Taxa de abertura"
-                value={openRate}
-                subLabel="estimado"
+                value={estimatedOpenRate !== null ? `${estimatedOpenRate}%` : 'N/D'}
+                subLabel={noCampaignData ? 'Sem campanhas com entrega' : 'Proxy por mensagens entregues'}
                 icon={BarChart3}
                 iconBg="bg-green-500"
                 trend="neutral"
-                note="(sem rastreio)"
+                note="(estimado)"
                 delay={50}
               />
               <KpiCard
                 label="Respostas"
                 value={totalReplied}
-                subLabel="de eleitores alcançados"
+                subLabel={noCampaignData
+                  ? 'Nenhuma resposta ainda'
+                  : `${Math.round((totalReplied / totalSent) * 100)}% sobre as enviadas`}
                 icon={MessageCircle}
                 iconBg="bg-purple-500"
                 trend={totalReplied > 0 ? 'up' : 'neutral'}
@@ -459,7 +466,9 @@ export default function DashboardPage() {
               <KpiCard
                 label="Bloqueios"
                 value={totalFailed}
-                subLabel="falhas de entrega"
+                subLabel={noCampaignData
+                  ? 'Nenhuma campanha enviada'
+                  : `${Math.round((totalFailed / totalSent) * 100)}% com falha`}
                 icon={XCircle}
                 iconBg="bg-red-500"
                 trend={totalFailed > 0 ? 'down' : 'neutral'}
