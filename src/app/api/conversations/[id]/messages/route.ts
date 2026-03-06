@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/db-auth';
-import { getMessages, addMessage } from '@/lib/db-conversations';
+import { addMessage, getConversation, getMessages } from '@/lib/db-conversations';
+import { loadChips } from '@/lib/db-chips';
+import { loadConfig } from '@/lib/db-config';
+import { sendText } from '@/lib/evolution';
 
 async function verifyAuth(request: NextRequest) {
   const token = request.cookies.get('auth')?.value;
@@ -37,6 +40,47 @@ export async function POST(
     if (!body.sender || !body.content) {
       return NextResponse.json({ error: 'sender e content são obrigatórios' }, { status: 400 });
     }
+
+    if (body.sender === 'agent') {
+      const conversation = await getConversation(id);
+      if (!conversation) {
+        return NextResponse.json({ error: 'Conversa não encontrada' }, { status: 404 });
+      }
+
+      const config = await loadConfig();
+      if (!config?.evolutionApiUrl || !config.evolutionApiKey) {
+        return NextResponse.json({ error: 'Configuração da Evolution API incompleta' }, { status: 500 });
+      }
+
+      const chips = await loadChips();
+      const connectedChip = chips.find((chip) => chip.status === 'connected' && chip.instanceName);
+      const instanceName = connectedChip?.instanceName ?? config.instanceName;
+      if (!instanceName) {
+        return NextResponse.json({ error: 'Nenhum chip conectado disponível para envio' }, { status: 500 });
+      }
+
+      const normalizedPhone = conversation.voterPhone.replace(/\D/g, '');
+      if (!normalizedPhone) {
+        return NextResponse.json({ error: 'Telefone do eleitor inválido para envio' }, { status: 400 });
+      }
+
+      try {
+        await sendText(
+          config.evolutionApiUrl,
+          config.evolutionApiKey,
+          instanceName,
+          normalizedPhone,
+          body.content,
+        );
+      } catch (err) {
+        console.error('[POST message sendText]', err);
+        return NextResponse.json(
+          { error: err instanceof Error ? err.message : 'Erro ao enviar mensagem no WhatsApp' },
+          { status: 500 },
+        );
+      }
+    }
+
     const message = await addMessage(id, body.sender, body.content);
     return NextResponse.json(message, { status: 201 });
   } catch (err) {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/db-auth';
 import { loadConversations, getConversation, addConversation } from '@/lib/db-conversations';
 import { db } from '@/db';
-import { conversations } from '@/db/schema';
+import { conversationMessages, conversations } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import type { Conversation } from '@/db/schema';
 
@@ -75,5 +75,26 @@ export async function PUT(request: NextRequest) {
   } catch (err) {
     console.error('PUT conversations error:', err);
     return NextResponse.json({ error: 'Erro ao atualizar conversa' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  if (!await verifyAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+    }
+
+    await db.delete(conversationMessages).where(eq(conversationMessages.conversationId, id));
+    await db.delete(conversations).where(eq(conversations.id, id));
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('DELETE conversations error:', err);
+    return NextResponse.json({ error: 'Erro ao deletar conversa' }, { status: 500 });
   }
 }
