@@ -2,14 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-last_updated: "2026-03-05T23:56:50.355Z"
+current_phase: 09
+current_phase_name: real data
+current_plan: 4
+status: executing
+stopped_at: Completed 09-real-data-04-PLAN.md
+last_updated: "2026-03-06T00:02:07.111Z"
+last_activity: 2026-03-06
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 23
-  completed_plans: 18
-  percent: 78
+  completed_plans: 19
+  percent: 83
 ---
 
 # EEL Eleicao — Project State
@@ -17,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 09
 **Current Phase Name:** real data
-**Current Plan:** 3
+**Current Plan:** 4
 **Total Phases:** 9
 **Total Plans in Phase:** 7
 **Status:** Executing
-**Progress:** [████████░░] 78%
-**Last Activity:** 2026-03-05
-**Last Activity Description:** Completed 09-02 Campaign Send Pipeline; Wave 1 follow-up plans 09-04 and 09-05 remain before Wave 2
-**Stopped At:** Completed 09-real-data-02-PLAN.md
+**Progress:** [████████░░] 83%
+**Last Activity:** 2026-03-06
+**Last Activity Description:** Completed 09-04 CRM Voter Operations; only 09-05 remains in Wave 1 before Wave 2
+**Stopped At:** Completed 09-real-data-04-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -36,11 +41,11 @@ progress:
 **Phase 07 (Compliance + Admin) — COMPLETE** ✅
 **Phase 08 (Reports + Polish) — COMPLETE** ✅
 **Phase 09 (Real Data + Integrations) — IN PROGRESS** 📋
-- Plans completed: 2/7 (`09-01`, `09-02`)
+- Plans completed: 3/7 (`09-01`, `09-02`, `09-04`)
 
-Progress: [████████░░] 78%
+Progress: [████████░░] 83%
 
-Last session: 2026-03-05T23:56:50.352Z
+Last session: 2026-03-06T00:02:07.108Z
 
 ## Project History
 
@@ -122,6 +127,8 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 09-real-data]: Campaign send now resolves real segment voters and dispatches via Evolution API sendText with real sent/delivered/failed counters.
 - [Phase 09-real-data]: Scheduled campaigns persist as status=scheduled with scheduledAt and the send route rejects premature manual sends.
 - [Phase 09-real-data]: Campaign chip selection is preserved client-side per campaign and forwarded to the send endpoint, avoiding a schema change in this plan.
+- [Phase 09-real-data]: Voters API list/search now returns paginated metadata while GET /api/voters?id=... remains a single-resource response for CRM consumers.
+- [Phase 09-real-data]: CRM voter profile now loads the voter by ID before related conversations/compliance fetches, and CRM mutations refresh pagination boundaries explicitly.
 
 ## Blockers
 None.
@@ -175,6 +182,7 @@ src/components/
 | 08-reports-polish | 02 | 10 min | 4/4 | 1 modified |
 | Phase 09-real-data P01 | 3 | 2 tasks | 1 files |
 | Phase 09-real-data P02 | 2 min | 2 tasks | 3 files |
+| Phase 09-real-data P04 | 4 min | 2 tasks | 4 files |
 
 ## Next Actions
 Continue Phase 09 Wave 1 execution with the remaining real-data plans before Wave 2.
@@ -182,7 +190,7 @@ Continue Phase 09 Wave 1 execution with the remaining real-data plans before Wav
 **Wave 1 (parallel — no dependencies):**
 - 09-01: Webhook + Inbound Pipeline ✅
 - 09-02: Campaign Send Pipeline ✅
-- 09-04: CRM Voter Operations
+- 09-04: CRM Voter Operations ✅
 - 09-05: Segmentation Real Data
 
 **Wave 2 (after Wave 1):**

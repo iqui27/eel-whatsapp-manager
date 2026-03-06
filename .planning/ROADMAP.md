@@ -17,7 +17,7 @@
 | 06 | HITL Conversations + CRM | P1 | 02, 05 | TBD |
 | 07 | Compliance + Admin | P2 | 02 | TBD |
 | 08 | Reports + Polish | P2 | 04, 06 | TBD |
-| 09 | 2/7 | In Progress|  | 7 plans |
+| 09 | 3/7 | In Progress|  | 7 plans |
 
 ---
 
@@ -180,12 +180,12 @@ Plans:
 - RD-22: Voter profile "Ver conversas" filters by voterId
 - RD-23: Voter profile "Criar campanha" pre-fills voter context
 
-**Plans:** 2/7 plans executed
+**Plans:** 3/7 plans executed
 Plans:
 - [x] 09-01-PLAN.md — Webhook + Inbound Pipeline (fix imports, store messages)
 - [x] 09-02-PLAN.md — Campaign Send Pipeline (real Evolution API send, chip selector)
 - [ ] 09-03-PLAN.md — Conversations WhatsApp Integration (agent reply send, new convo dialog)
-- [ ] 09-04-PLAN.md — CRM Voter Operations (add/delete voter, pagination, ID fetch)
+- [x] 09-04-PLAN.md — CRM Voter Operations (add/delete voter, pagination, ID fetch)
 - [ ] 09-05-PLAN.md — Segmentation Real Data (audience calc, materialization, edit/delete)
 - [ ] 09-06-PLAN.md — Dashboard + Reports Real Data (real KPIs, bar chart, monitor log)
 - [ ] 09-07-PLAN.md — Campaign Fixes + Voter Links (edit page, profile action links)
