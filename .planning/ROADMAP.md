@@ -18,7 +18,7 @@
 | 07 | Compliance + Admin | P2 | 02 | TBD |
 | 08 | Reports + Polish | P2 | 04, 06 | TBD |
 | 09 | 9/9 | Complete   | 2026-03-06 | 9 plans |
-| 10 | Real-Time Chat via SSE | In Progress | 06, 09 | 2/3 |
+| 10 | 3/3 | Complete | 2026-03-06 | 3 plans |
 
 ---
 
@@ -195,7 +195,7 @@ Plans:
 
 ### Phase 10: Real-Time Chat via SSE
 
-**Status:** Planned
+**Status:** Complete
 **Goal:** Replace chat polling with authenticated SSE on the operator conversation surfaces so queue and active-thread updates arrive in near real time while database persistence remains the single source of truth.
 
 **Requirements:** [RT-01, RT-02, RT-03, RT-04, RT-05]
@@ -207,12 +207,12 @@ Plans:
 - RT-05: Keep the scope constrained to SSE-based chat surfaces only; unauthorized stream access must return `401`, and non-chat modules remain out of scope for this phase.
 
 **Depends on:** Phase 06, Phase 09
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans executed
 
 Plans:
 - [x] 10-01-PLAN.md — SSE backend foundation (delta queries, stream contract, authenticated route)
 - [x] 10-02-PLAN.md — `/conversas` realtime migration (queue + active thread via SSE)
-- [ ] 10-03-PLAN.md — Dashboard queue realtime adoption (replace panel polling with shared stream)
+- [x] 10-03-PLAN.md — Dashboard queue realtime adoption (replace panel polling with shared stream)
 
 ---
 

@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
     start(controller) {
       let closed = false;
       let heartbeatAt = 0;
+      const trackedConversationIds = new Set<string>();
 
       const close = () => {
         if (closed) return;
@@ -74,6 +75,13 @@ export async function GET(request: NextRequest) {
 
       const run = async () => {
         try {
+          if (filters.status) {
+            const seededConversations = await getConversationDeltas(filters);
+            for (const conversation of seededConversations) {
+              trackedConversationIds.add(conversation.id);
+            }
+          }
+
           push(CONVERSATION_STREAM_EVENT.connected, createConnectedPayload(cursor, filters));
           push(CONVERSATION_STREAM_EVENT.snapshotReady, createConnectedPayload(cursor, filters));
           heartbeatAt = Date.now();
@@ -83,10 +91,23 @@ export async function GET(request: NextRequest) {
 
             const conversationDeltas = await getConversationDeltas({
               ...filters,
+              status: undefined,
               since: cursor.conversations,
             });
 
             for (const conversation of conversationDeltas) {
+              const matchesStatus = !filters.status || conversation.status === filters.status;
+              const shouldEmit = matchesStatus || trackedConversationIds.has(conversation.id);
+              if (!shouldEmit) {
+                continue;
+              }
+
+              if (matchesStatus) {
+                trackedConversationIds.add(conversation.id);
+              } else {
+                trackedConversationIds.delete(conversation.id);
+              }
+
               cursor = withConversationCursor(cursor, conversation);
               push(
                 CONVERSATION_STREAM_EVENT.conversationUpsert,

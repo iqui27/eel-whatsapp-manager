@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 10
 current_phase_name: real-time chat via sse
-current_plan: 2
-status: executing
-stopped_at: Completed 10-02-PLAN.md
-last_updated: "2026-03-06T18:49:00Z"
+current_plan: 3
+status: verifying
+stopped_at: Completed 10-03-PLAN.md
+last_updated: "2026-03-06T19:00:00Z"
 last_activity: 2026-03-06
 progress:
   total_phases: 10
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 28
-  completed_plans: 27
-  percent: 96
+  completed_plans: 28
+  percent: 100
 ---
 
 # EEL Eleicao — Project State
@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 10
 **Current Phase Name:** real-time chat via sse
-**Current Plan:** 2
+**Current Plan:** 3
 **Total Phases:** 10
 **Total Plans in Phase:** 3
-**Status:** Executing Phase 10 — `/conversas` migrated to SSE, dashboard queue migration next
-**Progress:** [█████████▓] 96%
+**Status:** Phase 10 execution complete — ready for verification
+**Progress:** [██████████] 100%
 **Last Activity:** 2026-03-06
-**Last Activity Description:** Completed 10-02 `/conversas` realtime migration; EventSource hook now drives queue/thread updates without 10s/5s polling
-**Stopped At:** Completed 10-02-PLAN.md
+**Last Activity Description:** Completed 10-03 dashboard queue realtime adoption; all Phase 10 chat surfaces now run on authenticated SSE instead of polling
+**Stopped At:** Completed 10-03-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -43,14 +43,14 @@ progress:
 **Phase 09 (Real Data + Integrations) — COMPLETE** ✅
 - Plans completed: 9/9 (`09-01`, `09-02`, `09-03`, `09-04`, `09-05`, `09-06`, `09-07`, `09-08`, `09-09`)
 
-**Phase 10 (Real-Time Chat via SSE) — IN PROGRESS** 🚧
+**Phase 10 (Real-Time Chat via SSE) — COMPLETE** ✅
 - Plan 10-01 complete: authenticated SSE route + delta-query helpers + shared cursor/event contract
 - Plan 10-02 complete: `/conversas` now bootstraps with REST and continues via SSE through the shared EventSource hook
-- Next: move the dashboard queue panel to the shared hook and close the phase
+- Plan 10-03 complete: dashboard queue panel now reuses the shared stream and updates open-queue removals in near real time
 
-Progress: [█████████▓] 96%
+Progress: [██████████] 100%
 
-Last session: 2026-03-06T18:49:00Z
+Last session: 2026-03-06T19:00:00Z
 
 ## Project History
 
@@ -99,10 +99,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Wave 3: Plan 08 — delivery orchestration durability (cron, delivery events, monitor timeline) ✅
 - Wave 4: Plan 09 — CRM single-voter segment prefill ✅
 
-**Phase 10 — Real-Time Chat via SSE — IN PROGRESS** 🚧
+**Phase 10 — Real-Time Chat via SSE — COMPLETE** ✅
 - Wave 1: Plan 10-01 — authenticated SSE backend foundation complete ✅
 - Wave 2: Plan 10-02 — `/conversas` EventSource migration complete ✅
-- Wave 3: Plan 10-03 — dashboard queue panel realtime adoption pending
+- Wave 3: Plan 10-03 — dashboard queue panel realtime adoption complete ✅
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -221,21 +221,14 @@ src/components/
 | Phase 09-real-data P07 | 7 min | 2 tasks | 4 files |
 
 ## Next Actions
-Phase 09 is complete with gap closures applied. Proceed to verification, release preparation, or milestone wrap-up.
+Phase 10 execution is complete. Proceed to verification, release preparation, or milestone wrap-up.
 
-**Completed Phase 09 plans:**
-- 09-01: Webhook + Inbound Pipeline ✅
-- 09-02: Campaign Send Pipeline ✅
-- 09-03: Conversations WhatsApp Integration ✅
-- 09-04: CRM Voter Operations ✅
-- 09-05: Segmentation Real Data ✅
-- 09-06: Dashboard + Reports Real Data ✅
-- 09-07: Campaign Fixes + Voter Links ✅
-- 09-08: Delivery Orchestration Gaps ✅
-- 09-09: CRM Single-Voter Segment Prefill ✅
+**Completed Phase 10 plans:**
+- 10-01: SSE Backend Foundation ✅
+- 10-02: `/conversas` Realtime Migration ✅
+- 10-03: Dashboard Queue Realtime Adoption ✅
 
-**Deferred (post-Phase 09):**
-- WebSocket/SSE for real-time chat (currently polling)
+**Deferred (post-Phase 10):**
 - DB-level permission enforcement in API routes
 - Mobile offline capture form (MOB-01/MOB-02)
 - Email scheduled report delivery (REP-02 partial)

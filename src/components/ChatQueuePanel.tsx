@@ -1,11 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { MessageSquare, ArrowRight } from 'lucide-react';
 import type { Conversation } from '@/db/schema';
+import {
+  buildConversationStreamCursor,
+  upsertConversationList,
+  useConversationStream,
+} from '@/lib/use-conversation-stream';
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
@@ -56,30 +61,58 @@ function SkeletonRow() {
 export default function ChatQueuePanel() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [streamInitialCursor, setStreamInitialCursor] = useState<string | null>(null);
+  const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
+  const bootstrapRef = useRef<Conversation[]>([]);
 
-  const fetchConversations = useCallback(async () => {
-    try {
-      const res = await fetch('/api/conversations?status=open');
-      if (res.ok) {
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchConversations = async () => {
+      try {
+        const res = await fetch('/api/conversations?status=open');
+        if (!res.ok) {
+          return;
+        }
+
         const data: Conversation[] = await res.json();
-        setConversations(data);
+        if (!cancelled) {
+          bootstrapRef.current = data;
+          setConversations(data);
+          setStreamInitialCursor(buildConversationStreamCursor(data, []));
+        }
+      } catch {
+        /* silently fail — non-critical panel */
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+          setHasLoadedConversations(true);
+        }
       }
-    } catch {
-      /* silently fail — non-critical panel */
-    } finally {
-      setIsLoading(false);
-    }
+    };
+
+    fetchConversations();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+  const { status: streamStatus } = useConversationStream({
+    enabled: hasLoadedConversations,
+    initialCursor: streamInitialCursor,
+    status: 'open',
+    onConversationUpsert: (conversation) => {
+      setConversations((prev) => {
+        if (conversation.status !== 'open') {
+          return prev.filter((current) => current.id !== conversation.id);
+        }
 
-  // Auto-refresh every 15s
-  useEffect(() => {
-    const interval = setInterval(fetchConversations, 15000);
-    return () => clearInterval(interval);
-  }, [fetchConversations]);
+        return upsertConversationList(prev, conversation).filter(
+          (current) => current.status === 'open',
+        );
+      });
+    },
+  });
 
   return (
     <Card>
@@ -102,6 +135,13 @@ export default function ChatQueuePanel() {
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          {streamStatus === 'live'
+            ? 'Tempo real ativo'
+            : streamStatus === 'offline'
+              ? 'Tempo real indisponivel'
+              : 'Atualizando em tempo real...'}
+        </p>
       </CardHeader>
       <CardContent className="pt-0">
         {isLoading ? (
