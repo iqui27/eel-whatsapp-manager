@@ -557,17 +557,25 @@ export default function ConversasPage() {
 
   useEffect(() => {
     if (filtered.length === 0) {
-      setSelectedId(null);
-      setMessages([]);
+      if (selectedId !== null) {
+        setSelectedId(null);
+      }
+      if (messages.length > 0) {
+        setMessages([]);
+      }
       return;
     }
 
     const hasSelectedConversation = filtered.some((conversation) => conversation.id === selectedId);
     if (!hasSelectedConversation) {
-      setSelectedId(filtered[0].id);
-      setMessages([]);
+      if (selectedId !== filtered[0].id) {
+        setSelectedId(filtered[0].id);
+      }
+      if (messages.length > 0) {
+        setMessages([]);
+      }
     }
-  }, [filtered, selectedId]);
+  }, [filtered, messages.length, selectedId]);
 
   // ── Send reply ──
   const handleSend = async () => {
