@@ -216,6 +216,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
+    const requestedId = searchParams.get('id');
 
     if (action === 'filter-options') {
       const filterOptions = await loadFilterOptions();
@@ -223,7 +224,10 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await loadSegments();
-    const segmentIds = data.map((segment) => segment.id);
+    const filteredSegments = requestedId
+      ? data.filter((segment) => segment.id === requestedId)
+      : data;
+    const segmentIds = filteredSegments.map((segment) => segment.id);
     const segmentCampaigns = segmentIds.length > 0
       ? await db
         .select({
@@ -245,7 +249,7 @@ export async function GET(request: NextRequest) {
       campaignsBySegment.set(campaign.segmentId, list);
     }
 
-    return NextResponse.json(data.map((segment) => ({
+    return NextResponse.json(filteredSegments.map((segment) => ({
       ...segment,
       campaigns: campaignsBySegment.get(segment.id) ?? [],
     })));
@@ -336,7 +340,9 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const queryId = searchParams.get('id');
+    const body = queryId ? null : await request.json().catch(() => null);
+    const id = queryId ?? body?.id;
     if (!id) {
       return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
     }
