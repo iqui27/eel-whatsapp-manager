@@ -1,0 +1,165 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { validateSession } from '@/lib/db-auth';
+import {
+  CONVERSATION_STREAM_EVENT,
+  createConnectedPayload,
+  createConversationStreamCursor,
+  createConversationUpsertPayload,
+  createHeartbeatPayload,
+  createMessageCreatedPayload,
+  formatConversationStreamEvent,
+  parseConversationStreamCursor,
+  withConversationCursor,
+  withMessageCursor,
+  type ConversationStreamEventName,
+  type ConversationStreamFilters,
+} from '@/lib/conversation-stream';
+import { getConversationDeltas, getMessageDeltas } from '@/lib/db-conversations';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+const POLL_INTERVAL_MS = 1500;
+const HEARTBEAT_INTERVAL_MS = 15000;
+
+async function verifyAuth(request: NextRequest) {
+  const token = request.cookies.get('auth')?.value;
+  return validateSession(token);
+}
+
+export async function GET(request: NextRequest) {
+  if (!await verifyAuth(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const filters: ConversationStreamFilters = {
+    status: searchParams.get('status') ?? undefined,
+    conversationId: searchParams.get('conversationId') ?? undefined,
+    voterId: searchParams.get('voterId') ?? undefined,
+  };
+
+  let cursor = parseConversationStreamCursor(searchParams.get('since'));
+  if (!cursor.conversations && !cursor.messages) {
+    cursor = createConversationStreamCursor();
+  }
+
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      let closed = false;
+      let heartbeatAt = 0;
+
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          /* noop */
+        }
+      };
+
+      const push = (event: ConversationStreamEventName, payload: object) => {
+        if (closed) return;
+        controller.enqueue(encoder.encode(formatConversationStreamEvent(event, payload)));
+      };
+
+      const abortHandler = () => {
+        close();
+      };
+
+      request.signal.addEventListener('abort', abortHandler, { once: true });
+
+      const run = async () => {
+        try {
+          push(CONVERSATION_STREAM_EVENT.connected, createConnectedPayload(cursor, filters));
+          push(CONVERSATION_STREAM_EVENT.snapshotReady, createConnectedPayload(cursor, filters));
+          heartbeatAt = Date.now();
+
+          while (!request.signal.aborted && !closed) {
+            let emitted = false;
+
+            const conversationDeltas = await getConversationDeltas({
+              ...filters,
+              since: cursor.conversations,
+            });
+
+            for (const conversation of conversationDeltas) {
+              cursor = withConversationCursor(cursor, conversation);
+              push(
+                CONVERSATION_STREAM_EVENT.conversationUpsert,
+                createConversationUpsertPayload(conversation, cursor),
+              );
+              emitted = true;
+            }
+
+            if (filters.conversationId || filters.voterId) {
+              const messageDeltas = await getMessageDeltas({
+                ...filters,
+                since: cursor.messages,
+              });
+
+              for (const message of messageDeltas) {
+                cursor = withMessageCursor(cursor, message);
+                push(
+                  CONVERSATION_STREAM_EVENT.messageCreated,
+                  createMessageCreatedPayload(message, cursor),
+                );
+                emitted = true;
+              }
+            }
+
+            const now = Date.now();
+            if (!emitted && now - heartbeatAt >= HEARTBEAT_INTERVAL_MS) {
+              push(CONVERSATION_STREAM_EVENT.heartbeat, createHeartbeatPayload(cursor));
+              heartbeatAt = now;
+            }
+
+            await waitForNextPoll(request.signal);
+          }
+        } catch (error) {
+          if (!request.signal.aborted) {
+            console.error('[GET /api/conversations/stream]', error);
+          }
+        } finally {
+          request.signal.removeEventListener('abort', abortHandler);
+          close();
+        }
+      };
+
+      void run();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    },
+  });
+}
+
+function waitForNextPoll(signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal.aborted) {
+      resolve();
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, POLL_INTERVAL_MS);
+
+    const onAbort = () => {
+      clearTimeout(timeoutId);
+      resolve();
+    };
+
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}

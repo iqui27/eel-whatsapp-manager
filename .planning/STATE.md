@@ -2,34 +2,34 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 09
-current_phase_name: real data
-current_plan: 9
-status: verifying
-stopped_at: Completed 09-09-PLAN.md
-last_updated: "2026-03-06T16:28:19Z"
+current_phase: 10
+current_phase_name: real-time chat via sse
+current_plan: 1
+status: executing
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-03-06T18:32:55Z"
 last_activity: 2026-03-06
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 9
-  total_plans: 25
-  completed_plans: 25
-  percent: 100
+  total_plans: 28
+  completed_plans: 26
+  percent: 93
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 09
-**Current Phase Name:** real data
-**Current Plan:** 9
-**Total Phases:** 9
-**Total Plans in Phase:** 9
-**Status:** Phase complete — ready for verification
-**Progress:** [██████████] 100%
+**Current Phase:** 10
+**Current Phase Name:** real-time chat via sse
+**Current Plan:** 1
+**Total Phases:** 10
+**Total Plans in Phase:** 3
+**Status:** Executing Phase 10 — backend SSE foundation complete, UI migration next
+**Progress:** [█████████░] 93%
 **Last Activity:** 2026-03-06
-**Last Activity Description:** Completed 09-09 CRM Single-Voter Segment Prefill; Phase 09 gap closures are now complete and ready for verification
-**Stopped At:** Completed 09-09-PLAN.md
+**Last Activity Description:** Completed 10-01 SSE backend foundation; authenticated stream route, cursor helpers, and delta-query readers are now in place for chat surfaces
+**Stopped At:** Completed 10-01-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -43,9 +43,13 @@ progress:
 **Phase 09 (Real Data + Integrations) — COMPLETE** ✅
 - Plans completed: 9/9 (`09-01`, `09-02`, `09-03`, `09-04`, `09-05`, `09-06`, `09-07`, `09-08`, `09-09`)
 
-Progress: [██████████] 100%
+**Phase 10 (Real-Time Chat via SSE) — IN PROGRESS** 🚧
+- Plan 10-01 complete: authenticated SSE route + delta-query helpers + shared cursor/event contract
+- Next: migrate `/conversas` off the 10s/5s polling loops, then move the dashboard queue panel to the shared hook
 
-Last session: 2026-03-06T16:28:19Z
+Progress: [█████████░] 93%
+
+Last session: 2026-03-06T18:32:55Z
 
 ## Project History
 
@@ -94,6 +98,11 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Wave 3: Plan 08 — delivery orchestration durability (cron, delivery events, monitor timeline) ✅
 - Wave 4: Plan 09 — CRM single-voter segment prefill ✅
 
+**Phase 10 — Real-Time Chat via SSE — IN PROGRESS** 🚧
+- Wave 1: Plan 10-01 — authenticated SSE backend foundation complete ✅
+- Wave 2: Plan 10-02 — `/conversas` EventSource migration pending
+- Wave 3: Plan 10-03 — dashboard queue panel realtime adoption pending
+
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
 - [x] Database: Supabase PostgreSQL (already in use)
@@ -116,6 +125,7 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [x] CTA score is a pure function in src/lib/cta-score.ts — zero React imports, fully testable
 - [x] campaign send now runs through a shared Evolution API executor used by both manual dispatch and scheduled cron runs
 - [x] monitor auto-refresh via polling (3s interval) — adequate for MVP; WebSocket/SSE deferred
+- [x] chat realtime will use authenticated SSE with cursor resume over persisted DB deltas — no standalone WebSocket layer in Phase 10
 - [x] template field in campaigns table (not 'message') — schema uses English field names throughout
 - [x] dashboard KPI "Taxa de abertura" mocked at 62% — no WhatsApp read-tracking in DB; labeled "(sem rastreio)"
 - [x] useCountUp extracted to src/lib/use-count-up.ts — shared hook, 'use client' safe

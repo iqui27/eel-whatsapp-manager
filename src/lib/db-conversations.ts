@@ -8,9 +8,28 @@ import {
   type Conversation, type NewConversation,
   type ConversationMessage,
 } from '@/db/schema';
-import { desc, eq } from 'drizzle-orm';
+import type { ConversationStreamCursorPoint, ConversationStreamFilters } from '@/lib/conversation-stream';
+import { and, asc, desc, eq, gt, or } from 'drizzle-orm';
 
 export type { Conversation, NewConversation, ConversationMessage };
+
+type ConversationStatus = NonNullable<Conversation['status']>;
+
+function buildSinceCondition<TColumn>(
+  column: TColumn,
+  idColumn: typeof conversations.id | typeof conversationMessages.id,
+  since: ConversationStreamCursorPoint | undefined,
+) {
+  if (!since) return undefined;
+
+  const sinceDate = new Date(since.at);
+  if (Number.isNaN(sinceDate.getTime())) return undefined;
+
+  return or(
+    gt(column as typeof conversations.updatedAt, sinceDate),
+    and(eq(column as typeof conversations.updatedAt, sinceDate), gt(idColumn, since.id)),
+  );
+}
 
 export async function loadConversations(status?: string): Promise<Conversation[]> {
   if (status) {
@@ -89,4 +108,53 @@ export async function getMessages(conversationId: string): Promise<ConversationM
     .from(conversationMessages)
     .where(eq(conversationMessages.conversationId, conversationId))
     .orderBy(conversationMessages.createdAt);
+}
+
+export async function getConversationDeltas(
+  filters: ConversationStreamFilters & {
+    since?: ConversationStreamCursorPoint;
+    limit?: number;
+  },
+): Promise<Conversation[]> {
+  const conditions = [
+    filters.status
+      ? eq(conversations.status, filters.status as ConversationStatus)
+      : undefined,
+    filters.conversationId ? eq(conversations.id, filters.conversationId) : undefined,
+    filters.voterId ? eq(conversations.voterId, filters.voterId) : undefined,
+    buildSinceCondition(conversations.updatedAt, conversations.id, filters.since),
+  ].filter(Boolean);
+
+  return db
+    .select()
+    .from(conversations)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(asc(conversations.updatedAt), asc(conversations.id))
+    .limit(filters.limit ?? 100);
+}
+
+export async function getMessageDeltas(
+  filters: ConversationStreamFilters & {
+    since?: ConversationStreamCursorPoint;
+    limit?: number;
+  },
+): Promise<ConversationMessage[]> {
+  const conditions = [
+    filters.status
+      ? eq(conversations.status, filters.status as ConversationStatus)
+      : undefined,
+    filters.conversationId ? eq(conversationMessages.conversationId, filters.conversationId) : undefined,
+    filters.voterId ? eq(conversations.voterId, filters.voterId) : undefined,
+    buildSinceCondition(conversationMessages.createdAt, conversationMessages.id, filters.since),
+  ].filter(Boolean);
+
+  const rows = await db
+    .select({ message: conversationMessages })
+    .from(conversationMessages)
+    .innerJoin(conversations, eq(conversationMessages.conversationId, conversations.id))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(asc(conversationMessages.createdAt), asc(conversationMessages.id))
+    .limit(filters.limit ?? 100);
+
+  return rows.map((row) => row.message);
 }
