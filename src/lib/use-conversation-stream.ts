@@ -1,6 +1,6 @@
 'use client';
 
-import { startTransition, useEffect, useEffectEvent, useRef, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import type { Conversation, ConversationMessage } from '@/db/schema';
 import {
   CONVERSATION_STREAM_EVENT,
@@ -58,47 +58,16 @@ export function useConversationStream({
   const [lastEventAt, setLastEventAt] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | null>(initialCursor ?? null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const onConversationUpsertRef = useRef(onConversationUpsert);
+  const onMessageCreatedRef = useRef(onMessageCreated);
 
-  const handleConversationUpsert = useEffectEvent(
-    (payload: ConversationUpsertPayload) => {
-      cursorRef.current = payload.cursor;
-      startTransition(() => {
-        setCursor(payload.cursor);
-        setLastEventAt(new Date().toISOString());
-        setStreamStatus('live');
-        setReconnectAttempts(0);
-      });
-      reconnectAttemptsRef.current = 0;
-      onConversationUpsert?.(payload.conversation, payload.cursor);
-    },
-  );
+  useEffect(() => {
+    onConversationUpsertRef.current = onConversationUpsert;
+  }, [onConversationUpsert]);
 
-  const handleMessageCreated = useEffectEvent(
-    (payload: MessageCreatedPayload) => {
-      cursorRef.current = payload.cursor;
-      startTransition(() => {
-        setCursor(payload.cursor);
-        setLastEventAt(new Date().toISOString());
-        setStreamStatus('live');
-        setReconnectAttempts(0);
-      });
-      reconnectAttemptsRef.current = 0;
-      onMessageCreated?.(payload.message, payload.cursor);
-    },
-  );
-
-  const handleMetaEvent = useEffectEvent(
-    (payload: ConversationConnectedPayload | ConversationHeartbeatPayload) => {
-      cursorRef.current = payload.cursor;
-      startTransition(() => {
-        setCursor(payload.cursor);
-        setLastEventAt(payload.now);
-        setStreamStatus('live');
-        setReconnectAttempts(0);
-      });
-      reconnectAttemptsRef.current = 0;
-    },
-  );
+  useEffect(() => {
+    onMessageCreatedRef.current = onMessageCreated;
+  }, [onMessageCreated]);
 
   const clearReconnectTimer = () => {
     if (reconnectTimerRef.current !== null) {
@@ -113,84 +82,129 @@ export function useConversationStream({
     eventSourceRef.current = null;
   };
 
-  const connect = useEffectEvent(() => {
-    disconnect();
-
-    if (!enabled) {
-      setStreamStatus('idle');
-      return;
-    }
-
-    const url = new URL('/api/conversations/stream', window.location.origin);
-    if (status) url.searchParams.set('status', status);
-    if (conversationId) url.searchParams.set('conversationId', conversationId);
-    if (voterId) url.searchParams.set('voterId', voterId);
-    if (cursorRef.current) url.searchParams.set('since', cursorRef.current);
-
-    const source = new EventSource(url);
-    eventSourceRef.current = source;
-    setStreamStatus(reconnectAttemptsRef.current > 0 ? 'reconnecting' : 'connecting');
-
-    source.onopen = () => {
-      startTransition(() => {
-        setStreamStatus('live');
-        setReconnectAttempts(reconnectAttemptsRef.current);
-      });
-    };
-
-    source.addEventListener(CONVERSATION_STREAM_EVENT.connected, (event) => {
-      handleMetaEvent(JSON.parse(event.data) as ConversationConnectedPayload);
-    });
-
-    source.addEventListener(CONVERSATION_STREAM_EVENT.snapshotReady, (event) => {
-      handleMetaEvent(JSON.parse(event.data) as ConversationConnectedPayload);
-    });
-
-    source.addEventListener(CONVERSATION_STREAM_EVENT.heartbeat, (event) => {
-      handleMetaEvent(JSON.parse(event.data) as ConversationHeartbeatPayload);
-    });
-
-    source.addEventListener(CONVERSATION_STREAM_EVENT.conversationUpsert, (event) => {
-      handleConversationUpsert(JSON.parse(event.data) as ConversationUpsertPayload);
-    });
-
-    source.addEventListener(CONVERSATION_STREAM_EVENT.messageCreated, (event) => {
-      handleMessageCreated(JSON.parse(event.data) as MessageCreatedPayload);
-    });
-
-    source.onerror = () => {
-      source.close();
-      eventSourceRef.current = null;
-
-      reconnectAttemptsRef.current += 1;
-      const attempts = reconnectAttemptsRef.current;
-      const nextStatus = attempts >= MAX_RECONNECT_ATTEMPTS ? 'offline' : 'reconnecting';
-      const nextDelay = attempts >= MAX_RECONNECT_ATTEMPTS
-        ? OFFLINE_RETRY_MS
-        : Math.min(1000 * 2 ** (attempts - 1), 15000);
-
-      startTransition(() => {
-        setStreamStatus(nextStatus);
-        setReconnectAttempts(attempts);
-      });
-
-      reconnectTimerRef.current = window.setTimeout(() => {
-        connect();
-      }, nextDelay);
-    };
-  });
-
   useEffect(() => {
     cursorRef.current = initialCursor ?? null;
     setCursor(initialCursor ?? null);
     reconnectAttemptsRef.current = 0;
     setReconnectAttempts(0);
+
+    let cancelled = false;
+
+    const handleMetaEvent = (payload: ConversationConnectedPayload | ConversationHeartbeatPayload) => {
+      if (cancelled) return;
+      cursorRef.current = payload.cursor;
+      startTransition(() => {
+        setCursor(payload.cursor);
+        setLastEventAt(payload.now);
+        setStreamStatus('live');
+        setReconnectAttempts(0);
+      });
+      reconnectAttemptsRef.current = 0;
+    };
+
+    const handleConversationUpsert = (payload: ConversationUpsertPayload) => {
+      if (cancelled) return;
+      cursorRef.current = payload.cursor;
+      startTransition(() => {
+        setCursor(payload.cursor);
+        setLastEventAt(new Date().toISOString());
+        setStreamStatus('live');
+        setReconnectAttempts(0);
+      });
+      reconnectAttemptsRef.current = 0;
+      onConversationUpsertRef.current?.(payload.conversation, payload.cursor);
+    };
+
+    const handleMessageCreated = (payload: MessageCreatedPayload) => {
+      if (cancelled) return;
+      cursorRef.current = payload.cursor;
+      startTransition(() => {
+        setCursor(payload.cursor);
+        setLastEventAt(new Date().toISOString());
+        setStreamStatus('live');
+        setReconnectAttempts(0);
+      });
+      reconnectAttemptsRef.current = 0;
+      onMessageCreatedRef.current?.(payload.message, payload.cursor);
+    };
+
+    const connect = () => {
+      disconnect();
+
+      if (!enabled || cancelled) {
+        setStreamStatus('idle');
+        return;
+      }
+
+      const url = new URL('/api/conversations/stream', window.location.origin);
+      if (status) url.searchParams.set('status', status);
+      if (conversationId) url.searchParams.set('conversationId', conversationId);
+      if (voterId) url.searchParams.set('voterId', voterId);
+      if (cursorRef.current) url.searchParams.set('since', cursorRef.current);
+
+      const source = new EventSource(url);
+      eventSourceRef.current = source;
+      setStreamStatus(reconnectAttemptsRef.current > 0 ? 'reconnecting' : 'connecting');
+
+      source.onopen = () => {
+        if (cancelled) return;
+        startTransition(() => {
+          setStreamStatus('live');
+          setReconnectAttempts(reconnectAttemptsRef.current);
+        });
+      };
+
+      source.addEventListener(CONVERSATION_STREAM_EVENT.connected, (event) => {
+        handleMetaEvent(JSON.parse(event.data) as ConversationConnectedPayload);
+      });
+
+      source.addEventListener(CONVERSATION_STREAM_EVENT.snapshotReady, (event) => {
+        handleMetaEvent(JSON.parse(event.data) as ConversationConnectedPayload);
+      });
+
+      source.addEventListener(CONVERSATION_STREAM_EVENT.heartbeat, (event) => {
+        handleMetaEvent(JSON.parse(event.data) as ConversationHeartbeatPayload);
+      });
+
+      source.addEventListener(CONVERSATION_STREAM_EVENT.conversationUpsert, (event) => {
+        handleConversationUpsert(JSON.parse(event.data) as ConversationUpsertPayload);
+      });
+
+      source.addEventListener(CONVERSATION_STREAM_EVENT.messageCreated, (event) => {
+        handleMessageCreated(JSON.parse(event.data) as MessageCreatedPayload);
+      });
+
+      source.onerror = () => {
+        source.close();
+        eventSourceRef.current = null;
+
+        if (cancelled) return;
+
+        reconnectAttemptsRef.current += 1;
+        const attempts = reconnectAttemptsRef.current;
+        const nextStatus = attempts >= MAX_RECONNECT_ATTEMPTS ? 'offline' : 'reconnecting';
+        const nextDelay = attempts >= MAX_RECONNECT_ATTEMPTS
+          ? OFFLINE_RETRY_MS
+          : Math.min(1000 * 2 ** (attempts - 1), 15000);
+
+        startTransition(() => {
+          setStreamStatus(nextStatus);
+          setReconnectAttempts(attempts);
+        });
+
+        reconnectTimerRef.current = window.setTimeout(() => {
+          connect();
+        }, nextDelay);
+      };
+    };
+
     connect();
 
     return () => {
+      cancelled = true;
       disconnect();
     };
-  }, [connect, conversationId, enabled, initialCursor, status, voterId]);
+  }, [conversationId, enabled, initialCursor, status, voterId]);
 
   return {
     cursor,
