@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 09
 current_phase_name: real data
-current_plan: 7
+current_plan: 9
 status: verifying
-stopped_at: Completed 09-07-PLAN.md
-last_updated: "2026-03-06T00:22:40.756Z"
+stopped_at: Completed 09-09-PLAN.md
+last_updated: "2026-03-06T16:28:19Z"
 last_activity: 2026-03-06
 progress:
   total_phases: 9
   completed_phases: 9
-  total_plans: 23
-  completed_plans: 23
+  total_plans: 25
+  completed_plans: 25
   percent: 100
 ---
 
@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 09
 **Current Phase Name:** real data
-**Current Plan:** 7
+**Current Plan:** 9
 **Total Phases:** 9
-**Total Plans in Phase:** 7
+**Total Plans in Phase:** 9
 **Status:** Phase complete — ready for verification
 **Progress:** [██████████] 100%
 **Last Activity:** 2026-03-06
-**Last Activity Description:** Completed 09-07 Campaign Fixes + Voter Links; Phase 09 is now complete and ready for verification
-**Stopped At:** Completed 09-07-PLAN.md
+**Last Activity Description:** Completed 09-09 CRM Single-Voter Segment Prefill; Phase 09 gap closures are now complete and ready for verification
+**Stopped At:** Completed 09-09-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -41,11 +41,11 @@ progress:
 **Phase 07 (Compliance + Admin) — COMPLETE** ✅
 **Phase 08 (Reports + Polish) — COMPLETE** ✅
 **Phase 09 (Real Data + Integrations) — COMPLETE** ✅
-- Plans completed: 7/7 (`09-01`, `09-02`, `09-03`, `09-04`, `09-05`, `09-06`, `09-07`)
+- Plans completed: 9/9 (`09-01`, `09-02`, `09-03`, `09-04`, `09-05`, `09-06`, `09-07`, `09-08`, `09-09`)
 
 Progress: [██████████] 100%
 
-Last session: 2026-03-06T00:22:40.753Z
+Last session: 2026-03-06T16:28:19Z
 
 ## Project History
 
@@ -88,9 +88,11 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - 08-02: Final polish — "Ver relatórios" dashboard quick-action, empty state audit, nav verification
 
 **Phase 09 — Real Data + Integrations — COMPLETE** ✅
-- 7 plans across 2 waves covering 30 audit issues
+- 9 plans across 4 waves covering real-data work plus post-verification gap closures
 - Wave 1 (parallel): Plans 01, 02, 04, 05 — webhook, send pipeline, CRM, segmentation
 - Wave 2 (depends on Wave 1): Plans 03, 06, 07 — conversations, dashboard/reports, campaign edit ✅
+- Wave 3: Plan 08 — delivery orchestration durability (cron, delivery events, monitor timeline) ✅
+- Wave 4: Plan 09 — CRM single-voter segment prefill ✅
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -112,7 +114,7 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [x] audience calculation is client-side mock — real server-side filtering deferred to Phase 05 (query complexity vs value)
 - [x] import deduplication by phone number via `inArray` query — covers 95% of duplicate cases
 - [x] CTA score is a pure function in src/lib/cta-score.ts — zero React imports, fully testable
-- [x] campaign send is simulated (setTimeout) — real Evolution API integration is a separate hotfix phase
+- [x] campaign send now runs through a shared Evolution API executor used by both manual dispatch and scheduled cron runs
 - [x] monitor auto-refresh via polling (3s interval) — adequate for MVP; WebSocket/SSE deferred
 - [x] template field in campaigns table (not 'message') — schema uses English field names throughout
 - [x] dashboard KPI "Taxa de abertura" mocked at 62% — no WhatsApp read-tracking in DB; labeled "(sem rastreio)"
@@ -126,19 +128,22 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 09-real-data]: Webhook uses 'open' status for new conversations (not 'pending' which is not in schema enum)
 - [Phase 09-real-data]: Campaign send now resolves real segment voters and dispatches via Evolution API sendText with real sent/delivered/failed counters.
 - [Phase 09-real-data]: Scheduled campaigns persist as status=scheduled with scheduledAt and the send route rejects premature manual sends.
-- [Phase 09-real-data]: Campaign chip selection is preserved client-side per campaign and forwarded to the send endpoint, avoiding a schema change in this plan.
+- [Phase 09-real-data]: Campaign chip selection is persisted in the campaign record and reused by both manual sends and scheduled dispatcher runs.
 - [Phase 09-real-data]: Voters API list/search now returns paginated metadata while GET /api/voters?id=... remains a single-resource response for CRM consumers.
 - [Phase 09-real-data]: CRM voter profile now loads the voter by ID before related conversations/compliance fetches, and CRM mutations refresh pagination boundaries explicitly.
 - [Phase 09-real-data]: Stored segment filters as operator plus filters payloads while keeping legacy array parsing for backward compatibility.
 - [Phase 09-real-data]: Segments API now derives live filter options and campaign usage metadata so the segmentation UI stays bound to real voter data.
 - [Phase 09-real-data]: Agent replies only persist after Evolution sendText succeeds, preventing false-positive chat history.
-- [Phase 09-real-data]: Without a chipId column on conversations, outbound sends resolve to the first connected chip instance and fall back to config.instanceName.
+- [Phase 09-real-data]: Conversations now store `chipId`, so outbound replies prefer the bound chip before falling back to the first connected instance or config default.
 - [Phase 09-real-data]: New conversations require selecting an existing voter so HITL threads stay linked to CRM data.
 - [Phase 09-real-data]: Dashboard voter totals now read the paginated /api/voters response via limit=1 and use its total metadata instead of assuming an array payload.
 - [Phase 09-real-data]: Reports aggregate sends by campaign updatedAt over 7-day and 14-day windows so KPI cards, bars, and CSV exports stay aligned.
-- [Phase 09-real-data]: Monitoring uses aggregate delivery milestones because the current Evolution flow does not persist per-message delivery events.
+- [Phase 09-real-data]: Monitoring now reads persisted delivery events, while aggregate counters remain responsible only for KPI and progress displays.
 - [Phase 09-real-data]: Campaign edit now uses the same editor affordances as creation, but loads by ID, saves via PUT, and becomes read-only for sent or sending records.
 - [Phase 09-real-data]: CRM action links now propagate voter context through query params so conversations and campaign creation can start from a specific voter workflow.
+- [Phase 09-real-data]: Campaign sends now persist delivery events and scheduled campaigns execute through `/api/cron/campaigns` using the same shared send pipeline as manual dispatches.
+- [Phase 09-real-data]: Monitor now reads persisted delivery events via `include=deliveryEvents`, keeping counters for KPI cards and events for the audit timeline.
+- [Phase 09-real-data]: CRM-originated campaign creation resolves into an idempotent single-voter segment instead of stopping at a contextual hint.
 
 ## Blockers
 None.
@@ -199,7 +204,7 @@ src/components/
 | Phase 09-real-data P07 | 7 min | 2 tasks | 4 files |
 
 ## Next Actions
-Phase 09 is complete. Proceed to verification, release preparation, or milestone wrap-up.
+Phase 09 is complete with gap closures applied. Proceed to verification, release preparation, or milestone wrap-up.
 
 **Completed Phase 09 plans:**
 - 09-01: Webhook + Inbound Pipeline ✅
@@ -209,10 +214,11 @@ Phase 09 is complete. Proceed to verification, release preparation, or milestone
 - 09-05: Segmentation Real Data ✅
 - 09-06: Dashboard + Reports Real Data ✅
 - 09-07: Campaign Fixes + Voter Links ✅
+- 09-08: Delivery Orchestration Gaps ✅
+- 09-09: CRM Single-Voter Segment Prefill ✅
 
 **Deferred (post-Phase 09):**
 - WebSocket/SSE for real-time chat (currently polling)
 - DB-level permission enforcement in API routes
 - Mobile offline capture form (MOB-01/MOB-02)
-- Scheduled sends via background worker/cron
 - Email scheduled report delivery (REP-02 partial)
