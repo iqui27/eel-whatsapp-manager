@@ -145,6 +145,12 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 09-real-data]: Monitor now reads persisted delivery events via `include=deliveryEvents`, keeping counters for KPI cards and events for the audit timeline.
 - [Phase 09-real-data]: CRM-originated campaign creation resolves into an idempotent single-voter segment instead of stopping at a contextual hint.
 
+## Accumulated Context
+
+### Roadmap Evolution
+- Phase 10 added: Real-Time Chat via SSE
+  - Origin: deferred post-Phase 09 work to replace polling in chat surfaces with real-time transport.
+
 ## Blockers
 None.
 

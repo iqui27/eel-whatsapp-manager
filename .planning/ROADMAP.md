@@ -18,6 +18,7 @@
 | 07 | Compliance + Admin | P2 | 02 | TBD |
 | 08 | Reports + Polish | P2 | 04, 06 | TBD |
 | 09 | 9/9 | Complete   | 2026-03-06 | 9 plans |
+| 10 | Real-Time Chat via SSE | P1 | 06, 09 | 3 plans |
 
 ---
 
@@ -191,6 +192,27 @@ Plans:
 - [x] 09-07-PLAN.md — Campaign Fixes + Voter Links (edit page, profile action links)
 - [x] 09-08-PLAN.md — Delivery Orchestration Gaps (cron dispatch, delivery events, persisted monitor timeline)
 - [x] 09-09-PLAN.md — CRM Single-Voter Segment Prefill (real voter segment handoff into campaign creation)
+
+### Phase 10: Real-Time Chat via SSE
+
+**Status:** Planned
+**Goal:** Replace chat polling with authenticated SSE on the operator conversation surfaces so queue and active-thread updates arrive in near real time while database persistence remains the single source of truth.
+
+**Requirements:** [RT-01, RT-02, RT-03, RT-04, RT-05]
+
+- RT-01: Add an authenticated SSE route for conversations with queue/thread filters, heartbeat frames, abort handling, and cursor-based resume via `since`.
+- RT-02: Back the stream with delta queries over persisted conversation/message timestamps so webhook ingress and agent replies fan out stored changes instead of introducing a second realtime source of truth.
+- RT-03: Migrate `/conversas` off the 10s queue poll and 5s message poll, preserving initial REST bootstrap, reconnect/fallback behavior, and duplicate-safe state merges.
+- RT-04: Migrate the dashboard `ChatQueuePanel` off its 15s polling loop by reusing the same conversation stream contract for the open-queue slice.
+- RT-05: Keep the scope constrained to SSE-based chat surfaces only; unauthorized stream access must return `401`, and non-chat modules remain out of scope for this phase.
+
+**Depends on:** Phase 06, Phase 09
+**Plans:** 3 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — SSE backend foundation (delta queries, stream contract, authenticated route)
+- [ ] 10-02-PLAN.md — `/conversas` realtime migration (queue + active thread via SSE)
+- [ ] 10-03-PLAN.md — Dashboard queue realtime adoption (replace panel polling with shared stream)
 
 ---
 
