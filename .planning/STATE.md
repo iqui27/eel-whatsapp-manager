@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 09
 current_phase_name: real data
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 09-real-data-04-PLAN.md
-last_updated: "2026-03-06T00:02:07.111Z"
+stopped_at: Completed 09-real-data-05-PLAN.md
+last_updated: "2026-03-06T00:03:40.123Z"
 last_activity: 2026-03-06
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 23
-  completed_plans: 19
-  percent: 83
+  completed_plans: 20
+  percent: 87
 ---
 
 # EEL Eleicao — Project State
@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 09
 **Current Phase Name:** real data
-**Current Plan:** 4
+**Current Plan:** 5
 **Total Phases:** 9
 **Total Plans in Phase:** 7
-**Status:** Executing
-**Progress:** [████████░░] 83%
+**Status:** Ready to execute
+**Progress:** [█████████░] 87%
 **Last Activity:** 2026-03-06
 **Last Activity Description:** Completed 09-04 CRM Voter Operations; only 09-05 remains in Wave 1 before Wave 2
-**Stopped At:** Completed 09-real-data-04-PLAN.md
+**Stopped At:** Completed 09-real-data-05-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -45,7 +45,7 @@ progress:
 
 Progress: [████████░░] 83%
 
-Last session: 2026-03-06T00:02:07.108Z
+Last session: 2026-03-06T00:03:40.120Z
 
 ## Project History
 
@@ -129,6 +129,8 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 09-real-data]: Campaign chip selection is preserved client-side per campaign and forwarded to the send endpoint, avoiding a schema change in this plan.
 - [Phase 09-real-data]: Voters API list/search now returns paginated metadata while GET /api/voters?id=... remains a single-resource response for CRM consumers.
 - [Phase 09-real-data]: CRM voter profile now loads the voter by ID before related conversations/compliance fetches, and CRM mutations refresh pagination boundaries explicitly.
+- [Phase 09-real-data]: Stored segment filters as operator plus filters payloads while keeping legacy array parsing for backward compatibility.
+- [Phase 09-real-data]: Segments API now derives live filter options and campaign usage metadata so the segmentation UI stays bound to real voter data.
 
 ## Blockers
 None.
@@ -183,6 +185,7 @@ src/components/
 | Phase 09-real-data P01 | 3 | 2 tasks | 1 files |
 | Phase 09-real-data P02 | 2 min | 2 tasks | 3 files |
 | Phase 09-real-data P04 | 4 min | 2 tasks | 4 files |
+| Phase 09-real-data P05 | 23 min | 2 tasks | 2 files |
 
 ## Next Actions
 Continue Phase 09 Wave 1 execution with the remaining real-data plans before Wave 2.
