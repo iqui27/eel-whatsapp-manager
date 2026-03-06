@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 09
 current_phase_name: real data
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 09-real-data-03-PLAN.md
-last_updated: "2026-03-06T00:11:33.889Z"
+stopped_at: Completed 09-real-data-06-PLAN.md
+last_updated: "2026-03-06T00:14:00.949Z"
 last_activity: 2026-03-06
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 23
-  completed_plans: 21
-  percent: 91
+  completed_plans: 22
+  percent: 96
 ---
 
 # EEL Eleicao — Project State
@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 09
 **Current Phase Name:** real data
-**Current Plan:** 6
+**Current Plan:** 7
 **Total Phases:** 9
 **Total Plans in Phase:** 7
 **Status:** Ready to execute
-**Progress:** [█████████░] 91%
+**Progress:** [██████████] 96%
 **Last Activity:** 2026-03-06
 **Last Activity Description:** Completed 09-03 Conversations WhatsApp Integration; Wave 1 is complete and Wave 2 continues with 09-06 and 09-07
-**Stopped At:** Completed 09-real-data-03-PLAN.md
+**Stopped At:** Completed 09-real-data-06-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -45,7 +45,7 @@ progress:
 
 Progress: [█████████░] 91%
 
-Last session: 2026-03-06T00:11:33.887Z
+Last session: 2026-03-06T00:14:00.946Z
 
 ## Project History
 
@@ -134,6 +134,9 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 09-real-data]: Agent replies only persist after Evolution sendText succeeds, preventing false-positive chat history.
 - [Phase 09-real-data]: Without a chipId column on conversations, outbound sends resolve to the first connected chip instance and fall back to config.instanceName.
 - [Phase 09-real-data]: New conversations require selecting an existing voter so HITL threads stay linked to CRM data.
+- [Phase 09-real-data]: Dashboard voter totals now read the paginated /api/voters response via limit=1 and use its total metadata instead of assuming an array payload.
+- [Phase 09-real-data]: Reports aggregate sends by campaign updatedAt over 7-day and 14-day windows so KPI cards, bars, and CSV exports stay aligned.
+- [Phase 09-real-data]: Monitoring uses aggregate delivery milestones because the current Evolution flow does not persist per-message delivery events.
 
 ## Blockers
 None.
@@ -190,6 +193,7 @@ src/components/
 | Phase 09-real-data P04 | 4 min | 2 tasks | 4 files |
 | Phase 09-real-data P05 | 23 min | 2 tasks | 2 files |
 | Phase 09-real-data P03 | 7 min | 2 tasks | 3 files |
+| Phase 09-real-data P06 | 12 min | 2 tasks | 4 files |
 
 ## Next Actions
 Continue Phase 09 Wave 2 execution for the remaining real-data plans.
