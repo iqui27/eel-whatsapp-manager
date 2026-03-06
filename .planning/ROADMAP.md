@@ -18,7 +18,7 @@
 | 07 | Compliance + Admin | P2 | 02 | TBD |
 | 08 | Reports + Polish | P2 | 04, 06 | TBD |
 | 09 | 9/9 | Complete   | 2026-03-06 | 9 plans |
-| 10 | Real-Time Chat via SSE | In Progress | 06, 09 | 1/3 |
+| 10 | Real-Time Chat via SSE | In Progress | 06, 09 | 2/3 |
 
 ---
 
@@ -207,11 +207,11 @@ Plans:
 - RT-05: Keep the scope constrained to SSE-based chat surfaces only; unauthorized stream access must return `401`, and non-chat modules remain out of scope for this phase.
 
 **Depends on:** Phase 06, Phase 09
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [x] 10-01-PLAN.md — SSE backend foundation (delta queries, stream contract, authenticated route)
-- [ ] 10-02-PLAN.md — `/conversas` realtime migration (queue + active thread via SSE)
+- [x] 10-02-PLAN.md — `/conversas` realtime migration (queue + active thread via SSE)
 - [ ] 10-03-PLAN.md — Dashboard queue realtime adoption (replace panel polling with shared stream)
 
 ---

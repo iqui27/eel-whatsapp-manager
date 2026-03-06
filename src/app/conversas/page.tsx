@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
@@ -10,6 +10,12 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { Chip, Conversation, ConversationMessage, Voter } from '@/db/schema';
+import {
+  appendUniqueMessage,
+  buildConversationStreamCursor,
+  upsertConversationList,
+  useConversationStream,
+} from '@/lib/use-conversation-stream';
 import {
   MessageSquare,
   Send,
@@ -399,11 +405,22 @@ export default function ConversasPage() {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [handoffReason, setHandoffReason] = useState('');
   const [filteredVoter, setFilteredVoter] = useState<VoterContext | null>(null);
+  const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
+  const [loadedMessagesForId, setLoadedMessagesForId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const queueBootstrapRef = useRef<Conversation[]>([]);
+  const messageBootstrapRef = useRef<ConversationMessage[]>([]);
+  const [streamInitialCursor, setStreamInitialCursor] = useState<string | null>(null);
 
   const selectedConv = conversations.find(c => c.id === selectedId) ?? null;
+
+  const refreshStreamCursorSeed = useCallback(() => {
+    setStreamInitialCursor(
+      buildConversationStreamCursor(queueBootstrapRef.current, messageBootstrapRef.current),
+    );
+  }, []);
 
   // ── Load conversations ──
   const loadConversations = useCallback(async (silent = false) => {
@@ -411,17 +428,21 @@ export default function ConversasPage() {
       const query = voterFilterId ? `?voterId=${encodeURIComponent(voterFilterId)}` : '';
       const res = await fetch(`/api/conversations${query}`);
       if (res.status === 401) { router.push('/login'); return; }
-      if (res.ok) setConversations(await res.json());
+      if (res.ok) {
+        const data: Conversation[] = await res.json();
+        queueBootstrapRef.current = data;
+        setConversations(data);
+        refreshStreamCursorSeed();
+      }
     } catch { /* silent */ }
-  }, [router, voterFilterId]);
+    finally {
+      if (!silent) {
+        setHasLoadedConversations(true);
+      }
+    }
+  }, [refreshStreamCursorSeed, router, voterFilterId]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
-
-  // Poll every 10s
-  useEffect(() => {
-    const t = setInterval(() => loadConversations(true), 10000);
-    return () => clearInterval(t);
-  }, [loadConversations]);
 
   useEffect(() => {
     setQueueTab('all');
@@ -466,21 +487,38 @@ export default function ConversasPage() {
 
   // ── Load messages for selected conversation ──
   const loadMessages = useCallback(async () => {
-    if (!selectedId) return;
+    if (!selectedId) {
+      messageBootstrapRef.current = [];
+      setLoadedMessagesForId(null);
+      refreshStreamCursorSeed();
+      return;
+    }
     try {
       const res = await fetch(`/api/conversations/${selectedId}/messages`);
-      if (res.ok) setMessages(await res.json());
+      if (res.ok) {
+        const data: ConversationMessage[] = await res.json();
+        messageBootstrapRef.current = data;
+        setMessages(data);
+        setLoadedMessagesForId(selectedId);
+        refreshStreamCursorSeed();
+      }
     } catch { /* silent */ }
-  }, [selectedId]);
+  }, [refreshStreamCursorSeed, selectedId]);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
-  // Poll messages every 5s when conversation is active
   useEffect(() => {
-    if (!selectedId || selectedConv?.status === 'resolved') return;
-    const t = setInterval(loadMessages, 5000);
-    return () => clearInterval(t);
-  }, [selectedId, selectedConv?.status, loadMessages]);
+    if (selectedId) {
+      messageBootstrapRef.current = [];
+      setLoadedMessagesForId(null);
+      refreshStreamCursorSeed();
+      return;
+    }
+
+    messageBootstrapRef.current = [];
+    setLoadedMessagesForId(null);
+    refreshStreamCursorSeed();
+  }, [refreshStreamCursorSeed, selectedId]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -491,6 +529,25 @@ export default function ConversasPage() {
   useEffect(() => {
     setHandoffReason(selectedConv?.handoffReason ?? '');
   }, [selectedId, selectedConv?.handoffReason]);
+
+  const streamEnabled = hasLoadedConversations && (!selectedId || loadedMessagesForId === selectedId);
+  const { status: streamStatus, reconnectAttempts } = useConversationStream({
+    enabled: streamEnabled,
+    initialCursor: streamInitialCursor,
+    voterId: voterFilterId ?? undefined,
+    conversationId: selectedId ?? undefined,
+    onConversationUpsert: (conversation) => {
+      startTransition(() => {
+        setConversations((prev) => upsertConversationList(prev, conversation));
+      });
+    },
+    onMessageCreated: (message) => {
+      if (message.conversationId !== selectedId) return;
+      startTransition(() => {
+        setMessages((prev) => appendUniqueMessage(prev, message));
+      });
+    },
+  });
 
   // ── Filtered queue ──
   const filtered = conversations.filter(c => {
@@ -582,6 +639,18 @@ export default function ConversasPage() {
             >
               <Plus className="h-4 w-4" />
             </Button>
+          </div>
+
+          <div className="border-b border-border px-3 py-2">
+            <p className="text-[11px] text-muted-foreground">
+              {streamStatus === 'live'
+                ? 'Tempo real ativo'
+                : streamStatus === 'reconnecting'
+                  ? `Reconectando tempo real (${reconnectAttempts})`
+                  : streamStatus === 'offline'
+                    ? 'Tempo real em fallback offline'
+                    : 'Conectando stream...'}
+            </p>
           </div>
 
           {voterFilterId && (

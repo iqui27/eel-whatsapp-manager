@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 10
 current_phase_name: real-time chat via sse
-current_plan: 1
+current_plan: 2
 status: executing
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-03-06T18:32:55Z"
+stopped_at: Completed 10-02-PLAN.md
+last_updated: "2026-03-06T18:49:00Z"
 last_activity: 2026-03-06
 progress:
   total_phases: 10
   completed_phases: 9
   total_plans: 28
-  completed_plans: 26
-  percent: 93
+  completed_plans: 27
+  percent: 96
 ---
 
 # EEL Eleicao — Project State
@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 10
 **Current Phase Name:** real-time chat via sse
-**Current Plan:** 1
+**Current Plan:** 2
 **Total Phases:** 10
 **Total Plans in Phase:** 3
-**Status:** Executing Phase 10 — backend SSE foundation complete, UI migration next
-**Progress:** [█████████░] 93%
+**Status:** Executing Phase 10 — `/conversas` migrated to SSE, dashboard queue migration next
+**Progress:** [█████████▓] 96%
 **Last Activity:** 2026-03-06
-**Last Activity Description:** Completed 10-01 SSE backend foundation; authenticated stream route, cursor helpers, and delta-query readers are now in place for chat surfaces
-**Stopped At:** Completed 10-01-PLAN.md
+**Last Activity Description:** Completed 10-02 `/conversas` realtime migration; EventSource hook now drives queue/thread updates without 10s/5s polling
+**Stopped At:** Completed 10-02-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -45,11 +45,12 @@ progress:
 
 **Phase 10 (Real-Time Chat via SSE) — IN PROGRESS** 🚧
 - Plan 10-01 complete: authenticated SSE route + delta-query helpers + shared cursor/event contract
-- Next: migrate `/conversas` off the 10s/5s polling loops, then move the dashboard queue panel to the shared hook
+- Plan 10-02 complete: `/conversas` now bootstraps with REST and continues via SSE through the shared EventSource hook
+- Next: move the dashboard queue panel to the shared hook and close the phase
 
-Progress: [█████████░] 93%
+Progress: [█████████▓] 96%
 
-Last session: 2026-03-06T18:32:55Z
+Last session: 2026-03-06T18:49:00Z
 
 ## Project History
 
@@ -100,7 +101,7 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 
 **Phase 10 — Real-Time Chat via SSE — IN PROGRESS** 🚧
 - Wave 1: Plan 10-01 — authenticated SSE backend foundation complete ✅
-- Wave 2: Plan 10-02 — `/conversas` EventSource migration pending
+- Wave 2: Plan 10-02 — `/conversas` EventSource migration complete ✅
 - Wave 3: Plan 10-03 — dashboard queue panel realtime adoption pending
 
 ## Decisions Made
