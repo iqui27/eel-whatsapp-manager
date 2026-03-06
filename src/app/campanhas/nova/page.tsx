@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
@@ -154,7 +154,10 @@ function QualityChecks({ message }: { message: string }) {
 
 export default function NovaCampanhaPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const voterContextId = searchParams.get('voterId');
+  const voterContextName = searchParams.get('voterName');
 
   const [campaignName, setCampaignName] = useState('');
   const [segmentId, setSegmentId] = useState('');
@@ -315,165 +318,180 @@ export default function NovaCampanhaPage() {
 
         {/* ── Split pane ── */}
         <div className="flex-1 overflow-auto p-6">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px] h-full">
+          <div className="space-y-4">
+            {voterContextId && voterContextName && (
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" className="bg-background/80 text-primary">
+                    Campanha direcionada para {voterContextName}
+                  </Badge>
+                  <p className="text-sm text-muted-foreground">
+                    Campanhas enviam para segmentos. Para alcançar um eleitor específico, crie um segmento com esse contato antes do disparo.
+                  </p>
+                </div>
+              </div>
+            )}
 
-            {/* Left — editor */}
-            <div className="space-y-4">
-              <Card className="h-full">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <MessageSquare className="h-4 w-4 text-primary" />
-                    Editor de Mensagem
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Variable toolbar */}
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
-                      Inserir variável
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {VARIABLES.map(v => (
-                        <button
-                          key={v.key}
-                          type="button"
-                          onClick={() => insertVariable(v.key)}
-                          className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/15 transition-colors font-mono"
-                        >
-                          {v.key}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px] h-full">
 
-                  {/* Textarea */}
-                  <div className="space-y-1.5">
-                    <textarea
-                      ref={textareaRef}
-                      value={message}
-                      onChange={handleMessageChange}
-                      placeholder="Olá {nome}! Aqui é a equipe do {candidato}. Gostaríamos de contar com o seu apoio em {bairro}..."
-                      className="w-full min-h-[160px] resize-none rounded-lg border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
-                    />
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="italic">
-                        Use variáveis para personalizar. Evite urgência excessiva e linguagem de spam.
-                      </span>
-                      <span className={cn(
-                        'font-medium tabular-nums',
-                        wordCount > 120 ? 'text-red-600' :
-                        wordCount > 80 ? 'text-amber-600' : 'text-muted-foreground'
-                      )}>
-                        {wordCount}/120 palavras
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Quality indicators */}
-                  <Separator />
-                  <QualityChecks message={message} />
-                </CardContent>
-              </Card>
-
-              {/* A/B Test Panel */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-base">
-                    <div className="flex items-center gap-2">
-                      <FlaskConical className="h-4 w-4 text-primary" />
-                      Teste A/B
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="ab-toggle" className="text-sm font-normal text-muted-foreground cursor-pointer">
-                        {abEnabled ? 'Ativado' : 'Desativado'}
-                      </Label>
-                      <Switch
-                        id="ab-toggle"
-                        checked={abEnabled}
-                        onCheckedChange={setAbEnabled}
-                      />
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                {abEnabled && (
+              {/* Left — editor */}
+              <div className="space-y-4">
+                <Card className="h-full">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <MessageSquare className="h-4 w-4 text-primary" />
+                      Editor de Mensagem
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Split percentage slider */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Divisão</span>
-                        <span className="font-medium tabular-nums">
-                          Variante A: {splitPct}% · Variante B: {100 - splitPct}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={10}
-                        max={90}
-                        step={5}
-                        value={splitPct}
-                        onChange={e => setSplitPct(Number(e.target.value))}
-                        className="w-full accent-primary"
-                      />
-                      <div className="flex overflow-hidden rounded-full h-2">
-                        <div
-                          className="bg-primary transition-all duration-200"
-                          style={{ width: `${splitPct}%` }}
-                        />
-                        <div
-                          className="bg-primary/30 flex-1"
-                        />
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Variant B editor */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-primary/10 text-primary text-xs font-bold px-2 py-0.5">B</span>
-                        <p className="text-sm font-medium text-foreground">Mensagem Variante B</p>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 mb-2">
+                    {/* Variable toolbar */}
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">
+                        Inserir variável
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
                         {VARIABLES.map(v => (
                           <button
                             key={v.key}
                             type="button"
-                            onClick={() => setVariantB(prev => prev + v.key)}
-                            className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors font-mono"
+                            onClick={() => insertVariable(v.key)}
+                            className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/15 transition-colors font-mono"
                           >
                             {v.key}
                           </button>
                         ))}
                       </div>
-                      <textarea
-                        value={variantB}
-                        onChange={e => setVariantB(e.target.value)}
-                        placeholder="Mensagem alternativa para o grupo B..."
-                        className="w-full min-h-[120px] resize-none rounded-lg border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
-                      />
-                      <QualityChecks message={variantB} />
                     </div>
-                  </CardContent>
-                )}
-              </Card>
-            </div>
 
-            {/* Right — WhatsApp preview */}
-            <div className="lg:sticky lg:top-6 h-fit">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                    <Smartphone className="h-4 w-4 text-primary" />
-                    Prévia WhatsApp
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-2">
-                  <WhatsAppPreview message={message} />
-                  <p className="text-[10px] text-muted-foreground text-center mt-2 px-2">
-                    As variáveis são substituídas por valores reais no envio
-                  </p>
-                </CardContent>
-              </Card>
+                    {/* Textarea */}
+                    <div className="space-y-1.5">
+                      <textarea
+                        ref={textareaRef}
+                        value={message}
+                        onChange={handleMessageChange}
+                        placeholder="Olá {nome}! Aqui é a equipe do {candidato}. Gostaríamos de contar com o seu apoio em {bairro}..."
+                        className="w-full min-h-[160px] resize-none rounded-lg border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+                      />
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="italic">
+                          Use variáveis para personalizar. Evite urgência excessiva e linguagem de spam.
+                        </span>
+                        <span className={cn(
+                          'font-medium tabular-nums',
+                          wordCount > 120 ? 'text-red-600' :
+                          wordCount > 80 ? 'text-amber-600' : 'text-muted-foreground'
+                        )}>
+                          {wordCount}/120 palavras
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Quality indicators */}
+                    <Separator />
+                    <QualityChecks message={message} />
+                  </CardContent>
+                </Card>
+
+                {/* A/B Test Panel */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center justify-between text-base">
+                      <div className="flex items-center gap-2">
+                        <FlaskConical className="h-4 w-4 text-primary" />
+                        Teste A/B
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="ab-toggle" className="text-sm font-normal text-muted-foreground cursor-pointer">
+                          {abEnabled ? 'Ativado' : 'Desativado'}
+                        </Label>
+                        <Switch
+                          id="ab-toggle"
+                          checked={abEnabled}
+                          onCheckedChange={setAbEnabled}
+                        />
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  {abEnabled && (
+                    <CardContent className="space-y-4">
+                      {/* Split percentage slider */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Divisão</span>
+                          <span className="font-medium tabular-nums">
+                            Variante A: {splitPct}% · Variante B: {100 - splitPct}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={10}
+                          max={90}
+                          step={5}
+                          value={splitPct}
+                          onChange={e => setSplitPct(Number(e.target.value))}
+                          className="w-full accent-primary"
+                        />
+                        <div className="flex overflow-hidden rounded-full h-2">
+                          <div
+                            className="bg-primary transition-all duration-200"
+                            style={{ width: `${splitPct}%` }}
+                          />
+                          <div
+                            className="bg-primary/30 flex-1"
+                          />
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      {/* Variant B editor */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-primary/10 text-primary text-xs font-bold px-2 py-0.5">B</span>
+                          <p className="text-sm font-medium text-foreground">Mensagem Variante B</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {VARIABLES.map(v => (
+                            <button
+                              key={v.key}
+                              type="button"
+                              onClick={() => setVariantB(prev => prev + v.key)}
+                              className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors font-mono"
+                            >
+                              {v.key}
+                            </button>
+                          ))}
+                        </div>
+                        <textarea
+                          value={variantB}
+                          onChange={e => setVariantB(e.target.value)}
+                          placeholder="Mensagem alternativa para o grupo B..."
+                          className="w-full min-h-[120px] resize-none rounded-lg border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        />
+                        <QualityChecks message={variantB} />
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              </div>
+
+              {/* Right — WhatsApp preview */}
+              <div className="lg:sticky lg:top-6 h-fit">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                      <Smartphone className="h-4 w-4 text-primary" />
+                      Prévia WhatsApp
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2">
+                    <WhatsAppPreview message={message} />
+                    <p className="text-[10px] text-muted-foreground text-center mt-2 px-2">
+                      As variáveis são substituídas por valores reais no envio
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
         </div>

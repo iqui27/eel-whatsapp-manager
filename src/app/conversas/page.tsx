@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
@@ -71,6 +71,8 @@ type VoterSearchResponse = {
   page: number;
   limit: number;
 };
+
+type VoterContext = Pick<Voter, 'id' | 'name' | 'phone'>;
 
 // ─── Queue Item ───────────────────────────────────────────────────────────────
 
@@ -152,9 +154,11 @@ function ChatBubble({ msg }: { msg: ConversationMessage }) {
 // ─── New Conversation Dialog ──────────────────────────────────────────────────
 
 function NewConvDialog({
+  initialVoter,
   onClose,
   onCreated,
 }: {
+  initialVoter?: VoterContext | null;
   onClose: () => void;
   onCreated: (conv: Conversation) => Promise<void> | void;
 }) {
@@ -168,6 +172,15 @@ function NewConvDialog({
   const [chipsLoading, setChipsLoading] = useState(true);
   const [selectedChipId, setSelectedChipId] = useState('auto');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!initialVoter) return;
+    setQuery(initialVoter.name);
+    setVoterId(initialVoter.id);
+    setName(initialVoter.name);
+    setPhone(initialVoter.phone);
+    setResults([]);
+  }, [initialVoter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -373,6 +386,8 @@ function NewConvDialog({
 
 export default function ConversasPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const voterFilterId = searchParams.get('voterId');
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
@@ -382,6 +397,7 @@ export default function ConversasPage() {
   const [isSending, setIsSending] = useState(false);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [handoffReason, setHandoffReason] = useState('');
+  const [filteredVoter, setFilteredVoter] = useState<VoterContext | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -391,11 +407,12 @@ export default function ConversasPage() {
   // ── Load conversations ──
   const loadConversations = useCallback(async (silent = false) => {
     try {
-      const res = await fetch('/api/conversations');
+      const query = voterFilterId ? `?voterId=${encodeURIComponent(voterFilterId)}` : '';
+      const res = await fetch(`/api/conversations${query}`);
       if (res.status === 401) { router.push('/login'); return; }
       if (res.ok) setConversations(await res.json());
     } catch { /* silent */ }
-  }, [router]);
+  }, [router, voterFilterId]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
@@ -404,6 +421,47 @@ export default function ConversasPage() {
     const t = setInterval(() => loadConversations(true), 10000);
     return () => clearInterval(t);
   }, [loadConversations]);
+
+  useEffect(() => {
+    setQueueTab('all');
+  }, [voterFilterId]);
+
+  useEffect(() => {
+    if (!voterFilterId) {
+      setFilteredVoter(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadFilteredVoter = async () => {
+      try {
+        const res = await fetch(`/api/voters?id=${encodeURIComponent(voterFilterId)}`);
+        if (res.status === 401) {
+          router.push('/login');
+          return;
+        }
+        if (!res.ok) {
+          if (!cancelled) setFilteredVoter(null);
+          return;
+        }
+
+        const voter: Voter = await res.json();
+        if (!cancelled) {
+          setFilteredVoter({ id: voter.id, name: voter.name, phone: voter.phone });
+        }
+      } catch {
+        if (!cancelled) {
+          setFilteredVoter(null);
+        }
+      }
+    };
+
+    loadFilteredVoter();
+    return () => {
+      cancelled = true;
+    };
+  }, [router, voterFilterId]);
 
   // ── Load messages for selected conversation ──
   const loadMessages = useCallback(async () => {
@@ -438,6 +496,20 @@ export default function ConversasPage() {
     if (queueTab === 'all') return true;
     return c.status === queueTab;
   });
+
+  useEffect(() => {
+    if (filtered.length === 0) {
+      setSelectedId(null);
+      setMessages([]);
+      return;
+    }
+
+    const hasSelectedConversation = filtered.some((conversation) => conversation.id === selectedId);
+    if (!hasSelectedConversation) {
+      setSelectedId(filtered[0].id);
+      setMessages([]);
+    }
+  }, [filtered, selectedId]);
 
   // ── Send reply ──
   const handleSend = async () => {
@@ -490,6 +562,8 @@ export default function ConversasPage() {
     }
   };
 
+  const activeFilterLabel = filteredVoter?.name ?? conversations[0]?.voterName ?? 'eleitor selecionado';
+
   return (
     <SidebarLayout currentPage="conversas" pageTitle="Conversas">
       <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
@@ -508,6 +582,25 @@ export default function ConversasPage() {
               <Plus className="h-4 w-4" />
             </Button>
           </div>
+
+          {voterFilterId && (
+            <div className="border-b border-border px-3 py-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="max-w-[220px] truncate">
+                  Filtrado por: {activeFilterLabel}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={() => router.replace('/conversas')}
+                >
+                  <X className="mr-1 h-3 w-3" />
+                  Limpar
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="flex border-b border-border px-2 py-1.5 gap-0.5">
@@ -538,7 +631,15 @@ export default function ConversasPage() {
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
                 <MessageSquare className="h-6 w-6 text-muted-foreground/30" />
-                <p className="text-xs text-muted-foreground">Nenhuma conversa</p>
+                <p className="text-xs text-muted-foreground">
+                  {voterFilterId ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa'}
+                </p>
+                {voterFilterId && filteredVoter && (
+                  <Button size="sm" variant="outline" className="mt-1 gap-1.5" onClick={() => setShowNewDialog(true)}>
+                    <Plus className="h-3.5 w-3.5" />
+                    Iniciar conversa
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="space-y-1">
@@ -755,6 +856,7 @@ export default function ConversasPage() {
       {/* New conversation dialog */}
       {showNewDialog && (
         <NewConvDialog
+          initialVoter={filteredVoter}
           onClose={() => setShowNewDialog(false)}
           onCreated={async (conv) => {
             await loadConversations();

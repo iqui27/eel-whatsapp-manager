@@ -499,13 +499,15 @@ export default function VoterProfilePage() {
                 <CardTitle className="text-base">Ações</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Link href="/conversas">
+                <Link href={`/conversas?voterId=${voter.id}`}>
                   <Button variant="outline" size="sm" className="w-full gap-1.5 justify-start">
                     <MessageSquare className="h-4 w-4" />
                     Ver conversas
                   </Button>
                 </Link>
-                <Link href="/campanhas/nova">
+                <Link
+                  href={`/campanhas/nova?voterId=${voter.id}&voterName=${encodeURIComponent(voter.name)}`}
+                >
                   <Button variant="outline" size="sm" className="w-full gap-1.5 justify-start">
                     <User className="h-4 w-4" />
                     Criar campanha personalizada
