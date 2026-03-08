@@ -221,11 +221,11 @@ Plans:
 **Goal:** Verify every shipped user flow and critical integration end-to-end, capture pass/fail evidence, and surface release-blocking gaps before milestone wrap-up.
 **Requirements:** [QA-01, QA-02, QA-03, QA-04, QA-05, QA-06, QA-07, QA-08]
 **Depends on:** Phase 10
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [x] 11-01-PLAN.md — Baseline verification (auth, setup, settings, chips, contacts, clusters, history/warming)
-- [ ] 11-02-PLAN.md — Electoral core UAT (import, segmentation, CRM, campaigns, scheduling, monitor)
+- [x] 11-02-PLAN.md — Electoral core UAT (import, segmentation, CRM, campaigns, scheduling, monitor)
 - [ ] 11-03-PLAN.md — Realtime conversations + governance/reporting + final regression sign-off
 
 - QA-01: Authentication, session handling, setup, and settings flows behave correctly on protected and unauthenticated paths.
