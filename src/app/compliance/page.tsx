@@ -48,6 +48,13 @@ interface VoterWithConsent extends Voter {
   lastActionDate?: string;
 }
 
+interface PaginatedVotersResponse {
+  data: VoterWithConsent[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const OPT_IN_LABELS: Record<string, string> = {
@@ -99,6 +106,34 @@ function exportCsv(logs: ConsentLogWithVoter[]) {
   URL.revokeObjectURL(url);
 }
 
+async function loadAllVoters(): Promise<VoterWithConsent[]> {
+  const limit = 100;
+  const firstResponse = await fetch(`/api/voters?page=1&limit=${limit}`);
+  if (!firstResponse.ok) {
+    return [];
+  }
+
+  const firstPayload = await firstResponse.json() as PaginatedVotersResponse | VoterWithConsent[];
+  if (Array.isArray(firstPayload)) {
+    return firstPayload;
+  }
+
+  const voters = [...firstPayload.data];
+  const totalPages = Math.max(1, Math.ceil((firstPayload.total ?? voters.length) / (firstPayload.limit || limit)));
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const response = await fetch(`/api/voters?page=${page}&limit=${limit}`);
+    if (!response.ok) {
+      break;
+    }
+
+    const payload = await response.json() as PaginatedVotersResponse | VoterWithConsent[];
+    voters.push(...(Array.isArray(payload) ? payload : payload.data));
+  }
+
+  return voters;
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CompliancePage() {
@@ -118,14 +153,14 @@ export default function CompliancePage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, votersRes, logsRes] = await Promise.all([
+      const [statsRes, logsRes, voters] = await Promise.all([
         fetch('/api/compliance?stats=1'),
-        fetch('/api/voters'),
         fetch('/api/compliance?all=1'),
+        loadAllVoters(),
       ]);
       if (statsRes.ok) setStats(await statsRes.json());
-      if (votersRes.ok) setVoters(await votersRes.json());
       if (logsRes.ok) setAllLogs(await logsRes.json());
+      setVoters(voters);
     } finally {
       setLoading(false);
     }

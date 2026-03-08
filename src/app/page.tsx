@@ -357,7 +357,7 @@ export default function DashboardPage() {
   const handleWarmAll = async () => {
     setWarmingAll(true);
     try {
-      const res = await fetch('/api/warming', { method: 'GET' });
+      const res = await fetch('/api/warming', { method: 'POST' });
       if (res.ok) toast.success('Aquecimento iniciado');
       else toast.error('Erro ao aquecer chips');
     } catch {

@@ -20,16 +20,27 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { id } = await request.json();
-    const chips = await loadChipsWithClusters();
-    const chip = chips.find((c) => c.id === id);
+    let id: string | undefined;
+    try {
+      const body = await request.json() as { id?: string };
+      id = body.id;
+    } catch {
+      id = undefined;
+    }
 
-    if (!chip) {
+    const chips = await loadChipsWithClusters();
+    const chip = id ? chips.find((c) => c.id === id) : undefined;
+
+    if (id && !chip) {
       return NextResponse.json({ error: 'Chip não encontrado' }, { status: 404 });
     }
 
-    const results = await runWarming(toAppConfig(config), toWarmingChips(chips), { singleChipId: id });
-    return NextResponse.json({ success: true, results });
+    const results = await runWarming(
+      toAppConfig(config),
+      toWarmingChips(chips),
+      id ? { singleChipId: id } : undefined,
+    );
+    return NextResponse.json({ success: true, scope: id ? 'single' : 'all', results });
   } catch (error) {
     console.error('Warming error:', error);
     return NextResponse.json({ error: 'Erro ao enviar mensagem' }, { status: 500 });
@@ -43,7 +54,12 @@ export async function GET(request: NextRequest) {
   }
 
   const chips = await loadChipsWithClusters();
-  const results = await runWarming(toAppConfig(config), toWarmingChips(chips));
-
-  return NextResponse.json({ results });
+  return NextResponse.json({
+    warmingEnabled: config.warmingEnabled ?? true,
+    warmingIntervalMinutes: config.warmingIntervalMinutes ?? 60,
+    warmingMessage: config.warmingMessage ?? '',
+    lastCronRun: config.lastCronRun ?? null,
+    totalChips: chips.length,
+    connectedChips: chips.filter((chip) => chip.status === 'connected').length,
+  });
 }

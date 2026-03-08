@@ -70,10 +70,11 @@ function getPeriodDays(period: Period): number {
   return period === '7' ? 7 : 14;
 }
 
-function filterCampaignsByPeriod(campaigns: Campaign[], period: Period) {
+function filterCampaignsByPeriod(campaigns: Campaign[], period: Period, referenceDate: Date | null) {
+  if (!referenceDate) return [];
   const windowDays = getPeriodDays(period);
-  const now = new Date();
-  const start = new Date(now);
+  const now = new Date(referenceDate);
+  const start = new Date(referenceDate);
   start.setHours(0, 0, 0, 0);
   start.setDate(start.getDate() - (windowDays - 1));
 
@@ -83,9 +84,10 @@ function filterCampaignsByPeriod(campaigns: Campaign[], period: Period) {
   });
 }
 
-function buildDailyBars(campaigns: Campaign[], period: Period): DayBar[] {
+function buildDailyBars(campaigns: Campaign[], period: Period, referenceDate: Date | null): DayBar[] {
+  if (!referenceDate) return [];
   const windowDays = getPeriodDays(period);
-  const now = new Date();
+  const now = new Date(referenceDate);
   now.setHours(0, 0, 0, 0);
 
   const totalsByDay = new Map<string, number>();
@@ -192,7 +194,7 @@ function BarChart({ bars }: { bars: DayBar[] }) {
               >
                 {bar.date}
               </text>
-              <title>{bar.date}: {bar.value.toLocaleString('pt-BR')}</title>
+              <title>{`${bar.date}: ${bar.value.toLocaleString('pt-BR')}`}</title>
             </g>
           );
         })}
@@ -251,6 +253,11 @@ export default function RelatoriosPage() {
   const [period, setPeriod] = useState<Period>('7');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [referenceDate, setReferenceDate] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setReferenceDate(new Date());
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -264,12 +271,12 @@ export default function RelatoriosPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const filteredCampaigns = filterCampaignsByPeriod(campaigns, period);
+  const filteredCampaigns = filterCampaignsByPeriod(campaigns, period, referenceDate);
   const totalSent = filteredCampaigns.reduce((sum, campaign) => sum + (campaign.totalSent ?? 0), 0);
   const totalDelivered = filteredCampaigns.reduce((sum, campaign) => sum + (campaign.totalDelivered ?? 0), 0);
   const totalFailed = filteredCampaigns.reduce((sum, campaign) => sum + (campaign.totalFailed ?? 0), 0);
   const totalReplied = filteredCampaigns.reduce((sum, campaign) => sum + (campaign.totalReplied ?? 0), 0);
-  const bars = buildDailyBars(filteredCampaigns, period);
+  const bars = buildDailyBars(filteredCampaigns, period, referenceDate);
   const periodLabel = period === '7' ? 'Últimos 7 dias' : 'Últimos 14 dias';
 
   return (
