@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 11
 current_phase_name: full-system verification + uat sweep
 current_plan: 3
-status: executing
-stopped_at: Completed 11-02-PLAN.md
-last_updated: "2026-03-08T02:49:56Z"
-last_activity: 2026-03-07
+status: completed
+stopped_at: Completed 11-03-PLAN.md
+last_updated: "2026-03-08T03:16:00Z"
+last_activity: 2026-03-08
 progress:
   total_phases: 11
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 31
-  completed_plans: 30
-  percent: 97
+  completed_plans: 31
+  percent: 100
 ---
 
 # EEL Eleicao — Project State
@@ -25,11 +25,11 @@ progress:
 **Current Plan:** 3
 **Total Phases:** 11
 **Total Plans in Phase:** 3
-**Status:** Phase 11 in progress — electoral core verification complete
-**Progress:** [█████████▓] 97%
-**Last Activity:** 2026-03-07
-**Last Activity Description:** Completed 11-02 by validating import/segmentation/CRM on current HEAD, confirming production deploy drift, and isolating missing `campaigns.chip_id` + `conversations.chip_id` as target-database blockers
-**Stopped At:** Completed 11-02-PLAN.md
+**Status:** Phase 11 complete — verification finished, release blocked by routed gaps
+**Progress:** [██████████] 100%
+**Last Activity:** 2026-03-08
+**Last Activity Description:** Completed 11-03 with realtime/governance/reporting verification, final release verdict, and cleanup of temporary Phase 11 records from the target database
+**Stopped At:** Completed 11-03-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -48,12 +48,12 @@ progress:
 - Plan 10-02 complete: `/conversas` now bootstraps with REST and continues via SSE through the shared EventSource hook
 - Plan 10-03 complete: dashboard queue panel now reuses the shared stream and updates open-queue removals in near real time
 
-**Phase 11 (Full-System Verification + UAT Sweep) — IN PROGRESS** 🚧
+**Phase 11 (Full-System Verification + UAT Sweep) — COMPLETE** ✅
 - Plan 11-01 complete: production-backed baseline/auth/legacy verification + shared evidence ledger
 - Plan 11-02 complete: import/segmentation/CRM validated on current HEAD; campaign lifecycle blocked by target-database schema drift and production deploy parity gaps
-- Plan 11-03 planned: realtime conversations, governance/reporting, and final regression sign-off
+- Plan 11-03 complete: realtime/governance/reporting verification finished with a release-blocked verdict and explicit gap routing
 
-Progress: [█████████▓] 97%
+Progress: [██████████] 100%
 
 Last session: 2026-03-08T02:32:07Z
 
@@ -164,6 +164,8 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [x] Failures discovered during Phase 11 should be routed into explicit gap work after the sweep, not silently absorbed into the verification pass.
 - [Phase 11]: Production verification currently uses the deployed app because the local shell lacks a ready DB/session environment.
 - [Phase 11]: `/api/warming` is stateful on authenticated GET and cannot be treated as a read-safe baseline endpoint.
+- [Phase 11]: Release readiness is blocked by three independent layers of drift: target DB schema, production deploy parity, and current-head UI/runtime regressions.
+- [Phase 11]: `/compliance` now expects paginated voter data handling, and `/relatorios` needs a hydration-safe SVG title before release sign-off.
 
 ## Accumulated Context
 
@@ -174,7 +176,11 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
   - Origin: user requested a complete test plan to verify every shipped functionality before release preparation.
 
 ## Blockers
-None.
+- Target Supabase database is missing `campaigns.chip_id` and `conversations.chip_id`.
+- Production deploy is behind current roadmap-critical routes (`/api/voters`, segment preview, `/api/segments/from-voter`).
+- Current-head `/compliance` crashes on voter payload shape mismatch.
+- `/relatorios` still has React runtime/hydration failures.
+- `/api/warming` is still mutating on authenticated `GET`.
 
 ## Key Files (Current)
 ```
@@ -232,12 +238,14 @@ src/components/
 | Phase 09-real-data P07 | 7 min | 2 tasks | 4 files |
 
 ## Next Actions
-Phase 11 is in progress. Execute `11-02`, then `11-03`, and route any failures from the shared ledger into gap work or milestone wrap-up.
+Phase 11 is complete. The next correct step is explicit gap-closure planning before any milestone wrap-up or release claim.
 
-**Phase 11 progress:**
-- 11-01: Baseline verification (auth, setup, legacy operational modules) ✅
-- 11-02: Electoral core UAT (import, segmentation, CRM, campaigns, scheduling, monitor)
-- 11-03: Realtime conversations + governance/reporting + final sign-off
+**Immediate gap work to plan/execute:**
+- Apply the missing DB migration for `campaigns.chip_id` and `conversations.chip_id`.
+- Redeploy the intended build so production matches current roadmap-critical routes.
+- Fix `/compliance` to consume paginated voter responses.
+- Fix `/relatorios` hydration/runtime issues and rerun report verification.
+- Harden `/api/warming` so read-safe verification no longer triggers live warming actions.
 
 **Deferred (post-Phase 10):**
 - DB-level permission enforcement in API routes

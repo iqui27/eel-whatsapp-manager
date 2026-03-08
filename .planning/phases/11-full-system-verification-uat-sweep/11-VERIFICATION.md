@@ -1,4 +1,4 @@
-Status: in_progress
+Status: complete
 
 # Phase 11 Verification
 
@@ -80,6 +80,36 @@ Environment note:
 | `/campanhas/[id]/monitor` + `/api/campaigns/[id]/send` | Monitor and send checkpoints can be validated without uncontrolled audience impact | ⛔ BLOCKED | Monitor/send path remained unreachable because campaign creation failed at the DB layer; safe send was intentionally not forced against real audiences. |
 | Monitor cancel/send-state coherence + chip routing | Monitor state, cancellation semantics, and selected chip stay consistent | ⛔ BLOCKED | Could not validate because no campaign could be persisted on current HEAD and the production deploy is behind the campaign context changes. |
 
+## Realtime Operator Flows
+
+Goal: re-verify dashboard/chat behavior after the SSE rollout and recent hotfixes.
+
+| Surface | Expected behavior | Status | Evidence / Notes |
+|---------|-------------------|--------|------------------|
+| `/` dashboard KPI + `ChatQueuePanel` | Dashboard loads, KPIs render, and queue panel reflects live open conversations coherently | ❌ FAIL | Production dashboard page loaded without browser errors, but current HEAD against the target DB issued `GET /api/campaigns 500` and `GET /api/conversations?status=open 500`; the dashboard shell still rendered, but realtime queue data was not healthy on the release candidate. |
+| `/conversas` | Queue, empty state, and active-thread area render without destabilizing the UI | ❌ FAIL | Current HEAD browser smoke rendered the page shell plus empty states, but showed `Reconectando tempo real (1)` while server logs showed `GET /api/conversations?status=open 500` and stream bootstrap failure on missing `conversations.chip_id`. Production `/conversas` page now opens without the earlier React depth crash, but that deploy is behind current code. |
+| `/api/conversations/stream` auth + reconnect behavior | Anonymous access returns `401`; authenticated stream emits initial frames and remains stable | ❌ FAIL | Anonymous stream access returned `401` on both production and local HEAD. Production authenticated stream emitted `connected` and `snapshot.ready` frames. Current HEAD local stream returned HTTP `200` but emitted no frames because the initial delta query failed on missing `conversations.chip_id`; server log recorded `[GET /api/conversations/stream] ... column "chip_id" does not exist`. |
+| `/api/webhook` + `/api/conversations/[id]/messages` propagation | Inbound webhook and outbound reply behavior can be observed against persisted operator views | ⛔ BLOCKED | `GET /api/webhook` returned `{"status":"ok","message":"Webhook endpoint"}`, but end-to-end propagation was not safely re-proven after the target-db conversation schema blocker surfaced. Current HEAD conversation reads and stream bootstrap already fail before propagation can be trusted. |
+
+## Governance And Reporting
+
+Goal: verify shipped governance/reporting surfaces, including destructive safeguards where safe test data makes that possible.
+
+| Surface | Expected behavior | Status | Evidence / Notes |
+|---------|-------------------|--------|------------------|
+| `/compliance` + `/api/compliance` | Consent cards, history, revoke/anonymize paths, and audit timeline behave coherently | ❌ FAIL | Current HEAD `/compliance` crashed in the browser with `TypeError: voters.filter is not a function`, because the page assumes `/api/voters` returns an array while the API now returns paginated data. The APIs themselves worked on safe test data: `GET /api/compliance?stats=1` returned `200`, `GET /api/compliance?all=1` returned `200 []`, `POST /api/compliance` recorded a revoke, and `/api/voters` `PUT` anonymized the Phase 11 voter. Production `/compliance` page still loads because deployed `/api/voters` is older and returns a raw array. |
+| `/admin` + `/api/users` | User list, role updates, enable/disable, invite/remove, and auth safeguards behave correctly | ✅ PASS | Current HEAD `/admin` rendered without browser errors, `GET /api/users` returned `200 []`, a safe Phase 11 test user was created, updated to `coordenador` with `enabled:false`, and deleted successfully via the API. Production anonymous `GET /api/users` returned `401`, confirming auth guard behavior. |
+| `/relatorios` | KPI cards, chart/table, and CSV export path render without runtime errors | ❌ FAIL | Production `/relatorios` triggered a minified React `#418` page error. Current HEAD `/relatorios` triggered a hydration mismatch around the SVG `<title>` in the bar chart and also logged `GET /api/campaigns 500` because the target DB is missing `campaigns.chip_id`. CSV export cannot be signed off while the page has runtime and data-layer failures. |
+
+## Cross-Cutting Checks
+
+Goal: close the sweep with regression-oriented checks that span multiple modules.
+
+| Surface | Expected behavior | Status | Evidence / Notes |
+|---------|-------------------|--------|------------------|
+| Deep links, empty states, auth failures, responsive smoke | Common navigation paths, empty states, narrow-width rendering, and auth guards stay coherent | ❌ FAIL | Responsive smoke on current HEAD at mobile width showed no horizontal overflow on `/`, `/crm`, and `/conversas`; `/conversas` empty state rendered cleanly; anonymous `/api/users` and anonymous `/api/conversations/stream` returned `401`. However, CRM → conversations deep link broke on current HEAD because conversation reads fail, and production parity drift means some deep-link contracts are not deployed. |
+| KPI consistency across dashboard, monitor, and reports | Shared campaign metrics agree across major operator surfaces | ⛔ BLOCKED | Current HEAD campaign APIs fail on missing `campaigns.chip_id`, preventing monitor/report consistency checks, and production `/relatorios` has a React runtime error. |
+
 ## Coverage Matrix
 
 | Area | Surface | Requirement | Status | Evidence / Notes |
@@ -102,16 +132,16 @@ Environment note:
 | Campaigns | Scheduling UX parity (window, velocity, persisted behavior) | QA-04 | ⛔ BLOCKED | Could not be observed without a valid persisted campaign. |
 | Campaigns | `/campanhas/[id]/monitor` + `/api/campaigns/[id]/send` | QA-04 | ⛔ BLOCKED | Upstream campaign-create failure prevented monitor/send verification. |
 | Campaigns | Monitor cancel/send-state coherence + chip routing | QA-04 | ⛔ BLOCKED | Same upstream blocker; no campaign state to compare. |
-| Realtime | `/` dashboard KPI + `ChatQueuePanel` | QA-05 | ⬜ pending | |
-| Realtime | `/conversas` | QA-05 | ⬜ pending | |
-| Realtime | `/api/conversations/stream` auth + reconnect behavior | QA-05 | ⬜ pending | |
-| Realtime | `/api/webhook` + `/api/conversations/[id]/messages` propagation | QA-05 | ⬜ pending | |
-| Governance | `/compliance` + `/api/compliance` | QA-06 | ⬜ pending | |
-| Governance | `/admin` + `/api/users` | QA-06 | ⬜ pending | |
-| Governance | `/relatorios` | QA-06 | ⬜ pending | |
-| Cross-cutting | Deep links, empty states, auth failures, responsive smoke | QA-07 | ⬜ pending | |
-| Cross-cutting | KPI consistency across dashboard, monitor, and reports | QA-07 | ⬜ pending | |
-| Outcome | Final verdict + routed gap list | QA-08 | ⬜ pending | |
+| Realtime | `/` dashboard KPI + `ChatQueuePanel` | QA-05 | ❌ FAIL | Current HEAD dashboard depends on APIs that now fail on target-schema drift. |
+| Realtime | `/conversas` | QA-05 | ❌ FAIL | Page no longer crashes, but current-head data/bootstrap is broken on the target DB. |
+| Realtime | `/api/conversations/stream` auth + reconnect behavior | QA-05 | ❌ FAIL | Anonymous auth guard passes, but authenticated current-head stream cannot bootstrap on the target DB. |
+| Realtime | `/api/webhook` + `/api/conversations/[id]/messages` propagation | QA-05 | ⛔ BLOCKED | Upstream conversation-schema failure prevented safe end-to-end proof. |
+| Governance | `/compliance` + `/api/compliance` | QA-06 | ❌ FAIL | APIs work, but current-head page crashes on a voter-response contract mismatch. |
+| Governance | `/admin` + `/api/users` | QA-06 | ✅ PASS | UI and API CRUD/auth path passed with safe Phase 11 test data. |
+| Governance | `/relatorios` | QA-06 | ❌ FAIL | Production React error and current-head hydration/data failures block sign-off. |
+| Cross-cutting | Deep links, empty states, auth failures, responsive smoke | QA-07 | ❌ FAIL | Mobile responsiveness/auth checks passed, but deep-link integrity does not. |
+| Cross-cutting | KPI consistency across dashboard, monitor, and reports | QA-07 | ⛔ BLOCKED | Campaign/report surfaces cannot be compared coherently yet. |
+| Outcome | Final verdict + routed gap list | QA-08 | ✅ PASS | Sweep now ends with explicit blockers, evidence, and follow-up routing. |
 
 ## Blockers And Environment Notes
 
@@ -121,6 +151,7 @@ Environment note:
 - Current HEAD was then verified locally against the target Supabase database at `http://127.0.0.1:3005` so that the code under review could be exercised even though the production deploy is behind.
 - Target database schema is missing `campaigns.chip_id` and `conversations.chip_id`; this is not hypothetical drift, it was confirmed directly via `information_schema.columns`.
 - Production deploy drift is real: production `/api/voters` still returns a raw array, production `POST /api/segments?action=preview` rejected the request as if older validation rules were deployed, and production `/api/segments/from-voter` returned HTML `404`.
+- Safe Phase 11 verification records were cleaned up after evidence capture: 8 test voters, 5 test segments, 3 `segment_voters` links, and 1 consent log were removed from the target database.
 
 ## Gap Routing
 
@@ -130,9 +161,16 @@ Environment note:
 | low | `/setup` | Configured production still renders the setup wizard UI publicly even though the setup API rejects reconfiguration. | Authenticated browser visit to `/setup` rendered the 3-step wizard while `POST /api/setup` returned `403 Sistema já configurado`. | Replace the configured-state page with a redirect or explicit "already configured" screen. |
 | critical | target database schema | Current code expects `campaigns.chip_id` and `conversations.chip_id`, but the target Supabase database does not have those columns. | Direct `information_schema.columns` query showed the columns are absent; local HEAD `GET /api/campaigns`, `POST /api/campaigns`, `GET /api/conversations`, `GET /api/conversations?voterId=...`, and SSE bootstrap all failed with `PostgresError: column "chip_id" does not exist`. | Apply the missing DB migration before any release/readiness sign-off; rerun campaign and realtime verification after the schema matches the code. |
 | critical | production deploy parity | Production is behind the repository head for core electoral flows, so shipped behavior does not match the current planned product contract. | Production `/api/voters?page=1&limit=1` returned a raw array, `POST /api/segments?action=preview` returned `400 name e filters são obrigatórios`, and `/api/segments/from-voter` returned HTML `404`, while current HEAD implements paginated voters, preview payloads, and single-voter segment creation. | Redeploy the intended build before treating production smoke as representative of the current roadmap. |
+| high | `/compliance` | Current-head compliance page is broken by a response-shape mismatch with `/api/voters`. | Local browser on `http://127.0.0.1:3005/compliance` threw `TypeError: voters.filter is not a function`; page code assumes an array while `GET /api/voters` now returns `{data,total,page,limit}`. | Update the page to read the paginated voter payload correctly, then rerun compliance UI verification. |
+| high | `/relatorios` | Reports page is not release-ready due React runtime/hydration issues. | Production `/relatorios` emitted minified React `#418`; local HEAD emitted a hydration mismatch around the SVG `<title>` plus `GET /api/campaigns 500`. | Fix the SVG/title hydration issue, then rerun reports verification after the campaign schema blocker is resolved. |
 
 ## Final Verdict
 
-- Verdict: pending
-- Release blockers: pending
-- Recommended next action: pending
+- Verdict: release not ready
+- Release blockers:
+  - target database missing `campaigns.chip_id` and `conversations.chip_id`
+  - production deploy is behind current roadmap-critical routes
+  - current-head `/compliance` page crashes at runtime
+  - `/relatorios` has unresolved React runtime/hydration errors
+  - `/api/warming` still performs side effects on `GET`
+- Recommended next action: treat this phase as a completed verification sweep, then plan/execute explicit gap-closure work before milestone wrap-up or any new release claim.
