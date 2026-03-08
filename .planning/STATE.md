@@ -2,34 +2,34 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 10
-current_phase_name: real-time chat via sse
-current_plan: 3
-status: verifying
-stopped_at: Completed 10-03-PLAN.md
-last_updated: "2026-03-06T19:00:00Z"
-last_activity: 2026-03-06
+current_phase: 11
+current_phase_name: full-system verification + uat sweep
+current_plan: 1
+status: planned
+stopped_at: Ready to start 11-01-PLAN.md
+last_updated: "2026-03-08T02:32:07Z"
+last_activity: 2026-03-07
 progress:
-  total_phases: 10
+  total_phases: 11
   completed_phases: 10
-  total_plans: 28
+  total_plans: 31
   completed_plans: 28
-  percent: 100
+  percent: 90
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 10
-**Current Phase Name:** real-time chat via sse
-**Current Plan:** 3
-**Total Phases:** 10
+**Current Phase:** 11
+**Current Phase Name:** full-system verification + uat sweep
+**Current Plan:** 1
+**Total Phases:** 11
 **Total Plans in Phase:** 3
-**Status:** Phase 10 execution complete — ready for verification
-**Progress:** [██████████] 100%
-**Last Activity:** 2026-03-06
-**Last Activity Description:** Completed 10-03 dashboard queue realtime adoption; all Phase 10 chat surfaces now run on authenticated SSE instead of polling
-**Stopped At:** Completed 10-03-PLAN.md
+**Status:** Phase 11 planned — ready for execution
+**Progress:** [█████████░] 90%
+**Last Activity:** 2026-03-07
+**Last Activity Description:** Planned a full-system verification/UAT sweep covering every shipped product surface after the SSE rollout
+**Stopped At:** Ready to start 11-01-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -48,9 +48,14 @@ progress:
 - Plan 10-02 complete: `/conversas` now bootstraps with REST and continues via SSE through the shared EventSource hook
 - Plan 10-03 complete: dashboard queue panel now reuses the shared stream and updates open-queue removals in near real time
 
-Progress: [██████████] 100%
+**Phase 11 (Full-System Verification + UAT Sweep) — PLANNED** 📝
+- Plan 11-01 planned: baseline/auth/setup/legacy operations verification + shared evidence ledger
+- Plan 11-02 planned: electoral core UAT across import, segmentation, CRM, campaigns, scheduling, and monitor
+- Plan 11-03 planned: realtime conversations, governance/reporting, and final regression sign-off
 
-Last session: 2026-03-06T19:00:00Z
+Progress: [█████████░] 90%
+
+Last session: 2026-03-08T02:32:07Z
 
 ## Project History
 
@@ -155,12 +160,16 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 09-real-data]: Campaign sends now persist delivery events and scheduled campaigns execute through `/api/cron/campaigns` using the same shared send pipeline as manual dispatches.
 - [Phase 09-real-data]: Monitor now reads persisted delivery events via `include=deliveryEvents`, keeping counters for KPI cards and events for the audit timeline.
 - [Phase 09-real-data]: CRM-originated campaign creation resolves into an idempotent single-voter segment instead of stopping at a contextual hint.
+- [x] Phase 11 verification will use one shared evidence ledger (`11-VERIFICATION.md`) instead of scattered notes.
+- [x] Failures discovered during Phase 11 should be routed into explicit gap work after the sweep, not silently absorbed into the verification pass.
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 - Phase 10 added: Real-Time Chat via SSE
   - Origin: deferred post-Phase 09 work to replace polling in chat surfaces with real-time transport.
+- Phase 11 added: Full-System Verification + UAT Sweep
+  - Origin: user requested a complete test plan to verify every shipped functionality before release preparation.
 
 ## Blockers
 None.
@@ -221,12 +230,12 @@ src/components/
 | Phase 09-real-data P07 | 7 min | 2 tasks | 4 files |
 
 ## Next Actions
-Phase 10 execution is complete. Proceed to verification, release preparation, or milestone wrap-up.
+Phase 11 is planned. Execute the verification sweep, then route any failures into gap work or proceed to milestone wrap-up if the ledger is clean.
 
-**Completed Phase 10 plans:**
-- 10-01: SSE Backend Foundation ✅
-- 10-02: `/conversas` Realtime Migration ✅
-- 10-03: Dashboard Queue Realtime Adoption ✅
+**Planned Phase 11 plans:**
+- 11-01: Baseline verification (auth, setup, legacy operational modules)
+- 11-02: Electoral core UAT (import, segmentation, CRM, campaigns, scheduling, monitor)
+- 11-03: Realtime conversations + governance/reporting + final sign-off
 
 **Deferred (post-Phase 10):**
 - DB-level permission enforcement in API routes

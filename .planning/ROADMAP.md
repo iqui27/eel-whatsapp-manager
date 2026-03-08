@@ -17,8 +17,9 @@
 | 06 | HITL Conversations + CRM | P1 | 02, 05 | TBD |
 | 07 | Compliance + Admin | P2 | 02 | TBD |
 | 08 | Reports + Polish | P2 | 04, 06 | TBD |
-| 09 | 9/9 | Complete   | 2026-03-06 | 9 plans |
-| 10 | 3/3 | Complete | 2026-03-06 | 3 plans |
+| 09 | Real Data + Integrations | P0 | 03, 04, 05, 06 | 9/9 complete |
+| 10 | Real-Time Chat via SSE | P1 | 06, 09 | 3/3 complete |
+| 11 | Full-System Verification + UAT Sweep | P0 | 10 | 3 plans |
 
 ---
 
@@ -214,6 +215,28 @@ Plans:
 - [x] 10-02-PLAN.md — `/conversas` realtime migration (queue + active thread via SSE)
 - [x] 10-03-PLAN.md — Dashboard queue realtime adoption (replace panel polling with shared stream)
 
+### Phase 11: Full-System Verification + UAT Sweep
+
+**Status:** Planned
+**Goal:** Verify every shipped user flow and critical integration end-to-end, capture pass/fail evidence, and surface release-blocking gaps before milestone wrap-up.
+**Requirements:** [QA-01, QA-02, QA-03, QA-04, QA-05, QA-06, QA-07, QA-08]
+**Depends on:** Phase 10
+**Plans:** 3 plans
+
+Plans:
+- [ ] 11-01-PLAN.md — Baseline verification (auth, setup, settings, chips, contacts, clusters, history/warming)
+- [ ] 11-02-PLAN.md — Electoral core UAT (import, segmentation, CRM, campaigns, scheduling, monitor)
+- [ ] 11-03-PLAN.md — Realtime conversations + governance/reporting + final regression sign-off
+
+- QA-01: Authentication, session handling, setup, and settings flows behave correctly on protected and unauthenticated paths.
+- QA-02: Legacy operational modules still reachable in the shell (`chips`, `contacts`, `clusters`, `history`, warming/log surfaces) remain functional after the electoral expansion.
+- QA-03: Electoral data flows work end-to-end from voter import through segment materialization and CRM lookup/edit actions.
+- QA-04: Campaign lifecycle works end-to-end with safe verification data: create, edit, schedule, send, and monitor all behave as intended.
+- QA-05: Dashboard queue and `/conversas` realtime operator flows behave correctly after the SSE migration, including inbound webhook fanout and outbound reply persistence.
+- QA-06: Governance surfaces (`compliance`, `admin`, `relatorios`) work with real authenticated data, including exports and destructive-action safeguards.
+- QA-07: Cross-cutting quality checks pass on the shipped product: empty states, deep links, API auth failures, responsive smoke, and obvious regression paths.
+- QA-08: Phase output includes a durable verification ledger with PASS/FAIL/BLOCKED evidence plus a routed gap list for anything that fails.
+
 ---
 
 ## Dependency Graph
@@ -239,6 +262,7 @@ Phase 02 (DB Schema) ─┬── Phase 03 ───┤
 | 4 | 05 (Dashboard V2) | After shell + campaigns exist |
 | 5 | 06 (HITL/CRM) | After dashboard + DB |
 | 6 | 08 (Reports + Polish) | After campaigns + HITL |
+| 7 | 09 (Real Data) → 10 (Realtime) → 11 (Verification/UAT) | Sequential hardening and release-readiness pass |
 
 ## Technical Decisions
 
