@@ -19,7 +19,7 @@
 | 08 | Reports + Polish | P2 | 04, 06 | TBD |
 | 09 | Real Data + Integrations | P0 | 03, 04, 05, 06 | 9/9 complete |
 | 10 | Real-Time Chat via SSE | P1 | 06, 09 | 3/3 complete |
-| 11 | Full-System Verification + UAT Sweep | P0 | 10 | 3 plans |
+| 11 | Full-System Verification + UAT Sweep | P0 | 10 | 1/3 complete |
 
 ---
 
@@ -217,14 +217,14 @@ Plans:
 
 ### Phase 11: Full-System Verification + UAT Sweep
 
-**Status:** Planned
+**Status:** In progress
 **Goal:** Verify every shipped user flow and critical integration end-to-end, capture pass/fail evidence, and surface release-blocking gaps before milestone wrap-up.
 **Requirements:** [QA-01, QA-02, QA-03, QA-04, QA-05, QA-06, QA-07, QA-08]
 **Depends on:** Phase 10
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 11-01-PLAN.md — Baseline verification (auth, setup, settings, chips, contacts, clusters, history/warming)
+- [x] 11-01-PLAN.md — Baseline verification (auth, setup, settings, chips, contacts, clusters, history/warming)
 - [ ] 11-02-PLAN.md — Electoral core UAT (import, segmentation, CRM, campaigns, scheduling, monitor)
 - [ ] 11-03-PLAN.md — Realtime conversations + governance/reporting + final regression sign-off
 

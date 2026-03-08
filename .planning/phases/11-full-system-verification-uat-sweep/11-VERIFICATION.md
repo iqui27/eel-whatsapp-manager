@@ -28,11 +28,11 @@ Goal: prove `/login`, protected-route behavior, and logout semantics before any 
 
 | Surface | Expected behavior | Status | Evidence / Notes |
 |---------|-------------------|--------|------------------|
-| `/login` page load | Renders without prior session and exposes login flow | ⬜ pending | |
-| Invalid login | Rejects bad credentials without creating a session | ⬜ pending | |
-| Valid login | Creates a session and unlocks protected routes | ⬜ pending | |
-| Protected route redirect | Anonymous access redirects to `/login` | ⬜ pending | |
-| Logout | Clears session and re-locks protected routes | ⬜ pending | |
+| `/login` page load | Renders without prior session and exposes login flow | ✅ PASS | Playwright load on `https://zap.iqui27.app/login` returned title `EEL - WhatsApp Manager` and one password field. |
+| Invalid login | Rejects bad credentials without creating a session | ✅ PASS | `POST /api/auth/login` with `0000` returned `401` and `{\"error\":\"Senha incorreta\"}`. |
+| Valid login | Creates a session and unlocks protected routes | ✅ PASS | `POST /api/auth/login` with production password returned `200` plus `Set-Cookie: auth=...`; authenticated `GET /` returned `200`. |
+| Protected route redirect | Anonymous access redirects to `/login` | ✅ PASS | Anonymous `GET /` and `GET /settings` returned `307`; anonymous `GET /api/settings` and `GET /api/chips` returned `401`. |
+| Logout | Clears session and re-locks protected routes | ✅ PASS | `POST /api/auth/logout` returned `200`, cleared `auth` cookie, and subsequent `GET /api/settings` returned `401`. |
 
 ## Setup / Settings Baseline
 
@@ -40,9 +40,9 @@ Goal: prove the prerequisites that later plans depend on.
 
 | Surface | Expected behavior | Status | Evidence / Notes |
 |---------|-------------------|--------|------------------|
-| `/setup` | Loads and can persist baseline environment config safely enough for later flows | ⬜ pending | |
-| `/settings` | Loads current settings and persists edits or returns a precise blocker | ⬜ pending | |
-| Chip/session prerequisite state | Any required readiness for provider-backed flows is explicit | ⬜ pending | |
+| `/setup` | Loads and can persist baseline environment config safely enough for later flows | ✅ PASS | `GET /api/setup` returned `{\"configured\":true}` and `POST /api/setup` returned `403 Sistema já configurado`; authenticated `/setup` page still renders the wizard copy even on a configured instance. |
+| `/settings` | Loads current settings and persists edits or returns a precise blocker | ⛔ BLOCKED | `/settings` page loads, `GET /api/settings` returns masked key, and `POST /api/settings` test-connection returned `200` with `6 instância(s)`; `PUT /api/settings` was intentionally not exercised to avoid mutating live production config. |
+| Chip/session prerequisite state | Any required readiness for provider-backed flows is explicit | ✅ PASS | `GET /api/chips` returned live chips and settings connection test succeeded against Evolution API; provider-backed flows can be attempted in later plans. |
 
 ## Legacy Operational Modules
 
@@ -50,22 +50,22 @@ Goal: account for every legacy operational surface still shipped in the shell.
 
 | Surface | Expected behavior | Status | Evidence / Notes |
 |---------|-------------------|--------|------------------|
-| `/chips` + `/api/chips` + `/api/chips/sync` | Loads chip state and surfaces auth/provider failures clearly | ⬜ pending | |
-| `/contacts` + `/api/contacts` | Loads contact list and auth behavior cleanly | ⬜ pending | |
-| `/clusters` + `/api/clusters` | Loads clusters and supports baseline CRUD affordances or reports blockers clearly | ⬜ pending | |
-| `/history` + `/api/warming` + `/api/logs` | Loads warming/log history or reports missing prerequisites explicitly | ⬜ pending | |
+| `/chips` + `/api/chips` + `/api/chips/sync` | Loads chip state and surfaces auth/provider failures clearly | ⛔ BLOCKED | `/chips` page loads and `GET /api/chips` returns live records; `POST /api/chips/sync` was not exercised to avoid mutating live chip statuses during baseline verification. |
+| `/contacts` + `/api/contacts` | Loads contact list and auth behavior cleanly | ✅ PASS | `/contacts` page loads and authenticated `GET /api/contacts` returned `200 []`. |
+| `/clusters` + `/api/clusters` | Loads clusters and supports baseline CRUD affordances or reports blockers clearly | ✅ PASS | `/clusters` page loads and authenticated `GET /api/clusters` returned `200 []`. |
+| `/history` + `/api/warming` + `/api/logs` | Loads warming/log history or reports missing prerequisites explicitly | ❌ FAIL | `/history` page loads and `GET /api/logs` returned `200 []`, but authenticated `GET /api/warming` immediately returned warming `results` and triggered live warming actions during what should have been a read-safe baseline smoke. |
 
 ## Coverage Matrix
 
 | Area | Surface | Requirement | Status | Evidence / Notes |
 |------|---------|-------------|--------|------------------|
-| Access | `/login`, protected routes, logout | QA-01 | ⬜ pending | |
-| Baseline | `/setup` | QA-01 | ⬜ pending | |
-| Baseline | `/settings` | QA-01 | ⬜ pending | |
-| Operational | `/chips` + `/api/chips` + `/api/chips/sync` | QA-02 | ⬜ pending | |
-| Operational | `/contacts` + `/api/contacts` | QA-02 | ⬜ pending | |
-| Operational | `/clusters` + `/api/clusters` | QA-02 | ⬜ pending | |
-| Operational | `/history` + `/api/warming` + `/api/logs` | QA-02 | ⬜ pending | |
+| Access | `/login`, protected routes, logout | QA-01 | ✅ PASS | Auth and route protection behave as expected on production. |
+| Baseline | `/setup` | QA-01 | ✅ PASS | Configured environment rejects re-setup with `403`, though the wizard UI still renders publicly. |
+| Baseline | `/settings` | QA-01 | ⛔ BLOCKED | Read/test-connection path verified; write mutation skipped on live production config. |
+| Operational | `/chips` + `/api/chips` + `/api/chips/sync` | QA-02 | ⛔ BLOCKED | Read path verified; sync mutation intentionally skipped on production. |
+| Operational | `/contacts` + `/api/contacts` | QA-02 | ✅ PASS | UI and API both loaded cleanly. |
+| Operational | `/clusters` + `/api/clusters` | QA-02 | ✅ PASS | UI and API both loaded cleanly. |
+| Operational | `/history` + `/api/warming` + `/api/logs` | QA-02 | ❌ FAIL | `/api/warming` uses stateful `GET`, making read-safe baseline verification impossible without side effects. |
 | Electoral | `/segmentacao/importar` + `/api/voters/import` | QA-03 | ⬜ pending | |
 | Electoral | `/segmentacao` + `/api/segments` | QA-03 | ⬜ pending | |
 | Electoral | `/crm` + `/api/voters` | QA-03 | ⬜ pending | |
@@ -90,13 +90,16 @@ Goal: account for every legacy operational surface still shipped in the shell.
 
 ## Blockers And Environment Notes
 
-- None recorded yet.
+- Production was used for this baseline because the current local shell did not have a working `DATABASE_URL`/session setup.
+- `PUT /api/settings` and `POST /api/chips/sync` were intentionally skipped to avoid mutating live production configuration or chip state during baseline verification.
+- Authenticated `GET /api/warming` produced real warming results in production; subsequent plans should treat that endpoint as mutating, not informational.
 
 ## Gap Routing
 
 | Severity | Surface | Finding | Reproduction / Evidence | Proposed follow-up |
 |----------|---------|---------|--------------------------|--------------------|
-| pending | pending | pending | pending | pending |
+| medium | `/api/warming` | Authenticated `GET` request triggers warming side effects instead of acting as a read-safe status endpoint. | During baseline API smoke, `GET https://zap.iqui27.app/api/warming` returned warming `results` and executed live warming behavior. | Convert warming trigger to `POST`-only or introduce a separate read-only status/history endpoint; keep `/history` on non-mutating reads. |
+| low | `/setup` | Configured production still renders the setup wizard UI publicly even though the setup API rejects reconfiguration. | Authenticated browser visit to `/setup` rendered the 3-step wizard while `POST /api/setup` returned `403 Sistema já configurado`. | Replace the configured-state page with a redirect or explicit "already configured" screen. |
 
 ## Final Verdict
 

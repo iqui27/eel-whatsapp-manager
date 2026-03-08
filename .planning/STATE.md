@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 11
 current_phase_name: full-system verification + uat sweep
-current_plan: 1
-status: planned
-stopped_at: Ready to start 11-01-PLAN.md
-last_updated: "2026-03-08T02:32:07Z"
+current_plan: 2
+status: executing
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-03-08T02:49:56Z"
 last_activity: 2026-03-07
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 31
-  completed_plans: 28
-  percent: 90
+  completed_plans: 29
+  percent: 94
 ---
 
 # EEL Eleicao — Project State
@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 11
 **Current Phase Name:** full-system verification + uat sweep
-**Current Plan:** 1
+**Current Plan:** 2
 **Total Phases:** 11
 **Total Plans in Phase:** 3
-**Status:** Phase 11 planned — ready for execution
-**Progress:** [█████████░] 90%
+**Status:** Phase 11 in progress — baseline verification complete
+**Progress:** [█████████░] 94%
 **Last Activity:** 2026-03-07
-**Last Activity Description:** Planned a full-system verification/UAT sweep covering every shipped product surface after the SSE rollout
-**Stopped At:** Ready to start 11-01-PLAN.md
+**Last Activity Description:** Completed 11-01 on production: auth/session baseline passed, settings/chip mutations were partially blocked by live-safety constraints, and `/api/warming` GET was logged as a functional issue
+**Stopped At:** Completed 11-01-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -48,12 +48,12 @@ progress:
 - Plan 10-02 complete: `/conversas` now bootstraps with REST and continues via SSE through the shared EventSource hook
 - Plan 10-03 complete: dashboard queue panel now reuses the shared stream and updates open-queue removals in near real time
 
-**Phase 11 (Full-System Verification + UAT Sweep) — PLANNED** 📝
-- Plan 11-01 planned: baseline/auth/setup/legacy operations verification + shared evidence ledger
+**Phase 11 (Full-System Verification + UAT Sweep) — IN PROGRESS** 🚧
+- Plan 11-01 complete: production-backed baseline/auth/legacy verification + shared evidence ledger
 - Plan 11-02 planned: electoral core UAT across import, segmentation, CRM, campaigns, scheduling, and monitor
 - Plan 11-03 planned: realtime conversations, governance/reporting, and final regression sign-off
 
-Progress: [█████████░] 90%
+Progress: [█████████░] 94%
 
 Last session: 2026-03-08T02:32:07Z
 
@@ -162,6 +162,8 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 09-real-data]: CRM-originated campaign creation resolves into an idempotent single-voter segment instead of stopping at a contextual hint.
 - [x] Phase 11 verification will use one shared evidence ledger (`11-VERIFICATION.md`) instead of scattered notes.
 - [x] Failures discovered during Phase 11 should be routed into explicit gap work after the sweep, not silently absorbed into the verification pass.
+- [Phase 11]: Production verification currently uses the deployed app because the local shell lacks a ready DB/session environment.
+- [Phase 11]: `/api/warming` is stateful on authenticated GET and cannot be treated as a read-safe baseline endpoint.
 
 ## Accumulated Context
 
@@ -230,10 +232,10 @@ src/components/
 | Phase 09-real-data P07 | 7 min | 2 tasks | 4 files |
 
 ## Next Actions
-Phase 11 is planned. Execute the verification sweep, then route any failures into gap work or proceed to milestone wrap-up if the ledger is clean.
+Phase 11 is in progress. Execute `11-02`, then `11-03`, and route any failures from the shared ledger into gap work or milestone wrap-up.
 
-**Planned Phase 11 plans:**
-- 11-01: Baseline verification (auth, setup, legacy operational modules)
+**Phase 11 progress:**
+- 11-01: Baseline verification (auth, setup, legacy operational modules) ✅
 - 11-02: Electoral core UAT (import, segmentation, CRM, campaigns, scheduling, monitor)
 - 11-03: Realtime conversations + governance/reporting + final sign-off
 
