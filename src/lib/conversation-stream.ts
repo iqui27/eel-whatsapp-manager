@@ -16,6 +16,8 @@ export type ConversationStreamCursor = {
   messages?: ConversationStreamCursorPoint;
 };
 
+const STREAM_CURSOR_FLOOR_ID = '00000000-0000-0000-0000-000000000000';
+
 export const CONVERSATION_STREAM_EVENT = {
   connected: 'connected',
   snapshotReady: 'snapshot.ready',
@@ -63,7 +65,7 @@ export function parseConversationStreamCursor(
   } catch {
     const legacyDate = new Date(rawCursor);
     if (!Number.isNaN(legacyDate.getTime())) {
-      const point = { at: legacyDate.toISOString(), id: '' };
+      const point = { at: legacyDate.toISOString(), id: STREAM_CURSOR_FLOOR_ID };
       return { conversations: point, messages: point };
     }
 
@@ -72,7 +74,7 @@ export function parseConversationStreamCursor(
 }
 
 export function createConversationStreamCursor(now = new Date()): ConversationStreamCursor {
-  const point = { at: now.toISOString(), id: '' };
+  const point = { at: now.toISOString(), id: STREAM_CURSOR_FLOOR_ID };
   return { conversations: point, messages: point };
 }
 
@@ -180,7 +182,7 @@ function normalizeCursorPoint(
 
   return {
     at: at.toISOString(),
-    id: point.id ?? '',
+    id: point.id || STREAM_CURSOR_FLOOR_ID,
   };
 }
 
