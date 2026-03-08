@@ -15,11 +15,11 @@ Phase goal: Verify every shipped user flow and critical integration end-to-end, 
 
 ## Environment And Assumptions
 
-- Target environment: local worktree at `/Users/hrocha/.superset/worktrees/chip-fire/dashboard-v2`
-- Runtime mode: local Next.js app started from this worktree for verification
-- Auth/session state at start: no verified operator session yet; access must be proven during this sweep
-- Safe test dataset constraints: no broad sends, no destructive edits outside tightly scoped verification records, and no assumptions about production-connected providers
-- External dependency notes: database, auth cookies, and any Evolution/provider-backed chip behavior must be treated as environment-dependent until observed
+- Target environment: production deployment at `https://zap.iqui27.app`
+- Runtime mode: live production app behind Cloudflare/nginx with PM2 runtime on `193.187.129.114`
+- Auth/session state at start: no valid cookie in this shell; authentication must be established and proven during this sweep
+- Safe test dataset constraints: no broad sends, no config mutations without necessity, no destructive edits outside tightly scoped verification actions, and no assumptions about provider-backed flows until observed
+- External dependency notes: production config exists in Supabase; provider-backed flows use Evolution API and may have real side effects when exercised
 - Existing unrelated worktree changes intentionally left untouched: `src/app/chips/page.tsx` plus prior untracked `.planning` artifacts
 
 ## Auth / Session Baseline
