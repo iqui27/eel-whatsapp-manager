@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-
 const cache = new Map<string, string | null>();
 
 function parseEnvValue(raw: string) {
@@ -55,4 +54,29 @@ export function resolveServerEnv(key: string): string | null {
 
   cache.set(key, null);
   return null;
+}
+
+export function readCronToken(request: {
+  headers: Headers;
+  nextUrl?: URL;
+  url?: string;
+}): string | null {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice('Bearer '.length).trim() || null;
+  }
+
+  const headerToken = request.headers.get('x-cron-secret');
+  if (headerToken?.trim()) {
+    return headerToken.trim();
+  }
+
+  const searchParams = request.nextUrl
+    ? request.nextUrl.searchParams
+    : request.url
+      ? new URL(request.url).searchParams
+      : null;
+
+  const queryToken = searchParams?.get('secret');
+  return queryToken?.trim() || null;
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig, saveConfig } from '@/lib/db-config';
 import { loadChips } from '@/lib/db-chips';
-import { resolveServerEnv } from '@/lib/server-env';
+import { readCronToken, resolveServerEnv } from '@/lib/server-env';
 import { runWarming } from '@/lib/warming';
 import { toAppConfig, toWarmingChips } from '@/lib/warming-compat';
 
@@ -9,8 +9,8 @@ export async function GET(request: NextRequest) {
   // Validate cron secret
   const cronSecret = resolveServerEnv('CRON_SECRET');
   if (cronSecret) {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const requestToken = readCronToken(request);
+    if (requestToken !== cronSecret) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }

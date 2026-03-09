@@ -6,13 +6,13 @@ import {
   updateCampaign,
 } from '@/lib/db-campaigns';
 import { executeCampaignSend } from '@/lib/campaign-delivery';
-import { resolveServerEnv } from '@/lib/server-env';
+import { readCronToken, resolveServerEnv } from '@/lib/server-env';
 
 export async function GET(request: NextRequest) {
   const cronSecret = resolveServerEnv('CRON_SECRET');
   if (cronSecret) {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const requestToken = readCronToken(request);
+    if (requestToken !== cronSecret) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }

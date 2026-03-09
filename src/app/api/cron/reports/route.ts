@@ -7,12 +7,12 @@ import {
   nextRunDate,
 } from '@/lib/reporting';
 import { loadCampaignReport } from '@/lib/reporting-server';
-import { resolveServerEnv } from '@/lib/server-env';
+import { readCronToken, resolveServerEnv } from '@/lib/server-env';
 
 export async function GET(request: NextRequest) {
   const cronSecret = resolveServerEnv('CRON_SECRET');
-  const authHeader = request.headers.get('authorization');
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  const requestToken = readCronToken(request);
+  if (!cronSecret || requestToken !== cronSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
