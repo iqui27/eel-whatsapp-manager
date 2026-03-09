@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requirePermission } from '@/lib/api-auth';
 import {
   addCampaignDeliveryEvent,
   claimScheduledCampaign,
@@ -10,10 +11,14 @@ import { isLocalInternalRequest, readCronToken, resolveServerEnv } from '@/lib/s
 
 export async function GET(request: NextRequest) {
   const cronSecret = resolveServerEnv('CRON_SECRET');
-  if (cronSecret) {
-    const requestToken = readCronToken(request);
-    if (requestToken !== cronSecret && !isLocalInternalRequest(request)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const requestToken = readCronToken(request);
+  const authorizedBySecret = Boolean(cronSecret) && requestToken === cronSecret;
+  const authorizedByLoopback = isLocalInternalRequest(request);
+
+  if (!authorizedBySecret && !authorizedByLoopback) {
+    const auth = await requirePermission(request, 'campaigns.manage', 'Unauthorized');
+    if (auth.response) {
+      return auth.response;
     }
   }
 
