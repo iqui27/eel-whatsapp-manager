@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 12
 current_phase_name: campaign personalization completion
-current_plan: 2
-status: executing
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-03-09T15:17:29.985Z"
+current_plan: 3
+status: completed
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-03-09T15:31:38.000Z"
 last_activity: 2026-03-09
 progress:
   total_phases: 12
-  completed_phases: 11
+  completed_phases: 12
   total_plans: 34
-  completed_plans: 32
-  percent: 94
+  completed_plans: 34
+  percent: 100
 ---
 
 # EEL Eleicao — Project State
@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 12
 **Current Phase Name:** campaign personalization completion
-**Current Plan:** 2
+**Current Plan:** 3
 **Total Phases:** 12
 **Total Plans in Phase:** 3
-**Status:** Ready to execute
-**Progress:** [█████████░] 94%
+**Status:** Phase complete
+**Progress:** [██████████] 100%
 **Last Activity:** 2026-03-09
-**Last Activity Description:** Completed Plan 12-01 with persisted candidate profile settings plus the shared campaign variable registry foundation
-**Stopped At:** Completed 12-01-PLAN.md
+**Last Activity Description:** Completed Plans 12-02 and 12-03 with authoring/runtime personalization parity and focused validation evidence
+**Stopped At:** Completed 12-03-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -53,14 +53,14 @@ progress:
 - Plan 11-02 complete: import/segmentation/CRM validated on current HEAD; campaign lifecycle blocked by target-database schema drift and production deploy parity gaps
 - Plan 11-03 complete: realtime/governance/reporting verification finished with a release-blocked verdict and explicit gap routing
 
-**Phase 12 (Campaign Personalization Completion) — IN PROGRESS** ⏳
+**Phase 12 (Campaign Personalization Completion) — COMPLETE** ✅
 - Plan 12-01 complete: persisted candidate profile settings plus the shared campaign-variable contract foundation
-- Plan 12-02 will align `/campanhas/nova` and `/campanhas/[id]/editar` with the shared variable registry, preview resolver, and save-time validation
-- Plan 12-03 will make manual/scheduled send interpolation match the editor exactly and close the UAT gap on campaign personalization
+- Plan 12-02 complete: create/edit/schedule flows now share the same variable registry, preview semantics, validation, and persisted variable metadata
+- Plan 12-03 complete: manual and scheduled delivery now resolve the same personalization contract as the editor and block invalid templates pre-send
 
-Progress: [█████████░] 94%
+Progress: [██████████] 100%
 
-Last session: 2026-03-09T15:17:29.974Z
+Last session: 2026-03-09T15:31:38.000Z
 
 ## Project History
 
@@ -173,6 +173,8 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 11]: `/compliance` now expects paginated voter data handling, and `/relatorios` needs a hydration-safe SVG title before release sign-off.
 - [Phase 12-campaign-personalization-completion]: Candidate identity stays in the existing config/settings flow instead of introducing a parallel model.
 - [Phase 12-campaign-personalization-completion]: Campaign placeholder metadata, extraction, validation, and preview/runtime builders now live in one shared module.
+- [Phase 12-campaign-personalization-completion]: Create, edit, and schedule surfaces validate the effective campaign templates as one unit, including Variant B when A/B testing is enabled.
+- [Phase 12-campaign-personalization-completion]: Manual sends use the actual execution date for `{data}`, while cron-triggered scheduled sends use the campaign scheduled date and pause safely on pre-send failure.
 
 ## Accumulated Context
 
@@ -185,9 +187,7 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
   - Origin: post-deploy UAT on the campaign editor showed that candidate data has no real configuration source and the variable contract diverges between editor preview and outbound delivery.
 
 ## Blockers
-- Campaign create/edit flows still use page-local variable arrays instead of the new shared registry, so preview and authoring are not yet aligned.
-- Delivery-time interpolation still resolves only voter-backed placeholders, so `{candidato}` and `{data}` remain a send-time gap for Plan 12-03.
-- Campaign save/edit flows do not yet persist validated variable metadata or block unsupported placeholders before scheduling and sending.
+- No active blockers remain for Phase 12. Remaining work is the deferred backlog outside the campaign personalization scope.
 
 ## Key Files (Current)
 ```
@@ -244,15 +244,16 @@ src/components/
 | Phase 09-real-data P06 | 12 min | 2 tasks | 4 files |
 | Phase 09-real-data P07 | 7 min | 2 tasks | 4 files |
 | Phase 12-campaign-personalization-completion P01 | 4 min | 2 tasks | 6 files |
+| Phase 12-campaign-personalization-completion P02 | 12 min | 2 tasks | 6 files |
+| Phase 12-campaign-personalization-completion P03 | 2 min | 2 tasks | 2 files |
 
 ## Next Actions
-Plan 12-01 is complete. The next correct step is executing Plan 12-02 to replace campaign-editor local variable mocks with the shared registry and validation helpers.
+Phase 12 is complete. The next correct step is deploying the current HEAD and running focused live UAT for campaign personalization, or selecting the next deferred backlog item to plan.
 
 **Immediate work to execute:**
-- Replace campaign-editor local variable arrays with the shared registry from `src/lib/campaign-variables.ts`.
-- Align `/campanhas/nova` and `/campanhas/[id]/editar` preview rendering and save-time validation with the shared contract.
-- Persist the actual placeholders used by campaign templates and block unsupported placeholders before scheduling or sending.
-- Re-run focused UAT on `/campanhas/nova`, `/campanhas/[id]/editar`, `/campanhas/[id]/agendar`, and manual/scheduled send flows after Plans 12-02 and 12-03.
+- Deploy the Phase 12 commits to the target environment.
+- Run focused live UAT on `/campanhas/nova`, `/campanhas/[id]/editar`, `/campanhas/[id]/agendar`, and one safe manual/scheduled send path.
+- Decide whether the next work item is a deferred backlog phase or milestone wrap-up.
 
 **Deferred after Phase 12:**
 - DB-level permission enforcement in API routes

@@ -1,7 +1,7 @@
 ---
 phase: 12
 slug: campaign-personalization-completion
-status: draft
+status: complete
 nyquist_compliant: true
 wave_0_complete: false
 created: 2026-03-09
@@ -38,12 +38,12 @@ created: 2026-03-09
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 12-01-01 | 01 | 1 | PERS-01 | build + manual | `node_modules/.bin/tsc --noEmit` | ✅ | ⬜ pending |
-| 12-01-02 | 01 | 1 | PERS-02 | build + manual | `npm run build` | ✅ | ⬜ pending |
-| 12-02-01 | 02 | 2 | PERS-02, PERS-04 | build + manual | `node_modules/.bin/tsc --noEmit` | ✅ | ⬜ pending |
-| 12-02-02 | 02 | 2 | PERS-04 | API smoke + build | `npm run build` | ✅ | ⬜ pending |
-| 12-03-01 | 03 | 3 | PERS-03 | build + manual send smoke | `node_modules/.bin/tsc --noEmit` | ✅ | ⬜ pending |
-| 12-03-02 | 03 | 3 | PERS-05 | end-to-end UAT | `npm run build` | ✅ | ⬜ pending |
+| 12-01-01 | 01 | 1 | PERS-01 | build + manual | `node_modules/.bin/tsc --noEmit` | ✅ | ✅ green |
+| 12-01-02 | 01 | 1 | PERS-02 | build + manual | `npm run build` | ✅ | ✅ green |
+| 12-02-01 | 02 | 2 | PERS-02, PERS-04 | build + manual | `node_modules/.bin/tsc --noEmit` | ✅ | ✅ green |
+| 12-02-02 | 02 | 2 | PERS-04 | API smoke + build | `npm run build` | ✅ | ✅ green |
+| 12-03-01 | 03 | 3 | PERS-03 | build + manual send smoke | `node_modules/.bin/tsc --noEmit` | ✅ | ✅ green |
+| 12-03-02 | 03 | 3 | PERS-05 | end-to-end UAT | `npm run build` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky · ⛔ blocked*
 
@@ -83,4 +83,4 @@ If a prerequisite is missing, the affected verification must be marked `⛔ bloc
 - [x] No watch-mode flags
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** passed
