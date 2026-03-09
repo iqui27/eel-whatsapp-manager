@@ -2,34 +2,34 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 12
-current_phase_name: campaign personalization completion
-current_plan: 3
-status: completed
-stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-03-09T15:31:38.000Z"
+current_phase: 13
+current_phase_name: zero-pendency release closure
+current_plan: 1
+status: planned
+stopped_at: Phase 13 planned; ready to execute 13-01-PLAN.md
+last_updated: "2026-03-09T16:05:00.000Z"
 last_activity: 2026-03-09
 progress:
-  total_phases: 12
+  total_phases: 13
   completed_phases: 12
-  total_plans: 34
+  total_plans: 39
   completed_plans: 34
-  percent: 100
+  percent: 87
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 12
-**Current Phase Name:** campaign personalization completion
-**Current Plan:** 3
-**Total Phases:** 12
-**Total Plans in Phase:** 3
-**Status:** Phase complete
-**Progress:** [██████████] 100%
+**Current Phase:** 13
+**Current Phase Name:** zero-pendency release closure
+**Current Plan:** 1
+**Total Phases:** 13
+**Total Plans in Phase:** 5
+**Status:** Ready to execute
+**Progress:** [████████▓░] 87%
 **Last Activity:** 2026-03-09
-**Last Activity Description:** Completed Plans 12-02 and 12-03 with authoring/runtime personalization parity and focused validation evidence
-**Stopped At:** Completed 12-03-PLAN.md
+**Last Activity Description:** Planned Phase 13 to close the remaining shell, authz, CRM/mobile, report automation, and live release gaps
+**Stopped At:** Phase 13 planned; ready to execute 13-01-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -58,9 +58,16 @@ progress:
 - Plan 12-02 complete: create/edit/schedule flows now share the same variable registry, preview semantics, validation, and persisted variable metadata
 - Plan 12-03 complete: manual and scheduled delivery now resolve the same personalization contract as the editor and block invalid templates pre-send
 
-Progress: [██████████] 100%
+**Phase 13 (Zero-Pendency Release Closure) — PLANNED** 📝
+- Plan 13-01 will close shell/setup/dashboard contract drift
+- Plan 13-02 will implement real API/UI authorization and role enforcement
+- Plan 13-03 will persist CRM notes/checklists and add the missing mobile operator workflows
+- Plan 13-04 will finish report automation with PDF/export scheduling
+- Plan 13-05 will deploy the intended build and end with a live zero-pendency sign-off
 
-Last session: 2026-03-09T15:31:38.000Z
+Progress: [████████▓░] 87%
+
+Last session: 2026-03-09T16:05:00.000Z
 
 ## Project History
 
@@ -175,6 +182,8 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 12-campaign-personalization-completion]: Campaign placeholder metadata, extraction, validation, and preview/runtime builders now live in one shared module.
 - [Phase 12-campaign-personalization-completion]: Create, edit, and schedule surfaces validate the effective campaign templates as one unit, including Variant B when A/B testing is enabled.
 - [Phase 12-campaign-personalization-completion]: Manual sends use the actual execution date for `{data}`, while cron-triggered scheduled sends use the campaign scheduled date and pause safely on pre-send failure.
+- [Phase 13-zero-pendency-release-closure]: The remaining work should be closed as one final milestone phase, not left as disconnected deferred backlog notes.
+- [Phase 13-zero-pendency-release-closure]: Final phase completion requires live deploy/UAT parity, not only local code completion.
 
 ## Accumulated Context
 
@@ -185,9 +194,15 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
   - Origin: user requested a complete test plan to verify every shipped functionality before release preparation.
 - Phase 12 added: Campaign Personalization Completion
   - Origin: post-deploy UAT on the campaign editor showed that candidate data has no real configuration source and the variable contract diverges between editor preview and outbound delivery.
+- Phase 13 added: Zero-Pendency Release Closure
+  - Origin: user requested a plan to close every remaining page/feature gap and leave the milestone with no unresolved pending items.
 
 ## Blockers
-- No active blockers remain for Phase 12. Remaining work is the deferred backlog outside the campaign personalization scope.
+- Shell/setup/dashboard still contain demo/MVP contract drift (`topbar`, configured `/setup`, estimated dashboard KPI wording).
+- Protected APIs still enforce authentication broadly, but authorization/permission/region scope are not finished.
+- CRM notes/checklist remain local-only and the promised mobile offline/prioritized operator workflows are still absent.
+- Report automation remains partial: scheduled email delivery is still deferred.
+- Final production deploy parity and live zero-pendency UAT are still open.
 
 ## Key Files (Current)
 ```
@@ -248,14 +263,14 @@ src/components/
 | Phase 12-campaign-personalization-completion P03 | 2 min | 2 tasks | 2 files |
 
 ## Next Actions
-Phase 12 is complete. The next correct step is deploying the current HEAD and running focused live UAT for campaign personalization, or selecting the next deferred backlog item to plan.
+Phase 13 is planned. The next correct step is executing Plan 13-01 to close shell/setup/dashboard contract drift before deeper authz/mobile/reporting work.
 
 **Immediate work to execute:**
-- Deploy the Phase 12 commits to the target environment.
-- Run focused live UAT on `/campanhas/nova`, `/campanhas/[id]/editar`, `/campanhas/[id]/agendar`, and one safe manual/scheduled send path.
-- Decide whether the next work item is a deferred backlog phase or milestone wrap-up.
+- Execute 13-01: topbar/setup/dashboard closure.
+- Execute 13-02 in parallel or immediately after: authorization enforcement + real permissions.
+- Then execute 13-03 and 13-04 before the final deploy/UAT closure in 13-05.
 
-**Deferred after Phase 12:**
+**Planned inside Phase 13:**
 - DB-level permission enforcement in API routes
 - Mobile offline capture form (MOB-01/MOB-02)
 - Email scheduled report delivery (REP-02 partial)

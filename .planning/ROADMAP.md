@@ -21,6 +21,7 @@
 | 10 | Real-Time Chat via SSE | P1 | 06, 09 | 3/3 complete |
 | 11 | Full-System Verification + UAT Sweep | P0 | 10 | 3/3 complete |
 | 12 | Campaign Personalization Completion | P0 | 04, 09, 11 | 3/3 complete |
+| 13 | Zero-Pendency Release Closure | P0 | 11, 12 | 5 plans |
 
 ---
 
@@ -256,6 +257,32 @@ Plans:
 - PERS-03: The outbound send pipeline must resolve the same supported variables shown in the editor, including `{candidato}` and `{data}`, with explicit semantics for scheduled vs immediate sends.
 - PERS-04: Campaign create/edit/schedule flows must validate unsupported or unconfigured placeholders before save/send and persist the variables actually referenced by the template.
 - PERS-05: Manual verification must prove there is no preview/send mismatch and no raw personalization placeholders leak into delivered messages.
+
+### Phase 13: Zero-Pendency Release Closure
+
+**Status:** Planned
+**Goal:** Close the remaining shell, authorization, CRM/mobile, reporting-automation, and production-parity gaps so the current milestone can finish with no unresolved pending items.
+**Requirements:** [CLOSE-01, CLOSE-02, SEC-01, SEC-02, CRM-01, MOB-01, MOB-02, REP-02, REL-01, REL-02]
+**Depends on:** Phase 11, Phase 12
+**Plans:** 5 plans
+
+Plans:
+- [ ] 13-01-PLAN.md — Shell/setup/dashboard contract cleanup
+- [ ] 13-02-PLAN.md — Authorization enforcement + real permissions contract
+- [ ] 13-03-PLAN.md — CRM persistence + mobile operator workflows
+- [ ] 13-04-PLAN.md — Report automation completion (PDF + scheduled email)
+- [ ] 13-05-PLAN.md — Production deploy + zero-pendency live sign-off
+
+- CLOSE-01: The configured app shell must not expose demo-only topbar controls or setup dead ends that imply unsupported behavior.
+- CLOSE-02: Dashboard/operator KPIs must either be sourced from real data or intentionally reduced when the product cannot support them.
+- SEC-01: Protected APIs must enforce role/permission/region authorization, not only session authentication.
+- SEC-02: Admin and operator UI affordances must reflect the actual permission contract and surface `403`-style access boundaries clearly.
+- CRM-01: CRM voter notes/checklist must persist server-side so operators do not lose coordination context across devices or sessions.
+- MOB-01: A mobile offline capture form must exist with queue/sync behavior into the existing voter pipeline.
+- MOB-02: A mobile priority inbox flow must exist for urgent conversations, quick replies, and handoff visibility.
+- REP-02: Reports must support complete export automation and scheduled email delivery from the product.
+- REL-01: Current intended HEAD must be deployed to production with environment parity restored.
+- REL-02: Final page-by-page live UAT must end with an explicit zero-pendency verdict, not another deferred backlog note.
 
 ---
 
