@@ -3,12 +3,11 @@ import { saveConfig, validateConfig, loadConfig } from '@/lib/db-config';
 
 export async function GET() {
   const config = await loadConfig();
-  
-  if (!config) {
-    return NextResponse.json({ configured: false }, { status: 404 });
-  }
-  
-  return NextResponse.json({ configured: true });
+
+  return NextResponse.json({
+    configured: Boolean(config),
+    instanceName: config?.instanceName ?? null,
+  });
 }
 
 export async function POST(request: NextRequest) {

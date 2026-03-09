@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface SetupFormData {
@@ -23,9 +23,11 @@ const STEPS = [
 export default function SetupPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
+  const [setupStatus, setSetupStatus] = useState<'checking' | 'ready' | 'configured' | 'error'>('checking');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [configuredInstanceName, setConfiguredInstanceName] = useState<string | null>(null);
   const [formData, setFormData] = useState<SetupFormData>({
     evolutionApiUrl: '',
     evolutionApiKey: '',
@@ -36,6 +38,29 @@ export default function SetupPage() {
     warmingMessage: '🔔 Aquecimento ativado!',
     instanceName: 'eel-instance',
   });
+
+  const checkSetupStatus = useCallback(async () => {
+    setError('');
+    setSetupStatus('checking');
+
+    try {
+      const res = await fetch('/api/setup', { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error('Não foi possível verificar o ambiente');
+      }
+
+      const data = await res.json() as { configured?: boolean; instanceName?: string | null };
+      setConfiguredInstanceName(data.instanceName ?? null);
+      setSetupStatus(data.configured ? 'configured' : 'ready');
+    } catch (err) {
+      setSetupStatus('error');
+      setError(err instanceof Error ? err.message : 'Não foi possível verificar o ambiente');
+    }
+  }, []);
+
+  useEffect(() => {
+    void checkSetupStatus();
+  }, [checkSetupStatus]);
 
   const handleChange = (field: keyof SetupFormData, value: string | number | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -83,7 +108,7 @@ export default function SetupPage() {
         const data = await res.json();
         throw new Error(data.error || 'Erro ao salvar configuração');
       }
-      router.push('/');
+      router.push('/login');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
@@ -92,6 +117,75 @@ export default function SetupPage() {
   };
 
   const currentStep = STEPS.find((s) => s.id === step)!;
+
+  if (setupStatus === 'checking') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0B1220] px-6">
+        <div className="w-full max-w-md rounded-2xl border border-[#1F2937] bg-[#111827] p-8 text-center">
+          <div className="text-[28px] font-bold text-white">EEL Setup</div>
+          <p className="mt-3 text-[14px] text-[#A1A1AA]">
+            Verificando se este ambiente ainda precisa de configuração inicial.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (setupStatus === 'configured') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0B1220] px-6">
+        <div className="w-full max-w-lg rounded-2xl border border-[#1F2937] bg-[#111827] p-8">
+          <div className="text-[28px] font-bold text-white">Ambiente já configurado</div>
+          <p className="mt-3 text-[14px] leading-relaxed text-[#A1A1AA]">
+            O setup inicial foi concluído neste ambiente. A rota <span className="text-white">/setup</span> não
+            aceita reconfiguração para evitar sobrescrever a operação em andamento.
+          </p>
+          {configuredInstanceName && (
+            <div className="mt-5 rounded-xl border border-[#1F2937] bg-[#0F172A] px-4 py-3">
+              <div className="text-[12px] uppercase tracking-wide text-[#71717A]">Instância configurada</div>
+              <div className="mt-1 text-[14px] font-medium text-white">{configuredInstanceName}</div>
+            </div>
+          )}
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => router.push('/login')}
+              className="flex-1 h-11 rounded-lg bg-[#3B82F6] text-white text-[14px] font-medium border-none cursor-pointer hover:bg-[#2563EB] transition-colors"
+            >
+              Ir para login
+            </button>
+            <button
+              type="button"
+              onClick={() => void checkSetupStatus()}
+              className="flex-1 h-11 rounded-lg border border-[#374151] bg-transparent text-[#A1A1AA] text-[14px] cursor-pointer hover:border-[#4B5563]"
+            >
+              Reverificar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (setupStatus === 'error') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0B1220] px-6">
+        <div className="w-full max-w-md rounded-2xl border border-[#1F2937] bg-[#111827] p-8 text-center">
+          <div className="text-[28px] font-bold text-white">Falha ao verificar setup</div>
+          <p className="mt-3 text-[14px] leading-relaxed text-[#A1A1AA]">
+            {error || 'Não foi possível confirmar se o ambiente já está configurado.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => void checkSetupStatus()}
+            className="mt-6 h-11 w-full rounded-lg bg-[#3B82F6] text-white text-[14px] font-medium border-none cursor-pointer hover:bg-[#2563EB] transition-colors"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-[#0B1220]">

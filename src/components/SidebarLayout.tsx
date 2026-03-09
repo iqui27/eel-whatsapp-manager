@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -25,7 +25,6 @@ import {
   ChevronRight,
   Zap,
   Menu,
-  AlertTriangle,
 } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import { CommandPalette } from './command-palette';
@@ -52,6 +51,12 @@ interface SidebarLayoutProps {
   currentPage: PageId;
   apiConnected?: boolean;
   pageTitle?: string;
+}
+
+interface ShellChipStatus {
+  enabledCount: number;
+  connectedCount: number;
+  loading: boolean;
 }
 
 // Primary electoral navigation (8 items)
@@ -89,12 +94,14 @@ function SidebarContent({
   collapsed,
   currentPage,
   apiConnected,
+  chipConnectivityLabel,
   onLogout,
   onLinkClick,
 }: {
   collapsed: boolean;
   currentPage: PageId;
   apiConnected: boolean;
+  chipConnectivityLabel: string;
   onLogout: () => void;
   onLinkClick?: () => void;
 }) {
@@ -257,13 +264,13 @@ function SidebarContent({
 
       {/* Footer */}
       <div className="flex flex-col gap-1 border-t border-sidebar-border p-2 pb-3 shrink-0">
-        {/* API status */}
+        {/* Chip connectivity */}
         <div
           className={cn(
             'flex items-center gap-2.5 rounded-md px-2.5 py-1.5',
             collapsed && 'justify-center px-0',
           )}
-          title={collapsed ? (apiConnected ? 'API conectada' : 'API desconectada') : undefined}
+          title={collapsed ? chipConnectivityLabel : undefined}
         >
           {apiConnected ? (
             <Wifi className="h-4 w-4 shrink-0 text-[var(--success)]" />
@@ -283,32 +290,7 @@ function SidebarContent({
                   apiConnected ? 'text-[var(--success)]' : 'text-muted-foreground',
                 )}
               >
-                {apiConnected ? 'API conectada' : 'API desconectada'}
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Block risk indicator */}
-        <div
-          className={cn(
-            'flex items-center gap-2.5 rounded-md px-2.5 py-1.5',
-            collapsed && 'justify-center px-0',
-          )}
-          title={collapsed ? 'Risco de bloqueio: Baixo' : undefined}
-        >
-          <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--success)]" />
-          <AnimatePresence initial={false}>
-            {!collapsed && (
-              <motion.span
-                key="block-risk"
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.12 }}
-                className="text-xs overflow-hidden whitespace-nowrap text-[var(--success)]"
-              >
-                Risco de bloqueio: Baixo
+                {chipConnectivityLabel}
               </motion.span>
             )}
           </AnimatePresence>
@@ -394,15 +376,91 @@ export default function SidebarLayout({
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [chipStatus, setChipStatus] = useState<ShellChipStatus>({
+    enabledCount: 0,
+    connectedCount: 0,
+    loading: true,
+  });
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
   };
 
+  useEffect(() => {
+    let active = true;
+
+    const loadChipStatus = async () => {
+      try {
+        const res = await fetch('/api/chips');
+        if (!res.ok) {
+          if (active) {
+            setChipStatus({
+              enabledCount: 0,
+              connectedCount: 0,
+              loading: false,
+            });
+          }
+          return;
+        }
+
+        const data = await res.json();
+        const enabledChips = Array.isArray(data)
+          ? data.filter((chip: { enabled?: boolean }) => chip.enabled !== false)
+          : [];
+        const connectedChips = enabledChips.filter(
+          (chip: { status?: string }) => chip.status === 'connected',
+        );
+
+        if (!active) return;
+
+        setChipStatus({
+          enabledCount: enabledChips.length,
+          connectedCount: connectedChips.length,
+          loading: false,
+        });
+      } catch {
+        if (!active) return;
+
+        setChipStatus({
+          enabledCount: 0,
+          connectedCount: 0,
+          loading: false,
+        });
+      }
+    };
+
+    void loadChipStatus();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const allNavItems = [...electoralNavItems, ...legacyNavItems];
   const currentItem = allNavItems.find((n) => n.id === currentPage);
   const title = pageTitle ?? currentItem?.label ?? 'EEL Eleicao';
+  const effectiveApiConnected = apiConnected || chipStatus.connectedCount > 0;
+  const disconnectedCount = Math.max(chipStatus.enabledCount - chipStatus.connectedCount, 0);
+  const topbarAlertTone: 'warning' | 'success' | 'neutral' = chipStatus.loading
+    ? 'neutral'
+    : chipStatus.enabledCount === 0
+      ? 'neutral'
+      : disconnectedCount > 0
+        ? 'warning'
+        : 'success';
+  const topbarAlertLabel = chipStatus.loading
+    ? 'Carregando status operacional'
+    : chipStatus.enabledCount === 0
+      ? 'Configure chips para iniciar a operação'
+      : disconnectedCount > 0
+        ? `${disconnectedCount} chip${disconnectedCount > 1 ? 's' : ''} desconectado${disconnectedCount > 1 ? 's' : ''}`
+        : 'Operação estável';
+  const chipConnectivityLabel = chipStatus.loading
+    ? 'Carregando chips'
+    : chipStatus.enabledCount === 0
+      ? 'Nenhum chip habilitado'
+      : `${chipStatus.connectedCount}/${chipStatus.enabledCount} chips conectados`;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -416,7 +474,8 @@ export default function SidebarLayout({
         <SidebarContent
           collapsed={collapsed}
           currentPage={currentPage}
-          apiConnected={apiConnected}
+          apiConnected={effectiveApiConnected}
+          chipConnectivityLabel={chipConnectivityLabel}
           onLogout={handleLogout}
         />
 
@@ -458,7 +517,8 @@ export default function SidebarLayout({
               <SidebarContent
                 collapsed={false}
                 currentPage={currentPage}
-                apiConnected={apiConnected}
+                apiConnected={effectiveApiConnected}
+                chipConnectivityLabel={chipConnectivityLabel}
                 onLogout={handleLogout}
                 onLinkClick={() => setMobileOpen(false)}
               />
@@ -470,9 +530,15 @@ export default function SidebarLayout({
       {/* ── Main content ── */}
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
 
-        {/* Desktop Topbar — V2 full topbar with search, period, alerts, profile */}
+        {/* Desktop Topbar — real shell contract only */}
         <header className="hidden md:block shrink-0">
-          <Topbar />
+          <Topbar
+            pageTitle={title}
+            periodLabel="Período definido por página"
+            alertLabel={topbarAlertLabel}
+            alertTone={topbarAlertTone}
+            sessionLabel="Sessão ativa"
+          />
         </header>
 
         {/* Mobile header — simplified: hamburger + title + theme toggle */}

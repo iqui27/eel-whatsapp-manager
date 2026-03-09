@@ -375,10 +375,11 @@ export default function DashboardPage() {
   // ── Derived KPIs ──
   const totalSent      = campaigns.reduce((acc, c) => acc + (c.totalSent ?? 0), 0);
   const totalDelivered = campaigns.reduce((acc, c) => acc + (c.totalDelivered ?? 0), 0);
+  const totalRead      = campaigns.reduce((acc, c) => acc + (c.totalRead ?? 0), 0);
   const totalReplied   = campaigns.reduce((acc, c) => acc + (c.totalReplied ?? 0), 0);
   const totalFailed    = campaigns.reduce((acc, c) => acc + (c.totalFailed ?? 0), 0);
   const deliveryRate   = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : null;
-  const estimatedOpenRate = deliveryRate;
+  const readRate       = totalDelivered > 0 ? Math.round((totalRead / totalDelivered) * 100) : null;
   const noCampaignData = campaigns.length === 0 || totalSent === 0;
 
   if (isLoading) {
@@ -443,13 +444,16 @@ export default function DashboardPage() {
                 delay={0}
               />
               <KpiCard
-                label="Taxa de abertura"
-                value={estimatedOpenRate !== null ? `${estimatedOpenRate}%` : 'N/D'}
-                subLabel={noCampaignData ? 'Sem campanhas com entrega' : 'Proxy por mensagens entregues'}
+                label="Leituras"
+                value={totalRead}
+                subLabel={noCampaignData
+                  ? 'Sem confirmações de leitura ainda'
+                  : readRate !== null
+                    ? `${readRate}% sobre as mensagens entregues`
+                    : 'Sem mensagens entregues para calcular leitura'}
                 icon={BarChart3}
                 iconBg="bg-green-500"
-                trend="neutral"
-                note="(estimado)"
+                trend={totalRead > 0 ? 'up' : 'neutral'}
                 delay={50}
               />
               <KpiCard
