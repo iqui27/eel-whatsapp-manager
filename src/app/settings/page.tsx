@@ -27,6 +27,10 @@ interface Settings {
   warmingEnabled: boolean;
   warmingIntervalMinutes: number;
   warmingMessage: string;
+  candidateDisplayName: string;
+  candidateOffice: string;
+  candidateParty: string;
+  candidateRegion: string;
 }
 
 function Section({
@@ -110,6 +114,10 @@ export default function SettingsPage() {
     warmingEnabled: true,
     warmingIntervalMinutes: 60,
     warmingMessage: '',
+    candidateDisplayName: '',
+    candidateOffice: '',
+    candidateParty: '',
+    candidateRegion: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -120,7 +128,21 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch('/api/settings')
       .then(r => r.json())
-      .then(data => { setSettings(data); setLoading(false); })
+      .then(data => {
+        setSettings({
+          evolutionApiUrl: data.evolutionApiUrl ?? '',
+          evolutionApiKey: data.evolutionApiKey ?? '',
+          instanceName: data.instanceName ?? '',
+          warmingEnabled: data.warmingEnabled ?? true,
+          warmingIntervalMinutes: data.warmingIntervalMinutes ?? 60,
+          warmingMessage: data.warmingMessage ?? '',
+          candidateDisplayName: data.candidateDisplayName ?? '',
+          candidateOffice: data.candidateOffice ?? '',
+          candidateParty: data.candidateParty ?? '',
+          candidateRegion: data.candidateRegion ?? '',
+        });
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, []);
 
@@ -255,6 +277,77 @@ export default function SettingsPage() {
         </Section>
 
         {/* Warming section */}
+        <Section
+          title="Perfil do candidato"
+          description="Fonte de verdade usada pela personalização de campanhas"
+          icon={CheckCircle2}
+          defaultOpen
+        >
+          <div className="rounded-lg border border-border bg-muted/40 px-4 py-3">
+            <p className="text-sm text-foreground">
+              O campo <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">{'{candidato}'}</code> nas campanhas
+              passa a usar o nome configurado aqui.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Preencha pelo menos o nome exibido para habilitar a personalização real nas próximas etapas da Fase 12.
+            </p>
+          </div>
+
+          <Field
+            label="Nome exibido"
+            hint="Valor persistido que abastece diretamente a variável {candidato} em campanhas."
+          >
+            <input
+              type="text"
+              value={settings.candidateDisplayName}
+              onChange={e => set('candidateDisplayName', e.target.value)}
+              placeholder="Ex: Dr. Silva"
+              className={inputCls}
+            />
+          </Field>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field
+              label="Cargo"
+              hint="Opcional. Ajuda a contextualizar o perfil em futuras superfícies."
+            >
+              <input
+                type="text"
+                value={settings.candidateOffice}
+                onChange={e => set('candidateOffice', e.target.value)}
+                placeholder="Ex: Vereador"
+                className={inputCls}
+              />
+            </Field>
+
+            <Field
+              label="Partido"
+              hint="Opcional. Mantido junto do mesmo perfil de campanha."
+            >
+              <input
+                type="text"
+                value={settings.candidateParty}
+                onChange={e => set('candidateParty', e.target.value)}
+                placeholder="Ex: PSD"
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <Field
+            label="Região prioritária"
+            hint="Opcional. Pode ser reutilizada por campanhas e mensagens regionais."
+          >
+            <input
+              type="text"
+              value={settings.candidateRegion}
+              onChange={e => set('candidateRegion', e.target.value)}
+              placeholder="Ex: Zona Sul"
+              className={inputCls}
+            />
+          </Field>
+        </Section>
+
         <Section
           title="Aquecimento"
           description="Configurações de envio automático de mensagens"

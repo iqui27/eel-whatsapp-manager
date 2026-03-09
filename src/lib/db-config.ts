@@ -6,6 +6,26 @@ import { db, config, type Config, type NewConfig } from '@/db';
 
 export type { Config, NewConfig };
 
+export type CandidateProfileFields = Pick<
+  NewConfig,
+  'candidateDisplayName' | 'candidateOffice' | 'candidateParty' | 'candidateRegion'
+>;
+
+function normalizeOptionalText(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+export function normalizeCandidateProfile<T extends CandidateProfileFields>(candidate: T): T {
+  return {
+    ...candidate,
+    candidateDisplayName: normalizeOptionalText(candidate.candidateDisplayName),
+    candidateOffice: normalizeOptionalText(candidate.candidateOffice),
+    candidateParty: normalizeOptionalText(candidate.candidateParty),
+    candidateRegion: normalizeOptionalText(candidate.candidateRegion),
+  };
+}
+
 export async function loadConfig(): Promise<Config | null> {
   const rows = await db.select().from(config).limit(1);
   return rows[0] ?? null;
@@ -47,6 +67,17 @@ export function validateConfig(cfg: Partial<NewConfig>): string[] {
   }
   if (!cfg.instanceName) {
     errors.push('Nome da instância é obrigatório');
+  }
+  if (
+    cfg.candidateDisplayName !== undefined
+    && normalizeOptionalText(cfg.candidateDisplayName) === null
+    && (
+      normalizeOptionalText(cfg.candidateOffice) !== null
+      || normalizeOptionalText(cfg.candidateParty) !== null
+      || normalizeOptionalText(cfg.candidateRegion) !== null
+    )
+  ) {
+    errors.push('Informe o nome exibido do candidato para usar o perfil de personalização');
   }
 
   return errors;

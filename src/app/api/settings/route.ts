@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig, saveConfig } from '@/lib/db-config';
+import { loadConfig, normalizeCandidateProfile, saveConfig, validateConfig } from '@/lib/db-config';
 import { validateSession } from '@/lib/db-auth';
 import { testConnection } from '@/lib/evolution';
 import type { Config } from '@/db';
@@ -39,6 +39,21 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json() as Partial<Config>;
+    const candidateProfile = normalizeCandidateProfile({
+      candidateDisplayName: body.candidateDisplayName,
+      candidateOffice: body.candidateOffice,
+      candidateParty: body.candidateParty,
+      candidateRegion: body.candidateRegion,
+    });
+    const errors = validateConfig({
+      ...config,
+      ...body,
+      ...candidateProfile,
+    });
+
+    if (errors.length > 0) {
+      return NextResponse.json({ error: errors[0], details: errors }, { status: 400 });
+    }
 
     // If the client sends back the masked placeholder, keep the original key
     const isMasked = (key: string) => key.includes('***');
@@ -52,6 +67,7 @@ export async function PUT(request: NextRequest) {
       warmingIntervalMinutes: body.warmingIntervalMinutes ?? config.warmingIntervalMinutes,
       warmingMessage: body.warmingMessage ?? config.warmingMessage,
       instanceName: body.instanceName ?? config.instanceName,
+      ...candidateProfile,
       authPassword: config.authPassword,
       lastCronRun: config.lastCronRun,
     });
