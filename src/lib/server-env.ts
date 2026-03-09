@@ -80,3 +80,22 @@ export function readCronToken(request: {
   const queryToken = searchParams?.get('secret');
   return queryToken?.trim() || null;
 }
+
+export function isLocalInternalRequest(request: {
+  headers: Headers;
+  nextUrl?: URL;
+  url?: string;
+}): boolean {
+  const hostname = request.nextUrl?.hostname
+    ?? request.headers.get('x-forwarded-host')
+    ?? request.headers.get('host')
+    ?? (request.url ? new URL(request.url).hostname : '');
+
+  const normalizedHost = hostname.replace(/:\d+$/, '').trim().toLowerCase();
+  if (['127.0.0.1', '::1', 'localhost'].includes(normalizedHost)) {
+    return true;
+  }
+
+  const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim().toLowerCase() ?? '';
+  return ['127.0.0.1', '::1'].includes(forwardedFor);
+}

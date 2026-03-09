@@ -7,12 +7,12 @@ import {
   nextRunDate,
 } from '@/lib/reporting';
 import { loadCampaignReport } from '@/lib/reporting-server';
-import { readCronToken, resolveServerEnv } from '@/lib/server-env';
+import { isLocalInternalRequest, readCronToken, resolveServerEnv } from '@/lib/server-env';
 
 export async function GET(request: NextRequest) {
   const cronSecret = resolveServerEnv('CRON_SECRET');
   const requestToken = readCronToken(request);
-  if (!cronSecret || requestToken !== cronSecret) {
+  if (!cronSecret || (requestToken !== cronSecret && !isLocalInternalRequest(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

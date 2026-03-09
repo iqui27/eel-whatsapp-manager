@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig, saveConfig } from '@/lib/db-config';
 import { loadChips } from '@/lib/db-chips';
-import { readCronToken, resolveServerEnv } from '@/lib/server-env';
+import { isLocalInternalRequest, readCronToken, resolveServerEnv } from '@/lib/server-env';
 import { runWarming } from '@/lib/warming';
 import { toAppConfig, toWarmingChips } from '@/lib/warming-compat';
 
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const cronSecret = resolveServerEnv('CRON_SECRET');
   if (cronSecret) {
     const requestToken = readCronToken(request);
-    if (requestToken !== cronSecret) {
+    if (requestToken !== cronSecret && !isLocalInternalRequest(request)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }

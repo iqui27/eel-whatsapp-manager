@@ -6,13 +6,13 @@ import {
   updateCampaign,
 } from '@/lib/db-campaigns';
 import { executeCampaignSend } from '@/lib/campaign-delivery';
-import { readCronToken, resolveServerEnv } from '@/lib/server-env';
+import { isLocalInternalRequest, readCronToken, resolveServerEnv } from '@/lib/server-env';
 
 export async function GET(request: NextRequest) {
   const cronSecret = resolveServerEnv('CRON_SECRET');
   if (cronSecret) {
     const requestToken = readCronToken(request);
-    if (requestToken !== cronSecret) {
+    if (requestToken !== cronSecret && !isLocalInternalRequest(request)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }
