@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,

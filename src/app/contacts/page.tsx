@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Trash2, Users, Loader2, X } from 'lucide-react';
+import { Plus, Search, Trash2, Loader2, X } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import SidebarLayout from '@/components/SidebarLayout';
@@ -15,8 +15,6 @@ interface Contact {
   id: string; name: string; phone: string;
   enabled: boolean | null; lastContacted: string | null; contactCount: number | null;
 }
-interface Cluster { id: string; name: string }
-
 function fmt(iso: string | null) {
   if (!iso) return 'Nunca';
   const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -39,7 +37,6 @@ type Filter = 'all' | 'active' | 'inactive';
 export default function ContactsPage() {
   const router = useRouter();
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [clusters, setClusters] = useState<Cluster[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -50,9 +47,9 @@ export default function ContactsPage() {
   const fetchAll = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [cr, clr] = await Promise.all([fetch('/api/contacts'), fetch('/api/clusters')]);
+      const cr = await fetch('/api/contacts');
       if (cr.status === 401) { router.push('/login'); return; }
-      setContacts(await cr.json()); setClusters(await clr.json());
+      setContacts(await cr.json());
     } catch { toast.error('Erro ao carregar dados'); }
     finally { setLoading(false); }
   }, [router]);

@@ -3,7 +3,7 @@
  * Drop-in replacement for the old JSON-based contacts.ts
  */
 import { db, contacts, clusters, contactClusters, type Contact, type Cluster, type NewContact, type NewCluster } from '@/db';
-import { eq, inArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 export type { Contact, Cluster, NewContact, NewCluster };
 

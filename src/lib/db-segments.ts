@@ -7,7 +7,7 @@ import {
   segments, segmentVoters,
   type Segment, type NewSegment,
 } from '@/db/schema';
-import { eq, desc, sql, count } from 'drizzle-orm';
+import { eq, desc, count } from 'drizzle-orm';
 
 export type { Segment, NewSegment };
 

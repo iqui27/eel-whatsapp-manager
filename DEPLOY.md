@@ -3,24 +3,25 @@
 ## Como Funciona
 
 ```
-Push na main → GitHub Actions → SSH no Contabo → deploy.sh → PM2 restart
+Push na main → GitHub Actions (lint + typecheck + build) → SSH no Contabo → deploy.sh → PM2 restart
 ```
 
 ```
-Developer                GitHub Actions              Contabo (193.187.129.114)
-   │                          │                              │
-   ├── git push main ────────►│                              │
-   │                          ├── SSH connect ──────────────►│
-   │                          │                              ├── git fetch + reset
-   │                          │                              ├── npm ci
-   │                          │                              ├── npm run build
-   │                          │                              ├── pm2 restart zap-eel
-   │                          │◄── exit code ────────────────┤
-   │                          │                              │
-   │  ✅ ou ❌ no Actions tab │                              │
+Developer                GitHub Actions                         Contabo (193.187.129.114)
+   │                          │                                           │
+   ├── git push main ────────►│                                           │
+   │                          ├── npm ci + lint + typecheck + build        │
+   │                          ├── SSH connect ────────────────────────────►│
+   │                          │                                           ├── git fetch + reset
+   │                          │                                           ├── npm ci
+   │                          │                                           ├── npm run build
+   │                          │                                           ├── pm2 restart zap-eel
+   │                          │◄── exit code ─────────────────────────────┤
+   │                          │                                           │
+   │  ✅ ou ❌ no Actions tab │                                           │
 ```
 
-**Segurança:** Se o build falhar, o PM2 **NÃO é reiniciado**. A app continua rodando na versão anterior.
+**Segurança:** Se `lint`, `typecheck` ou `build` falharem no GitHub Actions, o SSH nem começa. Se o build falhar no servidor, o PM2 **NÃO é reiniciado** e a app continua rodando na versão anterior.
 
 ---
 

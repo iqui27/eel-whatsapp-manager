@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { requirePermission } from '@/lib/api-auth';
 import { isVoterInScope } from '@/lib/authorization';
 import {

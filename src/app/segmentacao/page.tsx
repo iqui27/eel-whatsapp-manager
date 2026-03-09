@@ -605,7 +605,7 @@ export default function SegmentacaoPage() {
                 <div className="min-h-[48px] space-y-2">
                   {activeFilters.length === 0 ? (
                     <div className="flex h-12 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
-                      Nenhum filtro adicionado. Clique em "Adicionar filtro" para comecar.
+                      Nenhum filtro adicionado. Clique em &quot;Adicionar filtro&quot; para comecar.
                     </div>
                   ) : (
                     activeFilters.map((filter) => (

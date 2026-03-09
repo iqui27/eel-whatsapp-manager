@@ -246,7 +246,7 @@ export default function AdminPage() {
                   ) : users.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
-                        Nenhum usuário cadastrado. Use "Convidar usuário" para adicionar.
+                        Nenhum usuário cadastrado. Use &quot;Convidar usuário&quot; para adicionar.
                       </TableCell>
                     </TableRow>
                   ) : users.map(user => (

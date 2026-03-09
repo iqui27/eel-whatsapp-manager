@@ -7,7 +7,7 @@ import {
   consentLogs, voters,
   type ConsentLog, type NewConsentLog,
 } from '@/db/schema';
-import { eq, desc, sql, count } from 'drizzle-orm';
+import { eq, desc, count } from 'drizzle-orm';
 
 export type { ConsentLog, NewConsentLog };
 

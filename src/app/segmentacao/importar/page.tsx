@@ -21,7 +21,6 @@ import {
   AlertTriangle,
   ArrowRight,
   FileText,
-  ChevronRight,
   RotateCcw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';

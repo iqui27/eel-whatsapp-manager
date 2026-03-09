@@ -2,8 +2,8 @@
  * Logs data access — Drizzle / Supabase
  * Drop-in replacement for the old JSON-based logs.ts
  */
-import { db, logs, chips, type Log, type NewLog } from '@/db';
-import { desc, eq, and, gte, sql } from 'drizzle-orm';
+import { db, logs, type Log, type NewLog } from '@/db';
+import { desc, gte, sql } from 'drizzle-orm';
 
 export type { Log, NewLog };
 

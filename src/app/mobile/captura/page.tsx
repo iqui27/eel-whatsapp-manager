@@ -27,6 +27,19 @@ type PendingCapture = {
 
 const STORAGE_KEY = 'eel_mobile_capture_queue_v1';
 
+function readStoredQueue(): PendingCapture[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) as PendingCapture[] : [];
+  } catch {
+    return [];
+  }
+}
+
 const EMPTY_FORM = {
   name: '',
   phone: '',
@@ -40,9 +53,9 @@ const EMPTY_FORM = {
 
 export default function MobileCapturePage() {
   const router = useRouter();
-  const [online, setOnline] = useState(true);
+  const [online, setOnline] = useState(() => (typeof window === 'undefined' ? true : window.navigator.onLine));
   const [syncing, setSyncing] = useState(false);
-  const [queue, setQueue] = useState<PendingCapture[]>([]);
+  const [queue, setQueue] = useState<PendingCapture[]>(readStoredQueue);
   const [form, setForm] = useState(EMPTY_FORM);
 
   const queueCount = queue.length;
@@ -52,18 +65,6 @@ export default function MobileCapturePage() {
   }, [queueCount]);
 
   useEffect(() => {
-    const loadQueue = () => {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        setQueue(stored ? JSON.parse(stored) : []);
-      } catch {
-        setQueue([]);
-      }
-    };
-
-    loadQueue();
-    setOnline(window.navigator.onLine);
-
     const handleOnline = () => setOnline(true);
     const handleOffline = () => setOnline(false);
 
@@ -140,9 +141,13 @@ export default function MobileCapturePage() {
   }, [persistQueue, queue, sendCapture]);
 
   useEffect(() => {
-    if (online && queue.length > 0) {
+    if (!online || queue.length === 0) return;
+
+    const flushTimer = window.setTimeout(() => {
       void flushQueue();
-    }
+    }, 0);
+
+    return () => window.clearTimeout(flushTimer);
   }, [flushQueue, online, queue.length]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {

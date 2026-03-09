@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
   if (!config) return NextResponse.json({ error: 'Configuração ausente' }, { status: 404 });
 
   // Return config without raw password; mask the API key
-  const { authPassword: _, ...rest } = config;
+  const { authPassword, ...rest } = config;
+  void authPassword;
   return NextResponse.json({
     ...rest,
     candidateProfileReady: isCandidateProfileConfigured(config),

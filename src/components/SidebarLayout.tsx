@@ -547,22 +547,24 @@ export default function SidebarLayout({
       <motion.aside
         animate={{ width: collapsed ? 64 : 240 }}
         transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="relative hidden md:flex h-full flex-col border-r border-sidebar-border bg-sidebar overflow-hidden shrink-0"
+        className="relative hidden h-full shrink-0 overflow-visible md:flex"
       >
-        <SidebarContent
-          collapsed={collapsed}
-          currentPage={currentPage}
-          apiConnected={effectiveApiConnected}
-          chipConnectivityLabel={chipConnectivityLabel}
-          primaryNavItems={allowedPrimaryNavItems}
-          secondaryNavItems={allowedSecondaryNavItems}
-          onLogout={handleLogout}
-        />
+        <div className="flex h-full flex-1 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar">
+          <SidebarContent
+            collapsed={collapsed}
+            currentPage={currentPage}
+            apiConnected={effectiveApiConnected}
+            chipConnectivityLabel={chipConnectivityLabel}
+            primaryNavItems={allowedPrimaryNavItems}
+            secondaryNavItems={allowedSecondaryNavItems}
+            onLogout={handleLogout}
+          />
+        </div>
 
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed((v) => !v)}
-          className="absolute -right-3 top-[52px] z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+          className="absolute right-0 top-6 z-20 flex h-7 w-7 translate-x-1/2 items-center justify-center rounded-full border border-sidebar-border bg-background/95 text-muted-foreground shadow-md backdrop-blur transition-colors hover:bg-accent hover:text-accent-foreground"
           aria-label={collapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
         >
           {collapsed

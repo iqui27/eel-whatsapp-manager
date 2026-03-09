@@ -14,10 +14,10 @@ export function useCountUp(target: number, duration = 700, delay = 0): number {
   const startRef = useRef<number | null>(null);
 
   useEffect(() => {
-    setValue(0);
     startRef.current = null;
 
     const timeout = setTimeout(() => {
+      setValue(0);
       const animate = (ts: number) => {
         if (!startRef.current) startRef.current = ts;
         const elapsed = ts - startRef.current;

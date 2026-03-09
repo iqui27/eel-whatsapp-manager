@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Layers, Loader2, X, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Loader2, X, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import SidebarLayout from '@/components/SidebarLayout';
 import { EmptyState } from '@/components/empty-state';

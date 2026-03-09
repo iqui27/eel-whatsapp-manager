@@ -1,6 +1,6 @@
 'use client';
 
-import { startTransition, useEffect, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import type { Conversation, ConversationMessage } from '@/db/schema';
 import {
   CONVERSATION_STREAM_EVENT,
@@ -69,26 +69,31 @@ export function useConversationStream({
     onMessageCreatedRef.current = onMessageCreated;
   }, [onMessageCreated]);
 
-  const clearReconnectTimer = () => {
+  const clearReconnectTimer = useCallback(() => {
     if (reconnectTimerRef.current !== null) {
       window.clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
-  };
+  }, []);
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     clearReconnectTimer();
     eventSourceRef.current?.close();
     eventSourceRef.current = null;
-  };
+  }, [clearReconnectTimer]);
 
   useEffect(() => {
     cursorRef.current = initialCursor ?? null;
-    setCursor(initialCursor ?? null);
     reconnectAttemptsRef.current = 0;
-    setReconnectAttempts(0);
 
     let cancelled = false;
+    const resetTimer = window.setTimeout(() => {
+      if (cancelled) return;
+      startTransition(() => {
+        setCursor(initialCursor ?? null);
+        setReconnectAttempts(0);
+      });
+    }, 0);
 
     const handleMetaEvent = (payload: ConversationConnectedPayload | ConversationHeartbeatPayload) => {
       if (cancelled) return;
@@ -202,9 +207,10 @@ export function useConversationStream({
 
     return () => {
       cancelled = true;
+      window.clearTimeout(resetTimer);
       disconnect();
     };
-  }, [conversationId, enabled, initialCursor, status, voterId]);
+  }, [conversationId, disconnect, enabled, initialCursor, status, voterId]);
 
   return {
     cursor,
