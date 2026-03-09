@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig } from '@/lib/config';
-import { addContact, deleteContact, loadContacts, updateContact } from '@/lib/contacts';
-import { validateSession } from '@/lib/auth';
+import { loadConfig } from '@/lib/db-config';
+import { addContact, deleteContact, loadContacts, updateContact } from '@/lib/db-contacts';
+import { validateSession } from '@/lib/db-auth';
 
 async function verifyAuth(request: NextRequest) {
   const token = request.cookies.get('auth')?.value;
@@ -42,16 +42,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nome e telefone são obrigatórios' }, { status: 400 });
     }
 
-    const contact = {
-      id: crypto.randomUUID(),
+    const contact = await addContact({
       name,
       phone,
-      clusterIds: Array.isArray(body.clusterIds) ? body.clusterIds : [],
       contactCount: 0,
       enabled: body.enabled ?? true,
-    };
-
-    await addContact(contact);
+    });
     return NextResponse.json(contact, { status: 201 });
   } catch (error) {
     console.error('Add contact error:', error);
@@ -82,7 +78,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'ID e updates são obrigatórios' }, { status: 400 });
     }
 
-    await updateContact(body.id, body.updates);
+    const { lastContacted, ...rest } = body.updates;
+    await updateContact(body.id, {
+      ...rest,
+      ...(lastContacted ? { lastContacted: new Date(lastContacted) } : {}),
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Update contact error:', error);

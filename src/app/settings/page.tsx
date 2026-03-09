@@ -1,7 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ChevronDown,
+  Server,
+  Flame,
+  Shield,
+  CheckCircle2,
+  XCircle,
+  Eye,
+  EyeOff,
+  Loader2,
+  Save,
+  Plug,
+} from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import SidebarLayout from '@/components/SidebarLayout';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface Settings {
   evolutionApiUrl: string;
@@ -12,6 +29,79 @@ interface Settings {
   warmingMessage: string;
 }
 
+function Section({
+  title,
+  description,
+  icon: Icon,
+  children,
+  defaultOpen = true,
+}: {
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <Icon className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{title}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+          </div>
+        </div>
+        <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform duration-200', open && 'rotate-180')} />
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-border px-5 py-5 space-y-4">
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</label>
+      {children}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+const inputCls =
+  'flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors';
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({
     evolutionApiUrl: '',
@@ -19,200 +109,218 @@ export default function SettingsPage() {
     instanceName: '',
     warmingEnabled: true,
     warmingIntervalMinutes: 60,
-    warmingMessage: '🔔 Aquecimento ativado!',
+    warmingMessage: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showKey, setShowKey] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   useEffect(() => {
     fetch('/api/settings')
-      .then((r) => r.json())
-      .then((data) => {
-        setSettings(data);
-        setLoading(false);
-      })
+      .then(r => r.json())
+      .then(data => { setSettings(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
   const handleSave = async () => {
     setSaving(true);
-    setStatusMsg(null);
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       });
-      if (res.ok) {
-        setStatusMsg({ type: 'success', text: 'Configurações salvas com sucesso!' });
-      } else {
-        setStatusMsg({ type: 'error', text: 'Erro ao salvar configurações.' });
-      }
+      if (res.ok) toast.success('Configurações salvas com sucesso');
+      else toast.error('Erro ao salvar configurações');
     } catch {
-      setStatusMsg({ type: 'error', text: 'Erro ao salvar configurações.' });
+      toast.error('Erro ao salvar configurações');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleTestConnection = async () => {
+  const handleTest = async () => {
     setTesting(true);
-    setStatusMsg(null);
+    setTestResult(null);
     try {
       const res = await fetch('/api/settings', { method: 'POST' });
       const data = await res.json();
-      setStatusMsg({
-        type: data.success ? 'success' : 'error',
-        text: data.message,
-      });
+      setTestResult({ ok: data.success, msg: data.message });
+      if (data.success) toast.success('Conexão com a API funcionando');
+      else toast.error('Falha na conexão com a API');
     } catch {
-      setStatusMsg({ type: 'error', text: 'Não foi possível testar a conexão.' });
+      setTestResult({ ok: false, msg: 'Não foi possível testar a conexão' });
+      toast.error('Não foi possível testar a conexão');
     } finally {
       setTesting(false);
     }
   };
 
+  const set = <K extends keyof Settings>(key: K, val: Settings[K]) =>
+    setSettings(s => ({ ...s, [key]: val }));
+
   if (loading) {
     return (
-      <SidebarLayout currentPage="settings">
-        <div className="flex items-center justify-center h-full">
-          <p>Carregando...</p>
+      <SidebarLayout currentPage="settings" pageTitle="Configurações">
+        <div className="p-6 space-y-5">
+          {[1, 2].map(i => (
+            <div key={i} className="rounded-xl border border-border bg-card h-[72px] shimmer" />
+          ))}
         </div>
       </SidebarLayout>
     );
   }
 
   return (
-    <SidebarLayout currentPage="settings">
-      <div className="flex flex-col gap-6">
+    <SidebarLayout currentPage="settings" pageTitle="Configurações">
+      <div className="p-6 space-y-5 max-w-2xl">
         {/* Header */}
         <div>
-          <h1 className="text-[24px] text-[#18181B] font-sans">Configurações</h1>
-          <p className="text-[14px] mt-1 text-[#71717A]">Gerencie as configurações do sistema</p>
+          <h1 className="text-xl font-semibold text-foreground">Configurações</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Gerencie as configurações do sistema</p>
         </div>
 
-        {/* Status message */}
-        {statusMsg && (
-          <div
-            className={`flex items-center gap-2 rounded-lg px-4 py-3 text-[14px] ${
-              statusMsg.type === 'success'
-                ? 'bg-[#f0fdf4] border border-[#86efac] text-[#166534]'
-                : 'bg-[#fef2f2] border border-[#fca5a5] text-[#991b1b]'
-            }`}
-          >
-            <span>{statusMsg.type === 'success' ? '✅' : '❌'}</span>
-            {statusMsg.text}
-          </div>
-        )}
+        {/* Evolution API section */}
+        <Section
+          title="Evolution API"
+          description="Conexão com o servidor WhatsApp"
+          icon={Server}
+          defaultOpen
+        >
+          <Field label="URL da API" hint="Endereço completo do servidor Evolution API">
+            <input
+              type="url"
+              value={settings.evolutionApiUrl}
+              onChange={e => set('evolutionApiUrl', e.target.value)}
+              placeholder="https://api.evolution.example.com"
+              className={inputCls}
+            />
+          </Field>
 
-        {/* API Settings Card */}
-        <div className="flex flex-col gap-5 bg-white border border-solid border-[#E4E4E7] rounded-xl p-6">
-          <div className="text-[16px] font-semibold text-[#18181B]">Configurações da API</div>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] text-[#52525B] font-medium">URL da Evolution API</label>
+          <Field label="API Key">
+            <div className="relative flex items-center">
               <input
-                type="url"
-                value={settings.evolutionApiUrl}
-                onChange={(e) => setSettings({ ...settings, evolutionApiUrl: e.target.value })}
-                placeholder="https://api.evolution.example.com"
-                className="h-10 rounded-lg border border-solid border-[#E4E4E7] px-3 text-[14px] text-[#18181B] outline-none focus:border-[#3B82F6]"
+                type={showKey ? 'text' : 'password'}
+                value={settings.evolutionApiKey}
+                onChange={e => set('evolutionApiKey', e.target.value)}
+                placeholder="Sua API key secreta"
+                className={cn(inputCls, 'pr-10')}
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] text-[#52525B] font-medium">API Key</label>
-              <div className="flex h-10 items-center border border-solid border-[#E4E4E7] rounded-lg px-3 gap-2">
-                <input
-                  type={showApiKey ? 'text' : 'password'}
-                  value={settings.evolutionApiKey}
-                  onChange={(e) => setSettings({ ...settings, evolutionApiKey: e.target.value })}
-                  placeholder="Sua API key"
-                  className="flex-1 border-none outline-none text-[14px] text-[#18181B] bg-transparent"
-                />
-                <button
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="text-[12px] text-[#3B82F6] border-none bg-transparent cursor-pointer"
-                >
-                  {showApiKey ? 'Ocultar' : 'Mostrar'}
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] text-[#52525B] font-medium">Nome da Instância</label>
-              <input
-                type="text"
-                value={settings.instanceName}
-                onChange={(e) => setSettings({ ...settings, instanceName: e.target.value })}
-                placeholder="minha-instancia"
-                className="h-10 rounded-lg border border-solid border-[#E4E4E7] px-3 text-[14px] text-[#18181B] outline-none focus:border-[#3B82F6]"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Warming Settings Card */}
-        <div className="flex flex-col gap-5 bg-white border border-solid border-[#E4E4E7] rounded-xl p-6">
-          <div className="text-[16px] font-semibold text-[#18181B]">Configurações de Aquecimento</div>
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[14px] font-medium text-[#18181B]">Aquecimento Automático</div>
-                <div className="text-[13px] text-[#71717A] mt-0.5">Enviar mensagens automaticamente pelo cron</div>
-              </div>
               <button
-                onClick={() => setSettings({ ...settings, warmingEnabled: !settings.warmingEnabled })}
-                className={`relative w-11 h-6 rounded-full border-none cursor-pointer transition-colors ${
-                  settings.warmingEnabled ? 'bg-[#3B82F6]' : 'bg-[#E4E4E7]'
-                }`}
+                type="button"
+                onClick={() => setShowKey(v => !v)}
+                className="absolute right-3 text-muted-foreground hover:text-foreground"
               >
-                <div
-                  className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform shadow-sm ${
-                    settings.warmingEnabled ? 'translate-x-5' : 'translate-x-0.5'
-                  }`}
-                />
+                {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
               </button>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] text-[#52525B] font-medium">Intervalo entre mensagens (minutos)</label>
+          </Field>
+
+          <Field label="Nome da Instância" hint="Nome da instância configurada na Evolution API">
+            <input
+              type="text"
+              value={settings.instanceName}
+              onChange={e => set('instanceName', e.target.value)}
+              placeholder="minha-instancia"
+              className={inputCls}
+            />
+          </Field>
+
+          {/* Test connection */}
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              onClick={handleTest}
+              disabled={testing || !settings.evolutionApiUrl}
+              className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plug className="h-3.5 w-3.5" />}
+              {testing ? 'Testando...' : 'Testar conexão'}
+            </button>
+            <AnimatePresence>
+              {testResult && (
+                <motion.div
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0 }}
+                  className={cn('flex items-center gap-1.5 text-xs font-medium', testResult.ok ? 'text-success' : 'text-destructive')}
+                >
+                  {testResult.ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                  {testResult.msg}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </Section>
+
+        {/* Warming section */}
+        <Section
+          title="Aquecimento"
+          description="Configurações de envio automático de mensagens"
+          icon={Flame}
+          defaultOpen
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Aquecimento automático</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Enviar mensagens automaticamente via cron job</p>
+            </div>
+            <Switch
+              checked={settings.warmingEnabled}
+              onCheckedChange={v => set('warmingEnabled', v)}
+            />
+          </div>
+
+          <Field label="Intervalo entre mensagens" hint="Tempo mínimo de espera entre envios (5–1440 minutos)">
+            <div className="flex items-center gap-3">
               <input
                 type="number"
                 min={5}
                 max={1440}
                 value={settings.warmingIntervalMinutes}
-                onChange={(e) => setSettings({ ...settings, warmingIntervalMinutes: Number(e.target.value) })}
-                className="h-10 w-40 rounded-lg border border-solid border-[#E4E4E7] px-3 text-[14px] text-[#18181B] outline-none focus:border-[#3B82F6]"
+                onChange={e => set('warmingIntervalMinutes', Number(e.target.value))}
+                className={cn(inputCls, 'w-28')}
               />
+              <span className="text-sm text-muted-foreground">minutos</span>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] text-[#52525B] font-medium">Mensagem de Aquecimento</label>
-              <textarea
-                value={settings.warmingMessage}
-                onChange={(e) => setSettings({ ...settings, warmingMessage: e.target.value })}
-                rows={3}
-                className="rounded-lg border border-solid border-[#E4E4E7] px-3 py-2 text-[14px] text-[#18181B] outline-none resize-none focus:border-[#3B82F6]"
-              />
-            </div>
-          </div>
-        </div>
+          </Field>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3">
+          <Field label="Mensagem padrão" hint="Conteúdo enviado nas sessões de aquecimento">
+            <textarea
+              value={settings.warmingMessage}
+              onChange={e => set('warmingMessage', e.target.value)}
+              rows={3}
+              placeholder="Olá! Esta é uma mensagem de aquecimento..."
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none transition-colors"
+            />
+          </Field>
+        </Section>
+
+        {/* Security section */}
+        <Section
+          title="Segurança"
+          description="Autenticação e acesso ao painel"
+          icon={Shield}
+          defaultOpen={false}
+        >
+          <div className="rounded-lg bg-muted/50 border border-border px-4 py-3">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              A senha de acesso é configurada via variável de ambiente <code className="font-mono text-foreground bg-muted px-1 py-0.5 rounded">EEL_PASSWORD</code> no servidor.
+              Para alterar, atualize o valor no arquivo <code className="font-mono text-foreground bg-muted px-1 py-0.5 rounded">.env.local</code> e reinicie o servidor.
+            </p>
+          </div>
+        </Section>
+
+        {/* Save button */}
+        <div className="flex items-center gap-3 pt-2">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex h-10 items-center rounded-lg px-5 gap-2 bg-[#3B82F6] text-white text-[14px] font-medium border-none cursor-pointer disabled:opacity-60"
+            className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
-            {saving ? 'Salvando...' : 'Salvar Alterações'}
-          </button>
-          <button
-            onClick={handleTestConnection}
-            disabled={testing}
-            className="flex h-10 items-center rounded-lg px-5 gap-2 bg-white text-[#71717A] text-[14px] border border-solid border-[#E4E4E7] cursor-pointer disabled:opacity-60"
-          >
-            {testing ? 'Testando...' : 'Testar Conexão'}
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            {saving ? 'Salvando...' : 'Salvar alterações'}
           </button>
         </div>
       </div>

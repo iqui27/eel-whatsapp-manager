@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { validateSession } from '@/lib/auth';
+import { validateSession } from '@/lib/db-auth';
 
 // Public routes — no auth required
 const PUBLIC_PAGES = ['/login', '/setup'];

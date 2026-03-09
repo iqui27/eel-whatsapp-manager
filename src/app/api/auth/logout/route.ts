@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { destroySession } from '@/lib/auth';
+import { destroySession } from '@/lib/db-auth';
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get('auth')?.value;
@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: 0,
+    path: '/',
   });
 
   return response;

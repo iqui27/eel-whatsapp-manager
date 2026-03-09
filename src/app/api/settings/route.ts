@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig, saveConfig, AppConfig } from '@/lib/config';
-import { validateSession } from '@/lib/auth';
+import { loadConfig, saveConfig } from '@/lib/db-config';
+import { validateSession } from '@/lib/db-auth';
+import { testConnection } from '@/lib/evolution';
+import type { Config } from '@/db';
 
 async function verifyAuth(request: NextRequest) {
   const token = request.cookies.get('auth')?.value;
@@ -36,13 +38,12 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    const body = await request.json() as Partial<AppConfig>;
+    const body = await request.json() as Partial<Config>;
 
     // If the client sends back the masked placeholder, keep the original key
     const isMasked = (key: string) => key.includes('***');
 
-    const updated: AppConfig = {
-      ...config,
+    await saveConfig({
       evolutionApiUrl: body.evolutionApiUrl ?? config.evolutionApiUrl,
       evolutionApiKey: (body.evolutionApiKey && !isMasked(body.evolutionApiKey))
         ? body.evolutionApiKey
@@ -51,12 +52,9 @@ export async function PUT(request: NextRequest) {
       warmingIntervalMinutes: body.warmingIntervalMinutes ?? config.warmingIntervalMinutes,
       warmingMessage: body.warmingMessage ?? config.warmingMessage,
       instanceName: body.instanceName ?? config.instanceName,
-      // keep authPassword and lastCronRun unchanged
       authPassword: config.authPassword,
       lastCronRun: config.lastCronRun,
-    };
-
-    await saveConfig(updated);
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Settings update error:', error);
@@ -72,18 +70,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`${config.evolutionApiUrl}/instance/fetchInstances`, {
-      headers: {
-        'apikey': config.evolutionApiKey,
-      },
-    });
-
-    if (response.ok) {
-      return NextResponse.json({ success: true, message: 'Conexão bem-sucedida!' });
-    } else {
-      return NextResponse.json({ success: false, message: 'Falha na conexão com a API' }, { status: 400 });
-    }
+    const result = await testConnection(config.evolutionApiUrl, config.evolutionApiKey);
+    return NextResponse.json(result, { status: result.ok ? 200 : 400 });
   } catch {
-    return NextResponse.json({ success: false, message: 'Não foi possível conectar à API' }, { status: 500 });
+    return NextResponse.json({ ok: false, message: 'Não foi possível conectar à API' }, { status: 500 });
   }
 }

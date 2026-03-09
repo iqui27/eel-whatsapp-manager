@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig } from '@/lib/config';
-import { loadChips, addChip, updateChip, deleteChip } from '@/lib/chips';
-import { validateSession } from '@/lib/auth';
+import { loadConfig } from '@/lib/db-config';
+import { loadChips, addChip, updateChip, deleteChip } from '@/lib/db-chips';
+import { validateSession } from '@/lib/db-auth';
 
 async function verifyAuth(request: NextRequest) {
   const token = request.cookies.get('auth')?.value;
@@ -29,19 +29,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const chip = {
-      id: crypto.randomUUID(),
+    const chip = await addChip({
       name: body.name,
       phone: body.phone,
-      instanceName: body.instanceName || undefined,
-      groupId: body.groupId,
-      clusterIds: Array.isArray(body.clusterIds) ? body.clusterIds : [],
+      instanceName: body.instanceName || null,
+      groupId: body.groupId || null,
       enabled: body.enabled ?? true,
-      status: 'disconnected' as const,
+      status: 'disconnected',
       warmCount: 0,
-    };
-
-    await addChip(chip);
+    });
     return NextResponse.json(chip, { status: 201 });
   } catch (error) {
     console.error('Add chip error:', error);
@@ -57,11 +53,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const updates = {
-      ...body.updates,
-      clusterIds: Array.isArray(body.updates?.clusterIds) ? body.updates.clusterIds : body.updates?.clusterIds,
-    };
-    await updateChip(body.id, updates);
+    await updateChip(body.id, body.updates);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Update chip error:', error);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig } from '@/lib/config';
-import { loadLogs } from '@/lib/logs';
-import { validateSession } from '@/lib/auth';
+import { loadConfig } from '@/lib/db-config';
+import { loadLogs } from '@/lib/db-logs';
+import { validateSession } from '@/lib/db-auth';
 
 async function verifyAuth(request: NextRequest) {
   const token = request.cookies.get('auth')?.value;

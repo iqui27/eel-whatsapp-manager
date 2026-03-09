@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saveConfig, validateConfig, loadConfig, AppConfig } from '@/lib/config';
+import { saveConfig, validateConfig, loadConfig } from '@/lib/db-config';
 
 export async function GET() {
   const config = await loadConfig();
@@ -26,17 +26,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errors.join(', ') }, { status: 400 });
     }
 
-    const config: AppConfig = {
+    await saveConfig({
       evolutionApiUrl: body.evolutionApiUrl,
       evolutionApiKey: body.evolutionApiKey,
       authPassword: body.authPassword,
       warmingEnabled: body.warmingEnabled ?? true,
       warmingIntervalMinutes: body.warmingIntervalMinutes ?? 60,
-      warmingMessage: body.warmingMessage ?? '🔔 Aquecimento ativado!',
+      warmingMessage: body.warmingMessage ?? 'Aquecimento ativado!',
       instanceName: body.instanceName,
-    };
-
-    await saveConfig(config);
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

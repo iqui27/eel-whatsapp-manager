@@ -1,62 +1,192 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { motion } from 'framer-motion';
+import {
+  Smartphone,
+  Wifi,
+  Flame,
+  Users,
+  Layers,
+  CheckCircle,
+  XCircle,
+  TrendingUp,
+  TrendingDown,
+  Zap,
+  RefreshCw,
+} from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
 import SidebarLayout from '@/components/SidebarLayout';
+import { KpiCardSkeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
+// ─── Types ───────────────────────────────────────────────────────────────────
 interface Chip {
   id: string;
   name: string;
   phone: string;
-  instanceName?: string;
-  groupId?: string;
-  clusterIds?: string[];
-  enabled: boolean;
-  lastWarmed?: string;
+  enabled: boolean | null;
   status: 'connected' | 'disconnected' | 'warming';
-  warmCount?: number;
+  warmCount: number | null;
+  lastWarmed: string | null;
 }
-
-interface Contact {
-  id: string;
-}
-
-interface Cluster {
-  id: string;
-  name: string;
-}
-
+interface Contact { id: string }
+interface Cluster { id: string }
 interface LogEntry {
   id: string;
-  timestamp: string;
+  createdAt: string;
   chipName: string;
+  phone: string;
+  status: 'success' | 'error';
+  message: string | null;
+}
+interface DailyStats {
+  date: string;
+  total: number;
+  success: number;
+  error: number;
 }
 
+// ─── useCountUp hook ──────────────────────────────────────────────────────────
+function useCountUp(target: number, duration = 800, delay = 0) {
+  const [value, setValue] = useState(0);
+  const frameRef = useRef<number | null>(null);
+  const startRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      const animate = (ts: number) => {
+        if (!startRef.current) startRef.current = ts;
+        const elapsed = ts - startRef.current;
+        const progress = Math.min(elapsed / duration, 1);
+        // ease-out cubic
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setValue(Math.round(eased * target));
+        if (progress < 1) {
+          frameRef.current = requestAnimationFrame(animate);
+        }
+      };
+      frameRef.current = requestAnimationFrame(animate);
+    }, delay);
+
+    return () => {
+      clearTimeout(timeout);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      startRef.current = null;
+    };
+  }, [target, duration, delay]);
+
+  return value;
+}
+
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
+function KpiCard({
+  label,
+  value,
+  icon: Icon,
+  gradient,
+  trend,
+  trendLabel,
+  delay = 0,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ElementType;
+  gradient: string;
+  trend?: 'up' | 'down' | 'neutral';
+  trendLabel?: string;
+  delay?: number;
+}) {
+  const isNumeric = typeof value === 'number';
+  const isPercent = typeof value === 'string' && value.endsWith('%');
+  const numericTarget = isNumeric ? value : isPercent ? parseInt(value) : 0;
+  const animated = useCountUp(numericTarget, 700, (delay ?? 0) * 1000 + 100);
+  const displayValue = isNumeric ? animated : isPercent ? `${animated}%` : value;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay, ease: 'easeOut' }}
+      className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
+        <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', gradient)}>
+          <Icon className="h-4 w-4 text-white" />
+        </div>
+      </div>
+      <div className="text-3xl font-bold text-foreground tabular-nums">{displayValue}</div>
+      {trendLabel && (
+        <div className={cn(
+          'flex items-center gap-1 text-xs font-medium',
+          trend === 'up' ? 'text-[var(--success)]' : trend === 'down' ? 'text-destructive' : 'text-muted-foreground',
+        )}>
+          {trend === 'up' && <TrendingUp className="h-3 w-3" />}
+          {trend === 'down' && <TrendingDown className="h-3 w-3" />}
+          {trendLabel}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ─── Status badge ─────────────────────────────────────────────────────────────
+function StatusBadge({ status }: { status: 'connected' | 'disconnected' | 'warming' }) {
+  const map = {
+    connected:    { label: 'Conectado',     cls: 'badge-success' },
+    warming:      { label: 'Aquecendo',     cls: 'badge-warning' },
+    disconnected: { label: 'Desconectado',  cls: 'badge-muted' },
+  };
+  const { label, cls } = map[status];
+  return (
+    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium', cls)}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {label}
+    </span>
+  );
+}
+
+// ─── Custom tooltip for AreaChart ─────────────────────────────────────────────
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-border bg-popover p-3 shadow-lg text-xs">
+      <p className="font-medium text-foreground mb-1">{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} style={{ color: p.name === 'success' ? 'var(--success)' : p.name === 'error' ? 'var(--destructive)' : 'var(--primary)' }}>
+          {p.name === 'success' ? 'Sucesso' : p.name === 'error' ? 'Erro' : 'Total'}: {p.value}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const router = useRouter();
   const [chips, setChips] = useState<Chip[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [clusters, setClusters] = useState<Cluster[]>([]);
-  const [lastLog, setLastLog] = useState<LogEntry | null>(null);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newChip, setNewChip] = useState({ name: '', phone: '', instanceName: '', groupId: '', clusterIds: [] as string[] });
-  const [addingChip, setAddingChip] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [warmingAll, setWarmingAll] = useState(false);
-  const [warmingId, setWarmingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setError(null);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
     try {
       const [chipsRes, logsRes, contactsRes, clustersRes] = await Promise.all([
         fetch('/api/chips'),
@@ -64,378 +194,361 @@ export default function Dashboard() {
         fetch('/api/contacts'),
         fetch('/api/clusters'),
       ]);
-
-      if (!chipsRes.ok) {
-        if (chipsRes.status === 401) { router.push('/login'); return; }
-        throw new Error('Falha ao carregar chips');
-      }
-      if (!logsRes.ok) {
-        if (logsRes.status === 401) { router.push('/login'); return; }
-        throw new Error('Falha ao carregar logs');
-      }
-      if (!contactsRes.ok) {
-        if (contactsRes.status === 401) { router.push('/login'); return; }
-        throw new Error('Falha ao carregar contatos');
-      }
-      if (!clustersRes.ok) {
-        if (clustersRes.status === 401) { router.push('/login'); return; }
-        throw new Error('Falha ao carregar clusters');
-      }
-
-      const chipsData: Chip[] = await chipsRes.json();
-      const logsData: LogEntry[] = await logsRes.json();
-      const contactsData: Contact[] = await contactsRes.json();
-      const clustersData: Cluster[] = await clustersRes.json();
-
+      if (chipsRes.status === 401) { router.push('/login'); return; }
+      const [chipsData, logsData, contactsData, clustersData] = await Promise.all([
+        chipsRes.json(),
+        logsRes.json(),
+        contactsRes.json(),
+        clustersRes.json(),
+      ]);
       setChips(chipsData);
+      setLogs(logsData);
       setContacts(contactsData);
       setClusters(clustersData);
-      setLastLog(logsData.length > 0 ? logsData[logsData.length - 1] : null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+    } catch {
+      toast.error('Falha ao carregar dados');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, [router]);
 
-  const handleAddChip = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAddingChip(true);
-    try {
-      const res = await fetch('/api/chips', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newChip),
-      });
-      if (res.ok) {
-        setNewChip({ name: '', phone: '', instanceName: '', groupId: '', clusterIds: [] });
-        setShowAddForm(false);
-        fetchData();
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Erro ao adicionar chip');
-      }
-    } catch {
-      setError('Erro ao adicionar chip');
-    } finally {
-      setAddingChip(false);
-    }
-  };
-
-  const handleToggleChip = async (chip: Chip) => {
-    try {
-      await fetch('/api/chips', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: chip.id, updates: { enabled: !chip.enabled } }),
-      });
-      fetchData();
-    } catch {
-      setError('Erro ao atualizar chip');
-    }
-  };
-
-  const handleDeleteChip = async (id: string, name: string) => {
-    if (!window.confirm(`Excluir o chip "${name}"? Esta ação não pode ser desfeita.`)) return;
-    try {
-      await fetch(`/api/chips?id=${id}`, { method: 'DELETE' });
-      fetchData();
-    } catch {
-      setError('Erro ao deletar chip');
-    }
-  };
-
-  const handleWarmChip = async (id: string) => {
-    setWarmingId(id);
-    try {
-      const res = await fetch('/api/warming', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || 'Erro ao aquecer chip');
-      }
-      fetchData();
-    } catch {
-      setError('Erro ao aquecer chip');
-    } finally {
-      setWarmingId(null);
-    }
-  };
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleWarmAll = async () => {
     setWarmingAll(true);
     try {
       const res = await fetch('/api/warming', { method: 'GET' });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || 'Erro ao aquecer chips');
-      }
-      fetchData();
+      if (res.ok) toast.success('Aquecimento iniciado');
+      else toast.error('Erro ao aquecer chips');
+      fetchData(true);
     } catch {
-      setError('Erro ao aquecer chips');
+      toast.error('Erro ao aquecer chips');
     } finally {
       setWarmingAll(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'connected': return 'bg-[#22c55e]';
-      case 'disconnected': return 'bg-[#ef4444]';
-      case 'warming': return 'bg-[#eab308]';
-      default: return 'bg-gray-500';
+  // ── Derived stats ──
+  const connectedChips = chips.filter(c => c.status === 'connected').length;
+  const activeChips    = chips.filter(c => c.enabled).length;
+  const totalWarming   = chips.reduce((acc, c) => acc + (c.warmCount ?? 0), 0);
+  const successLogs    = logs.filter(l => l.status === 'success').length;
+  const errorLogs      = logs.filter(l => l.status === 'error').length;
+  const successRate    = logs.length > 0 ? Math.round((successLogs / logs.length) * 100) : 0;
+
+  // ── Chart data: last 7 days from logs ──
+  const dailyStats: DailyStats[] = (() => {
+    const map = new Map<string, DailyStats>();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const label = d.toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' });
+      map.set(key, { date: label, total: 0, success: 0, error: 0 });
     }
-  };
+    for (const log of logs) {
+      const key = new Date(log.createdAt).toISOString().slice(0, 10);
+      const entry = map.get(key);
+      if (entry) {
+        entry.total++;
+        if (log.status === 'success') entry.success++;
+        else entry.error++;
+      }
+    }
+    return Array.from(map.values());
+  })();
 
-  const formatDate = (date?: string) => {
-    if (!date) return 'Nunca';
-    const diff = Date.now() - new Date(date).getTime();
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'Agora mesmo';
-    if (minutes < 60) return `${minutes} min atrás`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hora${hours > 1 ? 's' : ''} atrás`;
-    const days = Math.floor(hours / 24);
-    return `${days} dia${days > 1 ? 's' : ''} atrás`;
-  };
+  // ── Donut chart data ──
+  const donutData = [
+    { name: 'Sucesso', value: successLogs || 1, color: 'var(--success)' },
+    { name: 'Erro',    value: errorLogs || 0,   color: 'var(--destructive)' },
+  ];
 
-  const totalChips = chips.length;
-  const totalContacts = contacts.length;
-  const totalClusters = clusters.length;
-  const activeChips = chips.filter(c => c.enabled).length;
-  const warmingToday = chips.reduce((acc, c) => acc + (c.warmCount || 0), 0);
-  const ultimaAtividade = lastLog ? formatDate(lastLog.timestamp) : '—';
+  // ── Recent activity (last 8 logs) ──
+  const recentLogs = logs.slice(0, 8);
+
+  const formatTime = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1)  return 'Agora';
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h`;
+    return `${Math.floor(h / 24)}d`;
+  };
 
   if (loading) {
     return (
       <SidebarLayout currentPage="dashboard">
-        <div className="flex items-center justify-center h-full">
-          <p>Carregando...</p>
+        <div className="p-6 space-y-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => <KpiCardSkeleton key={i} />)}
+          </div>
         </div>
       </SidebarLayout>
     );
   }
 
   return (
-    <SidebarLayout currentPage="dashboard">
-      <div className="flex flex-col gap-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-[24px] text-[#18181b] font-bold">Dashboard</h1>
-            <p className="text-[14px] text-[#71717a] mt-1">Visão geral dos seus chips WhatsApp</p>
-          </div>
-        </div>
+    <SidebarLayout currentPage="dashboard" pageTitle="Dashboard">
+      <div className="p-6 space-y-6">
 
-        {error && (
-          <div className="flex items-center gap-2 rounded-lg bg-[#fef2f2] border border-[#fecaca] px-4 py-3">
-            <span className="text-[#ef4444] text-[14px]">⚠ {error}</span>
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Visão geral dos seus chips WhatsApp</p>
+          </div>
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setError(null)}
-              className="ml-auto text-[#ef4444] text-[18px] border-none bg-transparent cursor-pointer leading-none"
+              onClick={() => fetchData(true)}
+              disabled={refreshing}
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
             >
-              ×
+              <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
+            </button>
+            <button
+              onClick={handleWarmAll}
+              disabled={warmingAll}
+              className="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+            >
+              <Flame className="h-3.5 w-3.5" />
+              {warmingAll ? 'Aquecendo...' : 'Aquecer todos'}
             </button>
           </div>
-        )}
-
-        <div className="flex gap-4">
-          <div className="w-[180px] h-[100px] flex flex-col rounded-lg gap-2 bg-white shadow-sm p-4">
-            <span className="text-[20px]">📱</span>
-            <span className="text-[28px] text-[#18181b] font-bold">{totalChips}</span>
-            <span className="text-[12px] text-[#71717a]">Total de Chips</span>
-          </div>
-          <div className="w-[180px] h-[100px] flex flex-col rounded-lg gap-2 bg-white shadow-sm p-4">
-            <span className="text-[20px]">✅</span>
-            <span className="text-[28px] text-[#22c55e] font-bold">{activeChips}</span>
-            <span className="text-[12px] text-[#71717a]">Chips Ativos</span>
-          </div>
-          <div className="w-[180px] h-[100px] flex flex-col rounded-lg gap-2 bg-white shadow-sm p-4">
-            <span className="text-[20px]">🔥</span>
-            <span className="text-[28px] text-[#f97316] font-bold">{warmingToday}</span>
-            <span className="text-[12px] text-[#71717a]">Aquecimentos Totais</span>
-          </div>
-          <div className="w-[180px] h-[100px] flex flex-col rounded-lg gap-2 bg-white shadow-sm p-4">
-            <span className="text-[20px]">⏰</span>
-            <span className="text-[18px] text-[#18181b] font-bold leading-tight mt-1">{ultimaAtividade}</span>
-            <span className="text-[12px] text-[#71717a]">Última Atividade</span>
-          </div>
-          <div className="w-[180px] h-[100px] flex flex-col rounded-lg gap-2 bg-white shadow-sm p-4">
-            <span className="text-[20px]">👥</span>
-            <span className="text-[28px] text-[#18181b] font-bold">{totalContacts}</span>
-            <span className="text-[12px] text-[#71717a]">Contatos</span>
-          </div>
-          <div className="w-[180px] h-[100px] flex flex-col rounded-lg gap-2 bg-white shadow-sm p-4">
-            <span className="text-[20px]">🧩</span>
-            <span className="text-[28px] text-[#18181b] font-bold">{totalClusters}</span>
-            <span className="text-[12px] text-[#71717a]">Clusters</span>
-          </div>
         </div>
 
-        <div className="flex gap-3">
-          <button 
-            onClick={handleWarmAll}
-            disabled={warmingAll}
-            className="flex items-center rounded-lg py-2.5 px-4 gap-2 bg-[#f97316] text-white border-none text-[14px] font-medium cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {warmingAll ? '⏳ Aquecendo...' : '🔥 Aquecer Todos'}
-          </button>
-          <button 
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="flex items-center rounded-lg py-2.5 px-4 gap-2 bg-[#3b82f6] text-white border-none text-[14px] font-medium cursor-pointer"
-          >
-            + Adicionar Chip
-          </button>
-          <a
-            href="/settings"
-            className="flex items-center rounded-lg py-2.5 px-4 gap-2 bg-[#f4f4f5] text-[#18181b] border-none text-[14px] font-medium cursor-pointer no-underline"
-          >
-            ⚙️ Configurações
-          </a>
+        {/* ── KPI Cards ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            label="Total de chips"
+            value={chips.length}
+            icon={Smartphone}
+            gradient="kpi-gradient-blue"
+            trend="neutral"
+            trendLabel={`${activeChips} ativos`}
+            delay={0}
+          />
+          <KpiCard
+            label="Conectados"
+            value={connectedChips}
+            icon={Wifi}
+            gradient="kpi-gradient-green"
+            trend={connectedChips > 0 ? 'up' : 'neutral'}
+            trendLabel={`de ${chips.length} chips`}
+            delay={0.05}
+          />
+          <KpiCard
+            label="Aquecimentos"
+            value={totalWarming}
+            icon={Flame}
+            gradient="kpi-gradient-amber"
+            trend="neutral"
+            trendLabel="total acumulado"
+            delay={0.1}
+          />
+          <KpiCard
+            label="Taxa de sucesso"
+            value={`${successRate}%`}
+            icon={Zap}
+            gradient="kpi-gradient-purple"
+            trend={successRate >= 80 ? 'up' : successRate >= 50 ? 'neutral' : 'down'}
+            trendLabel={`${successLogs} de ${logs.length} envios`}
+            delay={0.15}
+          />
         </div>
 
-        {showAddForm && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Adicionar Novo Chip</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAddChip} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label>Nome</Label>
-                    <Input
-                      value={newChip.name}
-                      onChange={e => setNewChip({ ...newChip, name: e.target.value })}
-                      placeholder="Chip 1"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Telefone</Label>
-                    <Input
-                      value={newChip.phone}
-                      onChange={e => setNewChip({ ...newChip, phone: e.target.value })}
-                      placeholder="5511999999999"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Instância Evolution API</Label>
-                    <Input
-                      value={newChip.instanceName}
-                      onChange={e => setNewChip({ ...newChip, instanceName: e.target.value })}
-                      placeholder="Marcela1"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>ID do Grupo (opcional)</Label>
-                    <Input
-                      value={newChip.groupId}
-                      onChange={e => setNewChip({ ...newChip, groupId: e.target.value })}
-                      placeholder="ID do grupo"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Clusters</Label>
-                  <div className="flex flex-wrap gap-2 rounded-md border border-[#e4e4e7] p-3 bg-white">
-                    {clusters.map((cluster) => {
-                      const checked = newChip.clusterIds.includes(cluster.id);
-                      return (
-                        <label
-                          key={cluster.id}
-                          className={`text-[13px] px-2 py-1 rounded-md border cursor-pointer ${checked ? 'bg-[#dbeafe] border-[#93c5fd] text-[#1d4ed8]' : 'bg-white border-[#e4e4e7] text-[#52525b]'}`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => setNewChip((prev) => ({
-                              ...prev,
-                              clusterIds: checked
-                                ? prev.clusterIds.filter((id) => id !== cluster.id)
-                                : [...prev.clusterIds, cluster.id],
-                            }))}
-                            className="hidden"
-                          />
-                          {cluster.name}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-                <Button type="submit" disabled={addingChip}>
-                  {addingChip ? 'Salvando...' : 'Salvar'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+        {/* ── Charts row ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-        <div>
-          <h2 className="text-[18px] text-[#18181b] font-semibold mb-4">Chips Cadastrados</h2>
-          <div className="flex flex-wrap gap-4">
-            {chips.map(chip => (
-              <div 
-                key={chip.id} 
-                className={`w-[260px] h-[220px] flex flex-col rounded-xl gap-3 bg-white shadow-sm p-4 ${!chip.enabled ? 'opacity-60' : ''}`}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-[16px] text-[#18181b] font-semibold">{chip.name}</h3>
-                    <p className="text-[12px] text-[#71717a] mt-0.5">{chip.phone}</p>
-                  </div>
-                  <div className={`rounded-full ${getStatusColor(chip.status)} w-3 h-3`} />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[12px] text-[#71717a]">Último: {formatDate(chip.lastWarmed)}</span>
-                  <span className="text-[12px] text-[#71717a]">Próximo: --</span>
-                  <span className="text-[12px] text-[#71717a]">Aquecimentos: {chip.warmCount || 0}</span>
-                </div>
-                <div className="flex justify-between items-center mt-auto">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={chip.enabled}
-                      onCheckedChange={() => handleToggleChip(chip)}
-                    />
-                    <Label className="text-[12px]">{chip.enabled ? 'Ativo' : 'Inativo'}</Label>
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => handleWarmChip(chip.id)}
-                      disabled={!chip.enabled || warmingId === chip.id}
-                      className="rounded-lg bg-[#fff7ed] w-9 h-9 flex items-center justify-center border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {warmingId === chip.id ? '⏳' : '🔥'}
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteChip(chip.id, chip.name)}
-                      className="rounded-lg bg-[#fef2f2] w-9 h-9 flex items-center justify-center border-none cursor-pointer text-[#ef4444]"
-                    >
-                      ✕
-                    </button>
-                  </div>
+          {/* Line chart — 7 days */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+            className="lg:col-span-2 rounded-xl border border-border bg-card p-5"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">Atividade (7 dias)</h2>
+                <p className="text-xs text-muted-foreground">Envios por dia</p>
+              </div>
+            </div>
+            {logs.length === 0 ? (
+              <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+                Nenhum envio registrado
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={160}>
+                <AreaChart data={dailyStats} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradSuccess" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--success)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--success)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradError" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--destructive)" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="var(--destructive)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Area type="monotone" dataKey="success" name="success" stroke="var(--success)" strokeWidth={2} fill="url(#gradSuccess)" />
+                  <Area type="monotone" dataKey="error"   name="error"   stroke="var(--destructive)" strokeWidth={2} fill="url(#gradError)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </motion.div>
+
+          {/* Donut chart — success rate */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.25 }}
+            className="rounded-xl border border-border bg-card p-5"
+          >
+            <h2 className="text-sm font-semibold text-foreground mb-1">Taxa de sucesso</h2>
+            <p className="text-xs text-muted-foreground mb-3">Total de {logs.length} envios</p>
+            <div className="flex flex-col items-center">
+              <div className="relative">
+                <PieChart width={140} height={140}>
+                  <Pie
+                    data={donutData}
+                    cx={65} cy={65}
+                    innerRadius={45} outerRadius={65}
+                    dataKey="value"
+                    strokeWidth={0}
+                  >
+                    {donutData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-2xl font-bold text-foreground">{successRate}%</span>
                 </div>
               </div>
-            ))}
-          </div>
-
-          {chips.length === 0 && (
-            <div className="text-center py-12 text-[#71717a]">
-              <p>Nenhum chip cadastrado</p>
-              <p className="text-[14px]">Clique em "Adicionar Chip" para começar</p>
+              <div className="flex gap-4 mt-3">
+                {donutData.map((d) => (
+                  <div key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="h-2 w-2 rounded-full" style={{ background: d.color }} />
+                    {d.name}: {d.value === 1 && !logs.length ? 0 : d.value}
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
+          </motion.div>
         </div>
 
-        <div className="mt-auto">
-          <p className="text-[12px] text-center text-[#a1a1aa]">
-            EEL v1.0.0 • Dashboard de Gerenciamento de Chips WhatsApp
-          </p>
+        {/* ── Bottom row: chips overview + activity feed ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+          {/* Chips status overview */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+            className="lg:col-span-2 rounded-xl border border-border bg-card p-5"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-foreground">Chips</h2>
+              <div className="flex gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[var(--success)]" /> {connectedChips} conectados</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[var(--warning)]" /> {chips.filter(c => c.status === 'warming').length} aquecendo</span>
+              </div>
+            </div>
+            {chips.length === 0 ? (
+              <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
+                Nenhum chip cadastrado —{' '}
+                <a href="/chips" className="ml-1 text-primary hover:underline">adicionar</a>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {chips.slice(0, 5).map((chip) => (
+                  <div key={chip.id} className={cn('flex items-center gap-3 rounded-lg px-3 py-2.5 border border-border', !chip.enabled && 'opacity-50')}>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted shrink-0">
+                      <Smartphone className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{chip.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{chip.phone}</p>
+                    </div>
+                    <StatusBadge status={chip.status} />
+                    <span className="text-xs text-muted-foreground shrink-0">{chip.warmCount ?? 0}×</span>
+                  </div>
+                ))}
+                {chips.length > 5 && (
+                  <a href="/chips" className="block text-center text-xs text-primary hover:underline pt-1">
+                    Ver todos ({chips.length})
+                  </a>
+                )}
+              </div>
+            )}
+          </motion.div>
+
+          {/* Activity feed */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.35 }}
+            className="rounded-xl border border-border bg-card p-5"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-foreground">Atividade recente</h2>
+              <a href="/history" className="text-xs text-primary hover:underline">Ver tudo</a>
+            </div>
+            {recentLogs.length === 0 ? (
+              <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
+                Sem atividade recente
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {recentLogs.map((log) => (
+                  <div key={log.id} className="flex items-start gap-2.5">
+                    {log.status === 'success'
+                      ? <CheckCircle className="h-4 w-4 shrink-0 text-[var(--success)] mt-0.5" />
+                      : <XCircle    className="h-4 w-4 shrink-0 text-destructive mt-0.5" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{log.chipName}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{log.phone}</p>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground shrink-0">{formatTime(log.createdAt)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
         </div>
+
+        {/* ── Stats row ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+          className="grid grid-cols-2 sm:grid-cols-4 gap-4"
+        >
+          {[
+            { label: 'Contatos',  value: contacts.length,  icon: Users,   href: '/contacts' },
+            { label: 'Clusters',  value: clusters.length,  icon: Layers,  href: '/clusters' },
+            { label: 'Envios OK', value: successLogs,      icon: CheckCircle, href: '/history' },
+            { label: 'Erros',     value: errorLogs,        icon: XCircle, href: '/history' },
+          ].map(({ label, value, icon: Icon, href }) => (
+            <a
+              key={label}
+              href={href}
+              className="rounded-xl border border-border bg-card p-4 flex items-center gap-3 hover:bg-accent/50 transition-colors"
+            >
+              <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <div>
+                <p className="text-lg font-bold text-foreground">{value}</p>
+                <p className="text-xs text-muted-foreground">{label}</p>
+              </div>
+            </a>
+          ))}
+        </motion.div>
+
       </div>
     </SidebarLayout>
   );

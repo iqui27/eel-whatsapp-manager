@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig } from '@/lib/config';
-import { createSession } from '@/lib/auth';
+import { loadConfig } from '@/lib/db-config';
+import { createSession } from '@/lib/db-auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24,
+      path: '/',
     });
 
     return response;
