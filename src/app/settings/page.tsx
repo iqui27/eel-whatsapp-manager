@@ -17,6 +17,10 @@ import {
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import SidebarLayout from '@/components/SidebarLayout';
+import {
+  SUPPORTED_CAMPAIGN_VARIABLES,
+  buildCampaignPreviewContext,
+} from '@/lib/campaign-variables';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -119,11 +123,17 @@ export default function SettingsPage() {
     candidateParty: '',
     candidateRegion: '',
   });
+  const [candidateProfileReady, setCandidateProfileReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const previewContext = buildCampaignPreviewContext({
+    candidateProfile: {
+      candidateDisplayName: settings.candidateDisplayName,
+    },
+  });
 
   useEffect(() => {
     fetch('/api/settings')
@@ -141,6 +151,7 @@ export default function SettingsPage() {
           candidateParty: data.candidateParty ?? '',
           candidateRegion: data.candidateRegion ?? '',
         });
+        setCandidateProfileReady(Boolean(data.candidateProfileReady));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -154,8 +165,13 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       });
-      if (res.ok) toast.success('Configurações salvas com sucesso');
-      else toast.error('Erro ao salvar configurações');
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setCandidateProfileReady(Boolean(data.candidateProfileReady));
+        toast.success('Configurações salvas com sucesso');
+      } else {
+        toast.error(data.error ?? 'Erro ao salvar configurações');
+      }
     } catch {
       toast.error('Erro ao salvar configurações');
     } finally {
@@ -284,13 +300,27 @@ export default function SettingsPage() {
           defaultOpen
         >
           <div className="rounded-lg border border-border bg-muted/40 px-4 py-3">
-            <p className="text-sm text-foreground">
-              O campo <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">{'{candidato}'}</code> nas campanhas
-              passa a usar o nome configurado aqui.
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Preencha pelo menos o nome exibido para habilitar a personalização real nas próximas etapas da Fase 12.
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm text-foreground">
+                  O campo <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">{'{candidato}'}</code> nas campanhas
+                  usa o nome configurado aqui.
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Este bloco é a fonte de verdade do contrato compartilhado de personalização.
+                </p>
+              </div>
+              <span
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-[11px] font-medium',
+                  candidateProfileReady
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+                    : 'border-amber-500/30 bg-amber-500/10 text-amber-700',
+                )}
+              >
+                {candidateProfileReady ? 'Perfil pronto' : 'Perfil pendente'}
+              </span>
+            </div>
           </div>
 
           <Field
@@ -346,6 +376,30 @@ export default function SettingsPage() {
               className={inputCls}
             />
           </Field>
+
+          <div className="rounded-lg border border-dashed border-border bg-background px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Contrato atual de variáveis
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {SUPPORTED_CAMPAIGN_VARIABLES.map((variable) => (
+                <div
+                  key={variable.key}
+                  className="rounded-md border border-border bg-muted/40 px-2.5 py-2 text-xs"
+                >
+                  <div className="font-mono text-foreground">{variable.key}</div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {variable.label} · {variable.source}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Preview atual do <code className="rounded bg-muted px-1 py-0.5 font-mono">{'{candidato}'}</code>:
+              {' '}
+              <span className="font-medium text-foreground">{previewContext['{candidato}']}</span>
+            </p>
+          </div>
         </Section>
 
         <Section

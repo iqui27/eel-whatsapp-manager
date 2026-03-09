@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isCandidateProfileConfigured } from '@/lib/campaign-variables';
 import { loadConfig, normalizeCandidateProfile, saveConfig, validateConfig } from '@/lib/db-config';
 import { validateSession } from '@/lib/db-auth';
 import { testConnection } from '@/lib/evolution';
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
   const { authPassword: _, ...rest } = config;
   return NextResponse.json({
     ...rest,
+    candidateProfileReady: isCandidateProfileConfigured(config),
     evolutionApiKey: maskApiKey(config.evolutionApiKey),
   });
 }
@@ -58,7 +60,7 @@ export async function PUT(request: NextRequest) {
     // If the client sends back the masked placeholder, keep the original key
     const isMasked = (key: string) => key.includes('***');
 
-    await saveConfig({
+    const savedConfig = await saveConfig({
       evolutionApiUrl: body.evolutionApiUrl ?? config.evolutionApiUrl,
       evolutionApiKey: (body.evolutionApiKey && !isMasked(body.evolutionApiKey))
         ? body.evolutionApiKey
@@ -71,7 +73,10 @@ export async function PUT(request: NextRequest) {
       authPassword: config.authPassword,
       lastCronRun: config.lastCronRun,
     });
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      candidateProfileReady: isCandidateProfileConfigured(savedConfig),
+    });
   } catch (error) {
     console.error('Settings update error:', error);
     return NextResponse.json({ error: 'Erro ao salvar configurações' }, { status: 500 });
