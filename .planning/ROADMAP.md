@@ -19,7 +19,8 @@
 | 08 | Reports + Polish | P2 | 04, 06 | TBD |
 | 09 | Real Data + Integrations | P0 | 03, 04, 05, 06 | 9/9 complete |
 | 10 | Real-Time Chat via SSE | P1 | 06, 09 | 3/3 complete |
-| 11 | Full-System Verification + UAT Sweep | P0 | 10 | 1/3 complete |
+| 11 | Full-System Verification + UAT Sweep | P0 | 10 | 3/3 complete |
+| 12 | Campaign Personalization Completion | P0 | 04, 09, 11 | 3 plans |
 
 ---
 
@@ -236,6 +237,25 @@ Plans:
 - QA-06: Governance surfaces (`compliance`, `admin`, `relatorios`) work with real authenticated data, including exports and destructive-action safeguards.
 - QA-07: Cross-cutting quality checks pass on the shipped product: empty states, deep links, API auth failures, responsive smoke, and obvious regression paths.
 - QA-08: Phase output includes a durable verification ledger with PASS/FAIL/BLOCKED evidence plus a routed gap list for anything that fails.
+
+### Phase 12: Campaign Personalization Completion
+
+**Status:** Planned
+**Goal:** Close the remaining campaign-editor personalization gaps so candidate configuration, variable insertion, preview rendering, draft persistence, scheduling, and outbound delivery all use one consistent contract.
+**Requirements:** [PERS-01, PERS-02, PERS-03, PERS-04, PERS-05]
+**Depends on:** Phase 04, Phase 09, Phase 11
+**Plans:** 3 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Candidate profile + shared variable contract foundation
+- [ ] 12-02-PLAN.md — Campaign editor, preview, and draft/edit validation alignment
+- [ ] 12-03-PLAN.md — Delivery-time interpolation parity + end-to-end campaign hardening
+
+- PERS-01: Settings must expose a real candidate profile source of truth so operators can configure the candidate information used by campaign personalization.
+- PERS-02: Campaign variable chips, preview substitutions, and saved campaign metadata must come from one shared registry instead of page-local mocks.
+- PERS-03: The outbound send pipeline must resolve the same supported variables shown in the editor, including `{candidato}` and `{data}`, with explicit semantics for scheduled vs immediate sends.
+- PERS-04: Campaign create/edit/schedule flows must validate unsupported or unconfigured placeholders before save/send and persist the variables actually referenced by the template.
+- PERS-05: Manual verification must prove there is no preview/send mismatch and no raw personalization placeholders leak into delivered messages.
 
 ---
 

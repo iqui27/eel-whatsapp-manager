@@ -2,34 +2,34 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 11
-current_phase_name: full-system verification + uat sweep
-current_plan: 3
-status: completed
-stopped_at: Completed 11-03-PLAN.md
-last_updated: "2026-03-08T03:16:00Z"
-last_activity: 2026-03-08
+current_phase: 12
+current_phase_name: campaign personalization completion
+current_plan: 1
+status: planned
+stopped_at: Planned 12-03-PLAN.md
+last_updated: "2026-03-09T14:58:50Z"
+last_activity: 2026-03-09
 progress:
-  total_phases: 11
+  total_phases: 12
   completed_phases: 11
-  total_plans: 31
+  total_plans: 34
   completed_plans: 31
-  percent: 100
+  percent: 91
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 11
-**Current Phase Name:** full-system verification + uat sweep
-**Current Plan:** 3
-**Total Phases:** 11
+**Current Phase:** 12
+**Current Phase Name:** campaign personalization completion
+**Current Plan:** 1
+**Total Phases:** 12
 **Total Plans in Phase:** 3
-**Status:** Phase 11 complete — verification finished, release blocked by routed gaps
-**Progress:** [██████████] 100%
-**Last Activity:** 2026-03-08
-**Last Activity Description:** Completed 11-03 with realtime/governance/reporting verification, final release verdict, and cleanup of temporary Phase 11 records from the target database
-**Stopped At:** Completed 11-03-PLAN.md
+**Status:** Phase 12 planned — campaign editor personalization gaps are queued for implementation
+**Progress:** [█████████░] 91%
+**Last Activity:** 2026-03-09
+**Last Activity Description:** Planned Phase 12 to close the remaining candidate-config and campaign-variable integrity gaps discovered during production UAT
+**Stopped At:** Planned 12-03-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -53,9 +53,14 @@ progress:
 - Plan 11-02 complete: import/segmentation/CRM validated on current HEAD; campaign lifecycle blocked by target-database schema drift and production deploy parity gaps
 - Plan 11-03 complete: realtime/governance/reporting verification finished with a release-blocked verdict and explicit gap routing
 
-Progress: [██████████] 100%
+**Phase 12 (Campaign Personalization Completion) — PLANNED** ⏳
+- Plan 12-01 will add a real candidate profile source of truth plus a shared campaign-variable contract
+- Plan 12-02 will align `/campanhas/nova` and `/campanhas/[id]/editar` with the shared variable registry, preview resolver, and save-time validation
+- Plan 12-03 will make manual/scheduled send interpolation match the editor exactly and close the UAT gap on campaign personalization
 
-Last session: 2026-03-08T02:32:07Z
+Progress: [█████████░] 91%
+
+Last session: 2026-03-09T14:58:50Z
 
 ## Project History
 
@@ -174,13 +179,14 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
   - Origin: deferred post-Phase 09 work to replace polling in chat surfaces with real-time transport.
 - Phase 11 added: Full-System Verification + UAT Sweep
   - Origin: user requested a complete test plan to verify every shipped functionality before release preparation.
+- Phase 12 added: Campaign Personalization Completion
+  - Origin: post-deploy UAT on the campaign editor showed that candidate data has no real configuration source and the variable contract diverges between editor preview and outbound delivery.
 
 ## Blockers
-- Target Supabase database is missing `campaigns.chip_id` and `conversations.chip_id`.
-- Production deploy is behind current roadmap-critical routes (`/api/voters`, segment preview, `/api/segments/from-voter`).
-- Current-head `/compliance` crashes on voter payload shape mismatch.
-- `/relatorios` still has React runtime/hydration failures.
-- `/api/warming` is still mutating on authenticated `GET`.
+- There is no candidate profile source of truth in `config`, so `{candidato}` has no real configured value.
+- The campaign editor exposes `{candidato}` and `{data}` while the delivery resolver only handles voter-backed fields, causing preview/send drift.
+- The UI hides supported backend variables like `{zona}` and `{secao}`, so operators cannot trust the variable toolbar as the canonical contract.
+- Campaign create/edit flows do not persist/expose validated variable metadata or block unsupported placeholders before scheduling and sending.
 
 ## Key Files (Current)
 ```
@@ -238,16 +244,15 @@ src/components/
 | Phase 09-real-data P07 | 7 min | 2 tasks | 4 files |
 
 ## Next Actions
-Phase 11 is complete. The next correct step is explicit gap-closure planning before any milestone wrap-up or release claim.
+Phase 11 is complete and its routed blockers were already closed. The next correct step is executing Phase 12 before any final milestone wrap-up or release claim.
 
-**Immediate gap work to plan/execute:**
-- Apply the missing DB migration for `campaigns.chip_id` and `conversations.chip_id`.
-- Redeploy the intended build so production matches current roadmap-critical routes.
-- Fix `/compliance` to consume paginated voter responses.
-- Fix `/relatorios` hydration/runtime issues and rerun report verification.
-- Harden `/api/warming` so read-safe verification no longer triggers live warming actions.
+**Immediate work to execute:**
+- Add candidate profile fields to settings/config and expose them in the operator UI.
+- Centralize campaign variable definitions, extraction, preview substitutions, and runtime resolution.
+- Align draft/edit/schedule/send flows so unsupported placeholders cannot leak into production messages.
+- Re-run focused UAT on `/campanhas/nova`, `/campanhas/[id]/editar`, `/campanhas/[id]/agendar`, and manual/scheduled send flows.
 
-**Deferred (post-Phase 10):**
+**Deferred after Phase 12:**
 - DB-level permission enforcement in API routes
 - Mobile offline capture form (MOB-01/MOB-02)
 - Email scheduled report delivery (REP-02 partial)
