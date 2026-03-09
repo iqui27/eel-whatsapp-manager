@@ -17,6 +17,7 @@
 | 06 | HITL Conversations + CRM | P1 | 02, 05 | TBD |
 | 07 | Compliance + Admin | P2 | 02 | TBD |
 | 08 | Reports + Polish | P2 | 04, 06 | TBD |
+| 09 | Deploy Automation | — | — | 2 plans |
 
 ---
 
@@ -146,6 +147,24 @@ Plans:
 - POL-01: Final responsive pass, accessibility audit, performance optimization
 
 **Plans:** TBD
+
+---
+
+### Phase 09: Deploy Automation
+**Status:** Not started
+**Goal:** Automated CI/CD pipeline — push to main triggers GitHub Actions → SSH deploy to Contabo production server with zero-downtime safety and instant rollback
+
+**Requirements:** [DEPLOY-01, DEPLOY-02, DEPLOY-03, DEPLOY-04]
+
+- DEPLOY-01: GitHub Actions workflow triggered on push to main (`.github/workflows/deploy.yml`)
+- DEPLOY-02: Server-side deploy script with zero-downtime safety (build failure ≠ restart)
+- DEPLOY-03: Instant rollback script to restore previous working build
+- DEPLOY-04: End-to-end verification — push to main auto-deploys and zap.iqui27.app serves latest code
+
+**Plans:** 2 plans
+Plans:
+- [ ] 09-01-PLAN.md — GitHub Actions workflow + deploy/rollback scripts
+- [ ] 09-02-PLAN.md — Setup verification + end-to-end deploy test
 
 ---
 
