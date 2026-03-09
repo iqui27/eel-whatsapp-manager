@@ -1,0 +1,58 @@
+# =============================================================================
+# EEL — Auto Deploy to Production (Contabo)
+# =============================================================================
+# Triggers on every push to main. Connects via SSH to the Contabo server
+# and runs the deploy script which pulls, builds, and restarts PM2.
+#
+# Required GitHub Secrets (Settings → Secrets and variables → Actions):
+#   CONTABO_HOST     → 193.187.129.114
+#   CONTABO_USER     → root
+#   CONTABO_SSH_KEY  → Private SSH key content (from Bitwarden "Contabo Pessoal")
+#
+# Manual trigger: Go to Actions tab → "Deploy to Production" → Run workflow
+# =============================================================================
+
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Prevent overlapping deploys — queue, don't cancel
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Contabo
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout (for workflow context)
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          port: 22
+          command_timeout: 10m
+          script: |
+            /opt/zap-app/scripts/deploy.sh
+
+      - name: Deploy succeeded
+        if: success()
+        run: echo "✅ Deploy completed successfully — https://zap.iqui27.app"
+
+      - name: Deploy failed
+        if: failure()
+        run: |
+          echo "❌ Deploy FAILED"
+          echo "Check the SSH step logs above for details."
+          echo "The running app was NOT restarted (zero-downtime safety)."
+          echo "To rollback: ssh root@193.187.129.114 '/opt/zap-app/scripts/rollback.sh'"
