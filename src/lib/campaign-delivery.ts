@@ -3,6 +3,12 @@ import { chips, voters, type Campaign, type Voter } from '@/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { addCampaignDeliveryEvent, getCampaign, updateCampaign } from '@/lib/db-campaigns';
 import { loadConfig } from '@/lib/db-config';
+import {
+  buildCampaignRuntimeContext,
+  getTemplateValidationMessage,
+  resolveCampaignTemplate,
+  validateCampaignTemplates,
+} from '@/lib/campaign-variables';
 import { getSegmentVoterIds } from '@/lib/db-segments';
 import { sendText } from '@/lib/evolution';
 
@@ -35,14 +41,29 @@ function normalizePhone(phone: string | null | undefined) {
   return phone?.replace(/\D/g, '') ?? '';
 }
 
-function templateMessage(template: string, voter: Voter): string {
-  const interesse = voter.tags?.[0] ?? '';
-  return template
-    .replaceAll('{nome}', voter.name ?? '')
-    .replaceAll('{bairro}', voter.neighborhood ?? '')
-    .replaceAll('{zona}', voter.zone ?? '')
-    .replaceAll('{secao}', voter.section ?? '')
-    .replaceAll('{interesse}', interesse);
+function resolveExecutionDate(campaign: Campaign, skipScheduleGuard: boolean) {
+  if (skipScheduleGuard && campaign.scheduledAt) {
+    return campaign.scheduledAt;
+  }
+
+  return new Date();
+}
+
+function resolveRuntimeTemplate(
+  template: string,
+  voter: Voter,
+  candidateProfile: NonNullable<Awaited<ReturnType<typeof loadConfig>>>,
+  executionDate: Date,
+) {
+  return resolveCampaignTemplate(
+    template,
+    buildCampaignRuntimeContext({
+      candidateProfile,
+      voter,
+      scheduledAt: executionDate,
+      now: executionDate,
+    }),
+  );
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -133,6 +154,22 @@ export async function executeCampaignSend({
 
   const audience = segmentVoters.length;
   const activeChipId = selectedChip?.id ?? campaign.chipId ?? null;
+  const executionDate = resolveExecutionDate(campaign, skipScheduleGuard);
+  const validation = validateCampaignTemplates(
+    [
+      campaign.template,
+      campaign.abEnabled ? campaign.abVariantB ?? '' : '',
+    ],
+    {
+      candidateProfile: config,
+      hasVoterData: true,
+    },
+  );
+  const validationMessage = getTemplateValidationMessage(validation);
+
+  if (validationMessage) {
+    throw createDeliveryError(validationMessage, 400);
+  }
 
   await updateCampaign(campaignId, {
     status: 'sending',
@@ -152,6 +189,7 @@ export async function executeCampaignSend({
       audience,
       chipName: selectedChip?.name ?? null,
       chipInstanceName,
+      executionDate: executionDate.toISOString(),
     },
   });
 
@@ -161,7 +199,7 @@ export async function executeCampaignSend({
   try {
     for (const voter of segmentVoters) {
       const phone = normalizePhone(voter.phone);
-      const text = templateMessage(campaign.template, voter);
+      const text = resolveRuntimeTemplate(campaign.template, voter, config, executionDate);
 
       if (!phone) {
         failed += 1;
@@ -271,7 +309,7 @@ export async function executeCampaignSend({
     };
   } catch (error) {
     await updateCampaign(campaignId, {
-      status: 'cancelled',
+      status: skipScheduleGuard ? 'paused' : 'cancelled',
       totalSent: audience,
       totalDelivered: delivered,
       totalFailed: failed,

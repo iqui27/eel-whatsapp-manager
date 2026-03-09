@@ -3,6 +3,7 @@ import {
   addCampaignDeliveryEvent,
   claimScheduledCampaign,
   getDueScheduledCampaigns,
+  updateCampaign,
 } from '@/lib/db-campaigns';
 import { executeCampaignSend } from '@/lib/campaign-delivery';
 
@@ -49,6 +50,18 @@ export async function GET(request: NextRequest) {
       results.push(result);
     } catch (error) {
       failed += 1;
+      await updateCampaign(claimedCampaign.id, {
+        status: 'paused',
+      });
+      await addCampaignDeliveryEvent({
+        campaignId: claimedCampaign.id,
+        chipId: claimedCampaign.chipId ?? null,
+        eventType: 'send_failed',
+        message: 'Agendamento pausado por erro antes do envio',
+        metadata: {
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
       results.push({
         campaignId: claimedCampaign.id,
         error: error instanceof Error ? error.message : String(error),
