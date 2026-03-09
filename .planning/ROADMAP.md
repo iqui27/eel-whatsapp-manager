@@ -20,7 +20,7 @@
 | 09 | Real Data + Integrations | P0 | 03, 04, 05, 06 | 9/9 complete |
 | 10 | Real-Time Chat via SSE | P1 | 06, 09 | 3/3 complete |
 | 11 | Full-System Verification + UAT Sweep | P0 | 10 | 3/3 complete |
-| 12 | Campaign Personalization Completion | P0 | 04, 09, 11 | 3 plans |
+| 12 | Campaign Personalization Completion | P0 | 04, 09, 11 | 1/3 complete |
 
 ---
 
@@ -240,14 +240,14 @@ Plans:
 
 ### Phase 12: Campaign Personalization Completion
 
-**Status:** Planned
+**Status:** In Progress
 **Goal:** Close the remaining campaign-editor personalization gaps so candidate configuration, variable insertion, preview rendering, draft persistence, scheduling, and outbound delivery all use one consistent contract.
 **Requirements:** [PERS-01, PERS-02, PERS-03, PERS-04, PERS-05]
 **Depends on:** Phase 04, Phase 09, Phase 11
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 12-01-PLAN.md — Candidate profile + shared variable contract foundation
+- [x] 12-01-PLAN.md — Candidate profile + shared variable contract foundation
 - [ ] 12-02-PLAN.md — Campaign editor, preview, and draft/edit validation alignment
 - [ ] 12-03-PLAN.md — Delivery-time interpolation parity + end-to-end campaign hardening
 

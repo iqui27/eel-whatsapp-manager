@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 12
 current_phase_name: campaign personalization completion
-current_plan: 1
-status: planned
-stopped_at: Planned 12-03-PLAN.md
-last_updated: "2026-03-09T14:58:50Z"
+current_plan: 2
+status: executing
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-03-09T15:17:29.985Z"
 last_activity: 2026-03-09
 progress:
   total_phases: 12
   completed_phases: 11
   total_plans: 34
-  completed_plans: 31
-  percent: 91
+  completed_plans: 32
+  percent: 94
 ---
 
 # EEL Eleicao — Project State
@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 12
 **Current Phase Name:** campaign personalization completion
-**Current Plan:** 1
+**Current Plan:** 2
 **Total Phases:** 12
 **Total Plans in Phase:** 3
-**Status:** Phase 12 planned — campaign editor personalization gaps are queued for implementation
-**Progress:** [█████████░] 91%
+**Status:** Ready to execute
+**Progress:** [█████████░] 94%
 **Last Activity:** 2026-03-09
-**Last Activity Description:** Planned Phase 12 to close the remaining candidate-config and campaign-variable integrity gaps discovered during production UAT
-**Stopped At:** Planned 12-03-PLAN.md
+**Last Activity Description:** Completed Plan 12-01 with persisted candidate profile settings plus the shared campaign variable registry foundation
+**Stopped At:** Completed 12-01-PLAN.md
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -53,14 +53,14 @@ progress:
 - Plan 11-02 complete: import/segmentation/CRM validated on current HEAD; campaign lifecycle blocked by target-database schema drift and production deploy parity gaps
 - Plan 11-03 complete: realtime/governance/reporting verification finished with a release-blocked verdict and explicit gap routing
 
-**Phase 12 (Campaign Personalization Completion) — PLANNED** ⏳
-- Plan 12-01 will add a real candidate profile source of truth plus a shared campaign-variable contract
+**Phase 12 (Campaign Personalization Completion) — IN PROGRESS** ⏳
+- Plan 12-01 complete: persisted candidate profile settings plus the shared campaign-variable contract foundation
 - Plan 12-02 will align `/campanhas/nova` and `/campanhas/[id]/editar` with the shared variable registry, preview resolver, and save-time validation
 - Plan 12-03 will make manual/scheduled send interpolation match the editor exactly and close the UAT gap on campaign personalization
 
-Progress: [█████████░] 91%
+Progress: [█████████░] 94%
 
-Last session: 2026-03-09T14:58:50Z
+Last session: 2026-03-09T15:17:29.974Z
 
 ## Project History
 
@@ -171,6 +171,8 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 11]: `/api/warming` is stateful on authenticated GET and cannot be treated as a read-safe baseline endpoint.
 - [Phase 11]: Release readiness is blocked by three independent layers of drift: target DB schema, production deploy parity, and current-head UI/runtime regressions.
 - [Phase 11]: `/compliance` now expects paginated voter data handling, and `/relatorios` needs a hydration-safe SVG title before release sign-off.
+- [Phase 12-campaign-personalization-completion]: Candidate identity stays in the existing config/settings flow instead of introducing a parallel model.
+- [Phase 12-campaign-personalization-completion]: Campaign placeholder metadata, extraction, validation, and preview/runtime builders now live in one shared module.
 
 ## Accumulated Context
 
@@ -183,10 +185,9 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
   - Origin: post-deploy UAT on the campaign editor showed that candidate data has no real configuration source and the variable contract diverges between editor preview and outbound delivery.
 
 ## Blockers
-- There is no candidate profile source of truth in `config`, so `{candidato}` has no real configured value.
-- The campaign editor exposes `{candidato}` and `{data}` while the delivery resolver only handles voter-backed fields, causing preview/send drift.
-- The UI hides supported backend variables like `{zona}` and `{secao}`, so operators cannot trust the variable toolbar as the canonical contract.
-- Campaign create/edit flows do not persist/expose validated variable metadata or block unsupported placeholders before scheduling and sending.
+- Campaign create/edit flows still use page-local variable arrays instead of the new shared registry, so preview and authoring are not yet aligned.
+- Delivery-time interpolation still resolves only voter-backed placeholders, so `{candidato}` and `{data}` remain a send-time gap for Plan 12-03.
+- Campaign save/edit flows do not yet persist validated variable metadata or block unsupported placeholders before scheduling and sending.
 
 ## Key Files (Current)
 ```
@@ -242,15 +243,16 @@ src/components/
 | Phase 09-real-data P03 | 7 min | 2 tasks | 3 files |
 | Phase 09-real-data P06 | 12 min | 2 tasks | 4 files |
 | Phase 09-real-data P07 | 7 min | 2 tasks | 4 files |
+| Phase 12-campaign-personalization-completion P01 | 4 min | 2 tasks | 6 files |
 
 ## Next Actions
-Phase 11 is complete and its routed blockers were already closed. The next correct step is executing Phase 12 before any final milestone wrap-up or release claim.
+Plan 12-01 is complete. The next correct step is executing Plan 12-02 to replace campaign-editor local variable mocks with the shared registry and validation helpers.
 
 **Immediate work to execute:**
-- Add candidate profile fields to settings/config and expose them in the operator UI.
-- Centralize campaign variable definitions, extraction, preview substitutions, and runtime resolution.
-- Align draft/edit/schedule/send flows so unsupported placeholders cannot leak into production messages.
-- Re-run focused UAT on `/campanhas/nova`, `/campanhas/[id]/editar`, `/campanhas/[id]/agendar`, and manual/scheduled send flows.
+- Replace campaign-editor local variable arrays with the shared registry from `src/lib/campaign-variables.ts`.
+- Align `/campanhas/nova` and `/campanhas/[id]/editar` preview rendering and save-time validation with the shared contract.
+- Persist the actual placeholders used by campaign templates and block unsupported placeholders before scheduling or sending.
+- Re-run focused UAT on `/campanhas/nova`, `/campanhas/[id]/editar`, `/campanhas/[id]/agendar`, and manual/scheduled send flows after Plans 12-02 and 12-03.
 
 **Deferred after Phase 12:**
 - DB-level permission enforcement in API routes
