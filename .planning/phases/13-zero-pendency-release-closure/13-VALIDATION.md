@@ -1,9 +1,9 @@
 ---
 phase: 13
 slug: zero-pendency-release-closure
-status: draft
+status: complete
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-03-09
 ---
 
@@ -38,16 +38,16 @@ created: 2026-03-09
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 13-01-01 | 01 | 1 | CLOSE-01 | build + manual | `node_modules/.bin/tsc --noEmit` | ✅ | ⬜ pending |
-| 13-01-02 | 01 | 1 | CLOSE-02 | build + manual | `npm run build` | ✅ | ⬜ pending |
-| 13-02-01 | 02 | 1 | SEC-01 | API smoke + build | `node_modules/.bin/tsc --noEmit` | ✅ | ⬜ pending |
-| 13-02-02 | 02 | 1 | SEC-02 | UI/authz + build | `npm run build` | ✅ | ⬜ pending |
-| 13-03-01 | 03 | 2 | CRM-01, MOB-01 | persistence/mobile + build | `node_modules/.bin/tsc --noEmit` | ✅ | ⬜ pending |
-| 13-03-02 | 03 | 2 | MOB-02 | mobile workflow + build | `npm run build` | ✅ | ⬜ pending |
-| 13-04-01 | 04 | 3 | REP-02 | export/cron + build | `node_modules/.bin/tsc --noEmit` | ✅ | ⬜ pending |
-| 13-04-02 | 04 | 3 | REP-02 | report scheduling UAT | `npm run build` | ✅ | ⬜ pending |
-| 13-05-01 | 05 | 4 | REL-01 | deploy parity + live smoke | `node_modules/.bin/tsc --noEmit` | ✅ | ⬜ pending |
-| 13-05-02 | 05 | 4 | REL-02 | final zero-pendency verdict | `npm run build` | ✅ | ⬜ pending |
+| 13-01-01 | 01 | 1 | CLOSE-01 | build + manual | `node_modules/.bin/tsc --noEmit` | ✅ | ✅ green |
+| 13-01-02 | 01 | 1 | CLOSE-02 | build + manual | `npm run build` | ✅ | ✅ green |
+| 13-02-01 | 02 | 1 | SEC-01 | API smoke + build | `node_modules/.bin/tsc --noEmit` | ✅ | ✅ green |
+| 13-02-02 | 02 | 1 | SEC-02 | UI/authz + build | `npm run build` | ✅ | ✅ green |
+| 13-03-01 | 03 | 2 | CRM-01, MOB-01 | persistence/mobile + build | `node_modules/.bin/tsc --noEmit` | ✅ | ✅ green |
+| 13-03-02 | 03 | 2 | MOB-02 | mobile workflow + build | `npm run build` | ✅ | ✅ green |
+| 13-04-01 | 04 | 3 | REP-02 | export/cron + build | `node_modules/.bin/tsc --noEmit` | ✅ | ✅ green |
+| 13-04-02 | 04 | 3 | REP-02 | report scheduling UAT | `npm run build` | ✅ | ✅ green |
+| 13-05-01 | 05 | 4 | REL-01 | deploy parity + live smoke | `node_modules/.bin/tsc --noEmit` | ✅ | ✅ green |
+| 13-05-02 | 05 | 4 | REL-02 | final zero-pendency verdict | `npm run build` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky · ⛔ blocked*
 
@@ -89,4 +89,4 @@ If a prerequisite is missing, the affected verification must be marked `⛔ bloc
 - [x] No watch-mode flags
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** complete

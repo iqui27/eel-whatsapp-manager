@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 13
 current_phase_name: zero-pendency release closure
-current_plan: 1
-status: planned
-stopped_at: Phase 13 planned; ready to execute 13-01-PLAN.md
-last_updated: "2026-03-09T16:05:00.000Z"
+current_plan: 5
+status: completed
+stopped_at: Phase 13 complete; production parity restored and live zero-pendency verification passed on zap.iqui27.app
+last_updated: "2026-03-09T20:05:00.000Z"
 last_activity: 2026-03-09
 progress:
   total_phases: 13
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 39
-  completed_plans: 34
-  percent: 87
+  completed_plans: 39
+  percent: 100
 ---
 
 # EEL Eleicao — Project State
@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 13
 **Current Phase Name:** zero-pendency release closure
-**Current Plan:** 1
+**Current Plan:** 5
 **Total Phases:** 13
 **Total Plans in Phase:** 5
-**Status:** Ready to execute
-**Progress:** [████████▓░] 87%
+**Status:** Complete
+**Progress:** [██████████] 100%
 **Last Activity:** 2026-03-09
-**Last Activity Description:** Planned Phase 13 to close the remaining shell, authz, CRM/mobile, report automation, and live release gaps
-**Stopped At:** Phase 13 planned; ready to execute 13-01-PLAN.md
+**Last Activity Description:** Deployed the final Phase 13 build to production, completed live UAT across shell/authz/CRM/mobile/reports, and closed the milestone with a zero-pendency verdict
+**Stopped At:** Phase 13 complete; production parity restored and live zero-pendency verification passed on zap.iqui27.app
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -58,23 +58,23 @@ progress:
 - Plan 12-02 complete: create/edit/schedule flows now share the same variable registry, preview semantics, validation, and persisted variable metadata
 - Plan 12-03 complete: manual and scheduled delivery now resolve the same personalization contract as the editor and block invalid templates pre-send
 
-**Phase 13 (Zero-Pendency Release Closure) — PLANNED** 📝
-- Plan 13-01 will close shell/setup/dashboard contract drift
-- Plan 13-02 will implement real API/UI authorization and role enforcement
-- Plan 13-03 will persist CRM notes/checklists and add the missing mobile operator workflows
-- Plan 13-04 will finish report automation with PDF/export scheduling
-- Plan 13-05 will deploy the intended build and end with a live zero-pendency sign-off
+**Phase 13 (Zero-Pendency Release Closure) — COMPLETE** ✅
+- Plan 13-01 complete: shell/setup/dashboard no longer ship demo-only contracts or misleading configured-state behavior
+- Plan 13-02 complete: sessions, roles, permissions, and protected APIs now enforce real authorization and `401`/`403` boundaries
+- Plan 13-03 complete: CRM notes/checklists persist server-side and the mobile capture/inbox workflows shipped
+- Plan 13-04 complete: reports now support CSV/PDF export, persisted schedules, dispatch history, and scheduled delivery flow
+- Plan 13-05 complete: production was redeployed to the intended head and live UAT passed across protected pages, authz, CRM persistence, and scheduled report dispatch
 
-Progress: [████████▓░] 87%
+Progress: [██████████] 100%
 
-Last session: 2026-03-09T16:05:00.000Z
+Last session: 2026-03-09T20:05:00.000Z
 
 ## Project History
 
 ### EEL v1 (Chip Warming Manager) — COMPLETE
 All 6 original phases shipped and deployed to `zap.iqui27.app`.
 
-### EEL Eleicao (Electoral Campaign Dashboard) — IN PROGRESS
+### EEL Eleicao (Electoral Campaign Dashboard) — COMPLETE
 Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap created.
 
 **Phase 01 — V2 Shell — COMPLETE** ✅
@@ -120,6 +120,22 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Wave 1: Plan 10-01 — authenticated SSE backend foundation complete ✅
 - Wave 2: Plan 10-02 — `/conversas` EventSource migration complete ✅
 - Wave 3: Plan 10-03 — dashboard queue panel realtime adoption complete ✅
+
+**Phase 11 — Full-System Verification + UAT Sweep — COMPLETE** ✅
+- Wave 1: Plan 11-01 — baseline auth/setup/settings/operational verification complete ✅
+- Wave 2: Plan 11-02 — electoral-core UAT and blocker routing complete ✅
+- Wave 3: Plan 11-03 — realtime/governance/reporting verdict and evidence ledger complete ✅
+
+**Phase 12 — Campaign Personalization Completion — COMPLETE** ✅
+- Wave 1: Plan 12-01 — candidate profile and shared variable contract foundation complete ✅
+- Wave 2: Plan 12-02 — campaign authoring alignment complete ✅
+- Wave 3: Plan 12-03 — delivery/runtime personalization parity complete ✅
+
+**Phase 13 — Zero-Pendency Release Closure — COMPLETE** ✅
+- Wave 1: Plans 13-01 and 13-02 — shell contract cleanup plus real authz/session enforcement complete ✅
+- Wave 2: Plan 13-03 — CRM persistence plus mobile operator workflows complete ✅
+- Wave 3: Plan 13-04 — report export/scheduling automation complete ✅
+- Wave 4: Plan 13-05 — production deploy, cron hardening, and zero-pendency live sign-off complete ✅
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -198,11 +214,7 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
   - Origin: user requested a plan to close every remaining page/feature gap and leave the milestone with no unresolved pending items.
 
 ## Blockers
-- Shell/setup/dashboard still contain demo/MVP contract drift (`topbar`, configured `/setup`, estimated dashboard KPI wording).
-- Protected APIs still enforce authentication broadly, but authorization/permission/region scope are not finished.
-- CRM notes/checklist remain local-only and the promised mobile offline/prioritized operator workflows are still absent.
-- Report automation remains partial: scheduled email delivery is still deferred.
-- Final production deploy parity and live zero-pendency UAT are still open.
+- None. Phase 13 closed the remaining milestone gaps and the final production-backed sweep ended green.
 
 ## Key Files (Current)
 ```
@@ -263,14 +275,4 @@ src/components/
 | Phase 12-campaign-personalization-completion P03 | 2 min | 2 tasks | 2 files |
 
 ## Next Actions
-Phase 13 is planned. The next correct step is executing Plan 13-01 to close shell/setup/dashboard contract drift before deeper authz/mobile/reporting work.
-
-**Immediate work to execute:**
-- Execute 13-01: topbar/setup/dashboard closure.
-- Execute 13-02 in parallel or immediately after: authorization enforcement + real permissions.
-- Then execute 13-03 and 13-04 before the final deploy/UAT closure in 13-05.
-
-**Planned inside Phase 13:**
-- DB-level permission enforcement in API routes
-- Mobile offline capture form (MOB-01/MOB-02)
-- Email scheduled report delivery (REP-02 partial)
+Phase 13 is complete. The next correct step is milestone wrap-up, branch merge, and release housekeeping rather than new gap work inside this milestone.

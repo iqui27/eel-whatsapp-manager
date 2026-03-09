@@ -260,18 +260,18 @@ Plans:
 
 ### Phase 13: Zero-Pendency Release Closure
 
-**Status:** Planned
+**Status:** Complete
 **Goal:** Close the remaining shell, authorization, CRM/mobile, reporting-automation, and production-parity gaps so the current milestone can finish with no unresolved pending items.
 **Requirements:** [CLOSE-01, CLOSE-02, SEC-01, SEC-02, CRM-01, MOB-01, MOB-02, REP-02, REL-01, REL-02]
 **Depends on:** Phase 11, Phase 12
-**Plans:** 5 plans
+**Plans:** 5/5 plans executed
 
 Plans:
-- [ ] 13-01-PLAN.md — Shell/setup/dashboard contract cleanup
-- [ ] 13-02-PLAN.md — Authorization enforcement + real permissions contract
-- [ ] 13-03-PLAN.md — CRM persistence + mobile operator workflows
-- [ ] 13-04-PLAN.md — Report automation completion (PDF + scheduled email)
-- [ ] 13-05-PLAN.md — Production deploy + zero-pendency live sign-off
+- [x] 13-01-PLAN.md — Shell/setup/dashboard contract cleanup
+- [x] 13-02-PLAN.md — Authorization enforcement + real permissions contract
+- [x] 13-03-PLAN.md — CRM persistence + mobile operator workflows
+- [x] 13-04-PLAN.md — Report automation completion (PDF + scheduled email)
+- [x] 13-05-PLAN.md — Production deploy + zero-pendency live sign-off
 
 - CLOSE-01: The configured app shell must not expose demo-only topbar controls or setup dead ends that imply unsupported behavior.
 - CLOSE-02: Dashboard/operator KPIs must either be sourced from real data or intentionally reduced when the product cannot support them.
