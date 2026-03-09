@@ -19,12 +19,13 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { calculateCtaScore, scoreBg } from '@/lib/cta-score';
-import type { Segment, Campaign, Chip } from '@/db/schema';
+import type { Config, Segment, Campaign, Chip } from '@/db';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
   ArrowLeft,
   ArrowRight,
+  AlertTriangle,
   Save,
   Check,
   X,
@@ -32,26 +33,34 @@ import {
   Smartphone,
   FlaskConical,
 } from 'lucide-react';
-
-// ─── Variable definitions ─────────────────────────────────────────────────────
-
-const VARIABLES = [
-  { key: '{nome}',      label: 'Nome',      preview: 'João' },
-  { key: '{bairro}',   label: 'Bairro',    preview: 'Centro' },
-  { key: '{interesse}',label: 'Interesse', preview: 'Saúde' },
-  { key: '{data}',     label: 'Data',      preview: new Date().toLocaleDateString('pt-BR') },
-  { key: '{candidato}',label: 'Candidato', preview: 'Dr. Silva' },
-];
+import {
+  buildCampaignPreviewContext,
+  getTemplateValidationMessage,
+  isCandidateProfileConfigured,
+  resolveCampaignTemplate,
+  SUPPORTED_CAMPAIGN_VARIABLES,
+  type CampaignVariableKey,
+  type CandidateProfileContext,
+  validateCampaignTemplates,
+} from '@/lib/campaign-variables';
 
 // ─── WhatsApp Preview ─────────────────────────────────────────────────────────
 
-function WhatsAppPreview({ message }: { message: string }) {
-  // Replace variables with preview values
-  let preview = message;
-  for (const v of VARIABLES) {
-    preview = preview.replaceAll(v.key, v.preview);
-  }
+const EMPTY_CANDIDATE_PROFILE: CandidateProfileContext = {
+  candidateDisplayName: '',
+  candidateOffice: '',
+  candidateParty: '',
+  candidateRegion: '',
+};
 
+function WhatsAppPreview({
+  message,
+  previewContext,
+}: {
+  message: string;
+  previewContext: Partial<Record<CampaignVariableKey, string>>;
+}) {
+  const preview = resolveCampaignTemplate(message, previewContext);
   const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -172,21 +181,54 @@ export default function NovaCampanhaPage() {
   const [prefilledSegmentName, setPrefilledSegmentName] = useState<string | null>(null);
   const [isBootstrappingSegment, setIsBootstrappingSegment] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [candidateProfile, setCandidateProfile] = useState<CandidateProfileContext>(EMPTY_CANDIDATE_PROFILE);
 
   // Load segments for selector
   useEffect(() => {
-    fetch('/api/segments')
-      .then(r => r.ok ? r.json() : [])
-      .then(setSegments)
-      .catch(() => {});
+    let cancelled = false;
 
-    fetch('/api/chips')
-      .then(r => r.ok ? r.json() : [])
-      .then((chips: Chip[]) => {
-        setConnectedChips(chips.filter((chip) => chip.status === 'connected'));
-      })
-      .catch(() => {});
-  }, []);
+    const loadBootData = async () => {
+      try {
+        const [segmentsRes, chipsRes, settingsRes] = await Promise.all([
+          fetch('/api/segments'),
+          fetch('/api/chips'),
+          fetch('/api/settings'),
+        ]);
+
+        if (segmentsRes.status === 401 || chipsRes.status === 401 || settingsRes.status === 401) {
+          router.push('/login');
+          return;
+        }
+
+        if (!cancelled && segmentsRes.ok) {
+          setSegments(await segmentsRes.json());
+        }
+
+        if (!cancelled && chipsRes.ok) {
+          const chips: Chip[] = await chipsRes.json();
+          setConnectedChips(chips.filter((chip) => chip.status === 'connected'));
+        }
+
+        if (!cancelled && settingsRes.ok) {
+          const settings: Partial<Config> = await settingsRes.json();
+          setCandidateProfile({
+            candidateDisplayName: settings.candidateDisplayName ?? '',
+            candidateOffice: settings.candidateOffice ?? '',
+            candidateParty: settings.candidateParty ?? '',
+            candidateRegion: settings.candidateRegion ?? '',
+          });
+        }
+      } catch {
+        // keep best-effort loading for planning phase changes
+      }
+    };
+
+    loadBootData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   useEffect(() => {
     if (!voterContextId || campaignSource !== 'crm') {
@@ -263,11 +305,26 @@ export default function NovaCampanhaPage() {
     });
   }, [message]);
 
+  const templateValidation = validateCampaignTemplates([message, abEnabled ? variantB : ''], {
+    candidateProfile,
+    hasVoterData: true,
+  });
+  const templateValidationMessage = getTemplateValidationMessage(templateValidation);
+  const previewContext = buildCampaignPreviewContext({ candidateProfile });
+  const candidateProfileReady = isCandidateProfileConfigured(candidateProfile);
+  const candidateVariableSelected = templateValidation.supportedVariables.includes('{candidato}');
+
   const saveDraft = async (): Promise<string | null> => {
     if (!campaignName.trim()) {
       toast.error('Dê um nome para a campanha');
       return null;
     }
+
+    if (templateValidationMessage) {
+      toast.error(templateValidationMessage);
+      return null;
+    }
+
     setIsSaving(true);
     try {
       const res = await fetch('/api/campaigns', {
@@ -282,6 +339,7 @@ export default function NovaCampanhaPage() {
           abEnabled,
           abVariantB: abEnabled ? variantB : null,
           abSplitPercent: abEnabled ? splitPct : 50,
+          variables: templateValidation.supportedVariables,
         }),
       });
       if (res.ok) {
@@ -289,7 +347,8 @@ export default function NovaCampanhaPage() {
         toast.success('Rascunho salvo');
         return saved.id;
       } else {
-        toast.error('Erro ao salvar rascunho');
+        const data = await res.json().catch(() => ({}));
+        toast.error(data?.error ?? 'Erro ao salvar rascunho');
         return null;
       }
     } catch {
@@ -406,7 +465,7 @@ export default function NovaCampanhaPage() {
                         Inserir variável
                       </p>
                       <div className="flex flex-wrap gap-1.5">
-                        {VARIABLES.map(v => (
+                        {SUPPORTED_CAMPAIGN_VARIABLES.map(v => (
                           <button
                             key={v.key}
                             type="button"
@@ -417,7 +476,26 @@ export default function NovaCampanhaPage() {
                           </button>
                         ))}
                       </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Variáveis suportadas pelo envio: {SUPPORTED_CAMPAIGN_VARIABLES.map((variable) => variable.key).join(' · ')}
+                      </p>
                     </div>
+
+                    {templateValidationMessage && (
+                      <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold">Template precisa de ajuste</p>
+                          <p className="text-xs text-amber-800/90">{templateValidationMessage}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {!candidateProfileReady && candidateVariableSelected && (
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-muted-foreground">
+                        Configure o perfil do candidato em <Link href="/settings" className="font-medium text-primary underline">Ajustes</Link> para usar <code className="font-mono text-[11px]">{'{candidato}'}</code> com valor real.
+                      </div>
+                    )}
 
                     {/* Textarea */}
                     <div className="space-y-1.5">
@@ -507,7 +585,7 @@ export default function NovaCampanhaPage() {
                           <p className="text-sm font-medium text-foreground">Mensagem Variante B</p>
                         </div>
                         <div className="flex flex-wrap gap-1.5 mb-2">
-                          {VARIABLES.map(v => (
+                          {SUPPORTED_CAMPAIGN_VARIABLES.map(v => (
                             <button
                               key={v.key}
                               type="button"
@@ -541,7 +619,7 @@ export default function NovaCampanhaPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-2">
-                    <WhatsAppPreview message={message} />
+                    <WhatsAppPreview message={message} previewContext={previewContext} />
                     <p className="text-[10px] text-muted-foreground text-center mt-2 px-2">
                       As variáveis são substituídas por valores reais no envio
                     </p>
@@ -565,14 +643,14 @@ export default function NovaCampanhaPage() {
               <Button
                 variant="outline"
                 onClick={handleSaveDraft}
-                disabled={isSaving || !campaignName.trim()}
+                disabled={isSaving || !campaignName.trim() || Boolean(templateValidationMessage)}
               >
                 <Save className="mr-1.5 h-4 w-4" />
                 Salvar rascunho
               </Button>
               <Button
                 onClick={handleContinue}
-                disabled={isSaving || !campaignName.trim() || !message.trim()}
+                disabled={isSaving || !campaignName.trim() || !message.trim() || Boolean(templateValidationMessage)}
               >
                 Continuar
                 <ArrowRight className="ml-1.5 h-4 w-4" />

@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { calculateCtaScore, scoreBg } from '@/lib/cta-score';
-import type { Campaign, Chip, Segment } from '@/db/schema';
+import type { Campaign, Chip, Config, Segment } from '@/db';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -32,20 +32,32 @@ import {
   Smartphone,
   X,
 } from 'lucide-react';
+import {
+  buildCampaignPreviewContext,
+  getTemplateValidationMessage,
+  isCandidateProfileConfigured,
+  resolveCampaignTemplate,
+  SUPPORTED_CAMPAIGN_VARIABLES,
+  type CampaignVariableKey,
+  type CandidateProfileContext,
+  validateCampaignTemplates,
+} from '@/lib/campaign-variables';
 
-const VARIABLES = [
-  { key: '{nome}', label: 'Nome', preview: 'João' },
-  { key: '{bairro}', label: 'Bairro', preview: 'Centro' },
-  { key: '{interesse}', label: 'Interesse', preview: 'Saúde' },
-  { key: '{data}', label: 'Data', preview: new Date().toLocaleDateString('pt-BR') },
-  { key: '{candidato}', label: 'Candidato', preview: 'Dr. Silva' },
-];
+const EMPTY_CANDIDATE_PROFILE: CandidateProfileContext = {
+  candidateDisplayName: '',
+  candidateOffice: '',
+  candidateParty: '',
+  candidateRegion: '',
+};
 
-function WhatsAppPreview({ message }: { message: string }) {
-  let preview = message;
-  for (const variable of VARIABLES) {
-    preview = preview.replaceAll(variable.key, variable.preview);
-  }
+function WhatsAppPreview({
+  message,
+  previewContext,
+}: {
+  message: string;
+  previewContext: Partial<Record<CampaignVariableKey, string>>;
+}) {
+  const preview = resolveCampaignTemplate(message, previewContext);
 
   const now = new Date().toLocaleTimeString('pt-BR', {
     hour: '2-digit',
@@ -166,6 +178,7 @@ export default function EditarCampanhaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [candidateProfile, setCandidateProfile] = useState<CandidateProfileContext>(EMPTY_CANDIDATE_PROFILE);
 
   const isLocked = campaignStatus === 'sent' || campaignStatus === 'sending';
 
@@ -174,13 +187,19 @@ export default function EditarCampanhaPage() {
     setNotFound(false);
 
     try {
-      const [campaignRes, segmentsRes, chipsRes] = await Promise.all([
+      const [campaignRes, segmentsRes, chipsRes, settingsRes] = await Promise.all([
         fetch(`/api/campaigns?id=${params.id}`),
         fetch('/api/segments'),
         fetch('/api/chips'),
+        fetch('/api/settings'),
       ]);
 
-      if (campaignRes.status === 401 || segmentsRes.status === 401 || chipsRes.status === 401) {
+      if (
+        campaignRes.status === 401
+        || segmentsRes.status === 401
+        || chipsRes.status === 401
+        || settingsRes.status === 401
+      ) {
         router.push('/login');
         return;
       }
@@ -192,6 +211,16 @@ export default function EditarCampanhaPage() {
       if (chipsRes.ok) {
         const chips: Chip[] = await chipsRes.json();
         setConnectedChips(chips.filter((chip) => chip.status === 'connected'));
+      }
+
+      if (settingsRes.ok) {
+        const settings: Partial<Config> = await settingsRes.json();
+        setCandidateProfile({
+          candidateDisplayName: settings.candidateDisplayName ?? '',
+          candidateOffice: settings.candidateOffice ?? '',
+          candidateParty: settings.candidateParty ?? '',
+          candidateRegion: settings.candidateRegion ?? '',
+        });
       }
 
       if (!campaignRes.ok) {
@@ -259,9 +288,23 @@ export default function EditarCampanhaPage() {
     [isLocked, message],
   );
 
+  const templateValidation = validateCampaignTemplates([message, abEnabled ? variantB : ''], {
+    candidateProfile,
+    hasVoterData: true,
+  });
+  const templateValidationMessage = getTemplateValidationMessage(templateValidation);
+  const previewContext = buildCampaignPreviewContext({ candidateProfile });
+  const candidateProfileReady = isCandidateProfileConfigured(candidateProfile);
+  const candidateVariableSelected = templateValidation.supportedVariables.includes('{candidato}');
+
   const handleSave = async () => {
     if (!campaignName.trim()) {
       toast.error('Dê um nome para a campanha');
+      return;
+    }
+
+    if (templateValidationMessage) {
+      toast.error(templateValidationMessage);
       return;
     }
 
@@ -279,6 +322,7 @@ export default function EditarCampanhaPage() {
           abEnabled,
           abVariantB: abEnabled ? variantB : null,
           abSplitPercent: abEnabled ? splitPct : 50,
+          variables: templateValidation.supportedVariables,
         }),
       });
 
@@ -288,7 +332,8 @@ export default function EditarCampanhaPage() {
       }
 
       if (!response.ok) {
-        toast.error('Erro ao salvar alterações');
+        const data = await response.json().catch(() => ({}));
+        toast.error(data?.error ?? 'Erro ao salvar alterações');
         return;
       }
 
@@ -420,7 +465,7 @@ export default function EditarCampanhaPage() {
                         Inserir variável
                       </p>
                       <div className="flex flex-wrap gap-1.5">
-                        {VARIABLES.map((variable) => (
+                        {SUPPORTED_CAMPAIGN_VARIABLES.map((variable) => (
                           <button
                             key={variable.key}
                             type="button"
@@ -432,7 +477,26 @@ export default function EditarCampanhaPage() {
                           </button>
                         ))}
                       </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Variáveis suportadas pelo envio: {SUPPORTED_CAMPAIGN_VARIABLES.map((variable) => variable.key).join(' · ')}
+                      </p>
                     </div>
+
+                    {templateValidationMessage && (
+                      <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold">Template precisa de ajuste</p>
+                          <p className="text-xs text-amber-800/90">{templateValidationMessage}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {!candidateProfileReady && candidateVariableSelected && (
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-muted-foreground">
+                        Configure o perfil do candidato em <Link href="/settings" className="font-medium text-primary underline">Ajustes</Link> para usar <code className="font-mono text-[11px]">{'{candidato}'}</code> com valor real.
+                      </div>
+                    )}
 
                     <div className="space-y-1.5">
                       <textarea
@@ -521,7 +585,7 @@ export default function EditarCampanhaPage() {
                           <p className="text-sm font-medium text-foreground">Mensagem Variante B</p>
                         </div>
                         <div className="mb-2 flex flex-wrap gap-1.5">
-                          {VARIABLES.map((variable) => (
+                          {SUPPORTED_CAMPAIGN_VARIABLES.map((variable) => (
                             <button
                               key={variable.key}
                               type="button"
@@ -556,7 +620,7 @@ export default function EditarCampanhaPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-2">
-                    <WhatsAppPreview message={message} />
+                    <WhatsAppPreview message={message} previewContext={previewContext} />
                     <p className="mt-2 px-2 text-center text-[10px] text-muted-foreground">
                       As variáveis são substituídas por valores reais no envio
                     </p>
@@ -582,7 +646,7 @@ export default function EditarCampanhaPage() {
             ) : (
               <Button
                 onClick={handleSave}
-                disabled={isSaving || !campaignName.trim() || !message.trim()}
+                disabled={isSaving || !campaignName.trim() || !message.trim() || Boolean(templateValidationMessage)}
               >
                 <Save className="mr-1.5 h-4 w-4" />
                 {isSaving ? 'Salvando...' : 'Salvar alterações'}

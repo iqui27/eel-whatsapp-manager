@@ -108,6 +108,10 @@ function normalizeText(value: string | null | undefined) {
   return normalized ? normalized : '';
 }
 
+function dedupeValues<T extends string>(values: readonly T[]) {
+  return [...new Set(values)] as T[];
+}
+
 function formatCampaignDate(value: Date | string | null | undefined, fallback: Date) {
   if (!value) {
     return fallback.toLocaleDateString('pt-BR');
@@ -173,6 +177,43 @@ export function validateTemplateVariables(
   };
 }
 
+export function validateCampaignTemplates(
+  templates: Array<string | null | undefined>,
+  options: ValidateTemplateVariablesOptions = {},
+): ValidateTemplateVariablesResult {
+  return templates.reduce<ValidateTemplateVariablesResult>(
+    (accumulator, template) => {
+      const current = validateTemplateVariables(template ?? '', options);
+
+      return {
+        variables: dedupeValues([...accumulator.variables, ...current.variables]),
+        supportedVariables: dedupeValues([
+          ...accumulator.supportedVariables,
+          ...current.supportedVariables,
+        ]),
+        unsupportedVariables: dedupeValues([
+          ...accumulator.unsupportedVariables,
+          ...current.unsupportedVariables,
+        ]),
+        unresolvedVariables: dedupeValues([
+          ...accumulator.unresolvedVariables,
+          ...current.unresolvedVariables,
+        ]),
+        isValid: accumulator.isValid && current.isValid,
+        canResolve: accumulator.canResolve && current.canResolve,
+      };
+    },
+    {
+      variables: [],
+      supportedVariables: [],
+      unsupportedVariables: [],
+      unresolvedVariables: [],
+      isValid: true,
+      canResolve: true,
+    },
+  );
+}
+
 export function buildCampaignPreviewContext(options: BuildCampaignContextOptions = {}) {
   const now = options.now ?? new Date();
   const firstInterest = options.voter?.tags?.[0];
@@ -211,4 +252,24 @@ export function resolveCampaignTemplate(
   context: Partial<Record<CampaignVariableKey, string>>,
 ) {
   return template.replace(CAMPAIGN_VARIABLE_PATTERN, (variable) => context[variable as CampaignVariableKey] ?? variable);
+}
+
+export function formatCampaignVariableList(variables: readonly string[]) {
+  return variables.join(', ');
+}
+
+export function getTemplateValidationMessage(validation: ValidateTemplateVariablesResult) {
+  if (validation.unsupportedVariables.length > 0) {
+    return `Variáveis não suportadas: ${formatCampaignVariableList(validation.unsupportedVariables)}.`;
+  }
+
+  if (validation.unresolvedVariables.includes('{candidato}')) {
+    return 'Configure o perfil do candidato em Ajustes antes de usar {candidato}.';
+  }
+
+  if (validation.unresolvedVariables.length > 0) {
+    return `Variáveis sem contexto configurado: ${formatCampaignVariableList(validation.unresolvedVariables)}.`;
+  }
+
+  return null;
 }

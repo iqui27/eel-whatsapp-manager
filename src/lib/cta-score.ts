@@ -3,6 +3,8 @@
  * Pure function, no side effects.
  */
 
+import { SUPPORTED_CAMPAIGN_VARIABLES } from '@/lib/campaign-variables';
+
 const ACTION_VERBS = [
   'vote', 'votar', 'confirme', 'confirmar', 'participe', 'participar',
   'venha', 'venham', 'clique', 'clicar', 'acesse', 'acessar',
@@ -10,7 +12,7 @@ const ACTION_VERBS = [
   'compartilhe', 'compartilhar', 'conheça', 'conhecer',
 ];
 
-const VARIABLES = ['{nome}', '{bairro}', '{interesse}', '{data}', '{candidato}'];
+const VARIABLES = SUPPORTED_CAMPAIGN_VARIABLES.map(variable => variable.key);
 
 const ALL_CAPS_RE = /\b[A-ZÁÉÍÓÚÀÂÊÔÃÕ]{3,}\b/g;
 const EXCESSIVE_PUNCT_RE = /[!?]{2,}/g;

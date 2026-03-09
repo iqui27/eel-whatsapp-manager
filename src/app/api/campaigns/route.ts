@@ -11,6 +11,7 @@ import {
   getCampaignsByStatus,
 } from '@/lib/db-campaigns';
 import type { Campaign } from '@/db/schema';
+import { getTemplateValidationMessage, validateCampaignTemplates } from '@/lib/campaign-variables';
 
 async function verifyAuth(request: NextRequest) {
   const token = request.cookies.get('auth')?.value;
@@ -18,6 +19,33 @@ async function verifyAuth(request: NextRequest) {
     return null;
   }
   return await loadConfig();
+}
+
+function normalizeCampaignChipId(chipId: unknown) {
+  return chipId === 'auto' || chipId === '' ? null : chipId;
+}
+
+function buildTemplateValidationError(
+  templates: Array<string | null | undefined>,
+  config: NonNullable<Awaited<ReturnType<typeof verifyAuth>>>,
+) {
+  const validation = validateCampaignTemplates(templates, {
+    candidateProfile: config,
+    hasVoterData: true,
+  });
+  const message = getTemplateValidationMessage(validation);
+
+  if (message) {
+    return {
+      error: message,
+      validation,
+    };
+  }
+
+  return {
+    validation,
+    error: null,
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -62,9 +90,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'name é obrigatório' }, { status: 400 });
     }
     if (!body.template) body.template = '';
-    if (body.chipId === 'auto' || body.chipId === '') {
-      body.chipId = null;
+    body.chipId = normalizeCampaignChipId(body.chipId);
+
+    const { validation, error } = buildTemplateValidationError(
+      [body.template, body.abEnabled ? body.abVariantB ?? '' : ''],
+      config,
+    );
+    if (error) {
+      return NextResponse.json({ error, validation }, { status: 400 });
     }
+
+    body.variables = validation.supportedVariables;
+
     const campaign = await addCampaign(body);
     return NextResponse.json(campaign, { status: 201 });
   } catch (error) {
@@ -84,10 +121,32 @@ export async function PUT(request: NextRequest) {
     if (!body.id) {
       return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
     }
+
     const { id, ...updates } = body;
-    if (updates.chipId === 'auto' || updates.chipId === '') {
-      updates.chipId = null;
+    const existingCampaign = await getCampaign(id);
+    if (!existingCampaign) {
+      return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
     }
+
+    updates.chipId = normalizeCampaignChipId(updates.chipId);
+
+    const nextAbEnabled = typeof updates.abEnabled === 'boolean'
+      ? updates.abEnabled
+      : Boolean(existingCampaign.abEnabled);
+    const template = typeof updates.template === 'string'
+      ? updates.template
+      : existingCampaign.template ?? '';
+    const variantB = nextAbEnabled
+      ? (typeof updates.abVariantB === 'string' ? updates.abVariantB : existingCampaign.abVariantB ?? '')
+      : '';
+    const { validation, error } = buildTemplateValidationError([template, variantB], config);
+
+    if (error) {
+      return NextResponse.json({ error, validation }, { status: 400 });
+    }
+
+    updates.variables = validation.supportedVariables;
+
     const campaign = await updateCampaign(id, updates);
     return NextResponse.json(campaign);
   } catch (error) {

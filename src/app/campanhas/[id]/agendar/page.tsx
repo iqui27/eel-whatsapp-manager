@@ -20,7 +20,15 @@ import {
   AlertTriangle,
   CalendarCheck,
 } from 'lucide-react';
-import type { Campaign, Segment, Chip } from '@/db/schema';
+import type { Campaign, Chip, Config, Segment } from '@/db';
+import {
+  buildCampaignPreviewContext,
+  getTemplateValidationMessage,
+  isCandidateProfileConfigured,
+  resolveCampaignTemplate,
+  type CandidateProfileContext,
+  validateCampaignTemplates,
+} from '@/lib/campaign-variables';
 
 // ─── Time window options ───────────────────────────────────────────────────────
 
@@ -42,6 +50,13 @@ const SEND_RATES: { id: SendRate; label: string; rate: string; warning?: boolean
   { id: 'fast',   label: 'Rápido',  rate: '60 msg/min', warning: true },
 ];
 
+const EMPTY_CANDIDATE_PROFILE: CandidateProfileContext = {
+  candidateDisplayName: '',
+  candidateOffice: '',
+  candidateParty: '',
+  candidateRegion: '',
+};
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AgendarCampanhaPage() {
@@ -60,22 +75,47 @@ export default function AgendarCampanhaPage() {
   const [sendRate, setSendRate] = useState<SendRate>('normal');
   const [selectedChipId, setSelectedChipId] = useState('auto');
   const [connectedChips, setConnectedChips] = useState<Chip[]>([]);
+  const [candidateProfile, setCandidateProfile] = useState<CandidateProfileContext>(EMPTY_CANDIDATE_PROFILE);
 
   const loadCampaign = useCallback(async () => {
     try {
-      const res = await fetch(`/api/campaigns?id=${params.id}`);
-      if (res.ok) {
-        const data: Campaign[] = await res.json();
-        const c = data.find(x => x.id === params.id) ?? data[0];
+      const [campaignRes, chipsRes, settingsRes] = await Promise.all([
+        fetch(`/api/campaigns?id=${params.id}`),
+        fetch('/api/chips'),
+        fetch('/api/settings'),
+      ]);
+
+      if (campaignRes.status === 401 || chipsRes.status === 401 || settingsRes.status === 401) {
+        router.push('/login');
+        return;
+      }
+
+      if (chipsRes.ok) {
+        const chips: Chip[] = await chipsRes.json();
+        setConnectedChips(chips.filter((chip) => chip.status === 'connected'));
+      }
+
+      if (settingsRes.ok) {
+        const settings: Partial<Config> = await settingsRes.json();
+        setCandidateProfile({
+          candidateDisplayName: settings.candidateDisplayName ?? '',
+          candidateOffice: settings.candidateOffice ?? '',
+          candidateParty: settings.candidateParty ?? '',
+          candidateRegion: settings.candidateRegion ?? '',
+        });
+      }
+
+      if (campaignRes.ok) {
+        const data: Campaign[] = await campaignRes.json();
+        const c = data.find((item) => item.id === params.id) ?? data[0];
         if (c) {
           setCampaign(c);
           setSelectedChipId(c.chipId ?? 'auto');
-          // Load segment if attached
           if (c.segmentId) {
             const sres = await fetch(`/api/segments?id=${c.segmentId}`);
             if (sres.ok) {
               const segs: Segment[] = await sres.json();
-              setSegment(segs.find(s => s.id === c.segmentId) ?? null);
+              setSegment(segs.find((item) => item.id === c.segmentId) ?? null);
             }
           }
         }
@@ -85,19 +125,9 @@ export default function AgendarCampanhaPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [params.id]);
+  }, [params.id, router]);
 
   useEffect(() => { loadCampaign(); }, [loadCampaign]);
-
-  useEffect(() => {
-    fetch('/api/chips')
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data: Chip[]) => {
-        setConnectedChips(data.filter((chip) => chip.status === 'connected'));
-      })
-      .catch(() => {});
-
-  }, [params.id]);
 
   const toggleWindow = (w: TimeWindow) => {
     setSelectedWindows(prev =>
@@ -107,11 +137,40 @@ export default function AgendarCampanhaPage() {
     );
   };
 
+  const scheduledAtPreview = scheduleDate
+    ? new Date(`${scheduleDate}T08:00:00`)
+    : null;
+  const templateValidation = validateCampaignTemplates(
+    [
+      campaign?.template ?? '',
+      campaign?.abEnabled ? campaign.abVariantB ?? '' : '',
+    ],
+    {
+      candidateProfile,
+      hasVoterData: true,
+    },
+  );
+  const templateValidationMessage = getTemplateValidationMessage(templateValidation);
+  const candidateProfileReady = isCandidateProfileConfigured(candidateProfile);
+  const candidateVariableSelected = templateValidation.supportedVariables.includes('{candidato}');
+  const previewContext = buildCampaignPreviewContext({
+    candidateProfile,
+    scheduledAt: scheduledAtPreview,
+  });
+  const previewMessage = campaign
+    ? resolveCampaignTemplate(campaign.template ?? '', previewContext)
+    : '';
+
   const handleSchedule = async () => {
     if (!campaign) return;
+
+    if (templateValidationMessage) {
+      toast.error(templateValidationMessage);
+      return;
+    }
+
     setIsSending(true);
     try {
-      // Persist scheduling only (do not trigger send immediately)
       const scheduledAt = new Date(`${scheduleDate}T08:00:00`).toISOString();
       const patchRes = await fetch('/api/campaigns', {
         method: 'PUT',
@@ -121,11 +180,13 @@ export default function AgendarCampanhaPage() {
           scheduledAt,
           chipId: selectedChipId !== 'auto' ? selectedChipId : null,
           status: 'scheduled',
+          variables: templateValidation.supportedVariables,
         }),
       });
 
       if (!patchRes.ok) {
-        toast.error('Erro ao agendar campanha');
+        const data = await patchRes.json().catch(() => ({}));
+        toast.error(data?.error ?? 'Erro ao agendar campanha');
         return;
       }
 
@@ -149,6 +210,12 @@ export default function AgendarCampanhaPage() {
 
   const handleSendNow = async () => {
     if (!campaign) return;
+
+    if (templateValidationMessage) {
+      toast.error(templateValidationMessage);
+      return;
+    }
+
     setIsSending(true);
 
     try {
@@ -268,6 +335,42 @@ export default function AgendarCampanhaPage() {
                 </Badge>
               </div>
             )}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Variáveis usadas</span>
+              <span className="text-right text-xs text-muted-foreground">
+                {(campaign.variables?.length ? campaign.variables : templateValidation.supportedVariables).join(' · ') || 'Nenhuma'}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {templateValidationMessage && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">Campanha precisa de ajuste antes do envio</p>
+              <p className="text-xs text-amber-800/90">{templateValidationMessage}</p>
+            </div>
+          </div>
+        )}
+
+        {!candidateProfileReady && candidateVariableSelected && (
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-muted-foreground">
+            Configure o perfil do candidato em <Link href="/settings" className="font-medium text-primary underline">Ajustes</Link> para usar <code className="font-mono text-[11px]">{'{candidato}'}</code> no envio real.
+          </div>
+        )}
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Prévia de resolução</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm leading-relaxed text-foreground">
+              <p className="whitespace-pre-wrap">{previewMessage || 'A mensagem aparecerá aqui quando a campanha tiver conteúdo.'}</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              A data da prévia acompanha o agendamento selecionado. No envio manual, <code className="font-mono text-[11px]">{'{data}'}</code> usa a data/hora real da execução.
+            </p>
           </CardContent>
         </Card>
 
@@ -388,7 +491,7 @@ export default function AgendarCampanhaPage() {
           </Link>
           <Button
             onClick={handleSchedule}
-            disabled={isSending || !scheduleDate}
+            disabled={isSending || !scheduleDate || Boolean(templateValidationMessage)}
             className="min-w-[180px]"
           >
             {isSending ? 'Agendando...' : (
@@ -401,7 +504,7 @@ export default function AgendarCampanhaPage() {
           <Button
             variant="outline"
             onClick={handleSendNow}
-            disabled={isSending}
+            disabled={isSending || Boolean(templateValidationMessage)}
             className="min-w-[180px]"
           >
             <Send className="mr-1.5 h-4 w-4" />
