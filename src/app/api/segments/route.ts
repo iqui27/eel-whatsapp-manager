@@ -12,8 +12,7 @@ import {
 } from 'drizzle-orm';
 import { db } from '@/db';
 import { campaigns, voters } from '@/db/schema';
-import { loadConfig } from '@/lib/db-config';
-import { validateSession } from '@/lib/db-auth';
+import { requirePermission } from '@/lib/api-auth';
 import {
   addSegment,
   deleteSegment,
@@ -199,19 +198,9 @@ async function loadFilterOptions() {
   };
 }
 
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  if (!await validateSession(token)) {
-    return null;
-  }
-  return await loadConfig();
-}
-
 export async function GET(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'campaigns.view', 'Seu operador não pode ver segmentos');
+  if (auth.response) return auth.response;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -260,10 +249,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'campaigns.manage', 'Seu operador não pode criar segmentos');
+  if (auth.response) return auth.response;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -297,10 +284,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'campaigns.manage', 'Seu operador não pode editar segmentos');
+  if (auth.response) return auth.response;
 
   try {
     const body = await request.json();
@@ -333,10 +318,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'campaigns.manage', 'Seu operador não pode remover segmentos');
+  if (auth.response) return auth.response;
 
   try {
     const { searchParams } = new URL(request.url);

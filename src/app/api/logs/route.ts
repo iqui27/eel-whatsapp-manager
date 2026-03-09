@@ -1,21 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig } from '@/lib/db-config';
 import { loadLogs } from '@/lib/db-logs';
-import { validateSession } from '@/lib/db-auth';
-
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  if (!await validateSession(token)) {
-    return null;
-  }
-  return await loadConfig();
-}
+import { requirePermission } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'operations.view', 'Seu operador não pode ver logs operacionais');
+  if (auth.response) return auth.response;
 
   const logs = await loadLogs();
   return NextResponse.json(logs);

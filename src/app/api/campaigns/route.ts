@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/db-config';
-import { validateSession } from '@/lib/db-auth';
+import { requirePermission } from '@/lib/api-auth';
 import {
   loadCampaigns,
   getCampaign,
@@ -13,21 +13,13 @@ import {
 import type { Campaign } from '@/db/schema';
 import { getTemplateValidationMessage, validateCampaignTemplates } from '@/lib/campaign-variables';
 
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  if (!await validateSession(token)) {
-    return null;
-  }
-  return await loadConfig();
-}
-
 function normalizeCampaignChipId(chipId: unknown) {
   return chipId === 'auto' || chipId === '' ? null : chipId;
 }
 
 function buildTemplateValidationError(
   templates: Array<string | null | undefined>,
-  config: NonNullable<Awaited<ReturnType<typeof verifyAuth>>>,
+  config: NonNullable<Awaited<ReturnType<typeof loadConfig>>>,
 ) {
   const validation = validateCampaignTemplates(templates, {
     candidateProfile: config,
@@ -49,10 +41,8 @@ function buildTemplateValidationError(
 }
 
 export async function GET(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'campaigns.view', 'Seu operador não pode visualizar campanhas');
+  if (auth.response) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
@@ -79,9 +69,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const config = await verifyAuth(request);
+  const auth = await requirePermission(request, 'campaigns.manage', 'Seu operador não pode criar campanhas');
+  if (auth.response) return auth.response;
+  const config = await loadConfig();
   if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Configuração ausente' }, { status: 400 });
   }
 
   try {
@@ -111,9 +103,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const config = await verifyAuth(request);
+  const auth = await requirePermission(request, 'campaigns.manage', 'Seu operador não pode editar campanhas');
+  if (auth.response) return auth.response;
+  const config = await loadConfig();
   if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Configuração ausente' }, { status: 400 });
   }
 
   try {
@@ -156,10 +150,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'campaigns.manage', 'Seu operador não pode remover campanhas');
+  if (auth.response) return auth.response;
 
   try {
     const { searchParams } = new URL(request.url);

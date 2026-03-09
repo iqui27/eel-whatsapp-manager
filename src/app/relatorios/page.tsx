@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -19,20 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Download, TrendingUp, TrendingDown, Send, CheckCheck, MessageSquare, Users } from 'lucide-react';
+import { buildCampaignReport, type ReportFormat, type ReportFrequency } from '@/lib/reporting';
 import { cn } from '@/lib/utils';
-import type { Campaign } from '@/db/schema';
+import type { Campaign, ReportDispatch, ReportSchedule } from '@/db/schema';
+import { CheckCheck, Download, FileText, Mail, MessageSquare, Send, Trash2, Users } from 'lucide-react';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type Period = '7' | '14';
-
-interface DayBar {
-  date: string;
-  value: number;
-}
-
-// ─── Status config ────────────────────────────────────────────────────────────
+type Period = '7' | '14' | '30';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Rascunho',
@@ -52,12 +45,26 @@ const STATUS_CLASSES: Record<string, string> = {
   cancelled: 'bg-red-500/10 text-red-600 border-red-200',
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+type ScheduleResponse = {
+  schedules: ReportSchedule[];
+  dispatches: ReportDispatch[];
+};
 
-function pct(numerator: number, denominator: number): string {
-  if (!denominator) return '—';
-  return `${Math.round((numerator / denominator) * 100)}%`;
-}
+type ScheduleForm = {
+  name: string;
+  recipients: string;
+  frequency: ReportFrequency;
+  periodDays: Period;
+  format: ReportFormat;
+};
+
+const EMPTY_SCHEDULE_FORM: ScheduleForm = {
+  name: 'Relatório operacional',
+  recipients: '',
+  frequency: 'weekly',
+  periodDays: '7',
+  format: 'pdf',
+};
 
 function getCampaignDate(campaign: Campaign): Date | null {
   const source = campaign.updatedAt ?? campaign.createdAt;
@@ -66,27 +73,9 @@ function getCampaignDate(campaign: Campaign): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function getPeriodDays(period: Period): number {
-  return period === '7' ? 7 : 14;
-}
-
-function filterCampaignsByPeriod(campaigns: Campaign[], period: Period, referenceDate: Date | null) {
+function buildDailyBars(campaigns: Campaign[], periodDays: number, referenceDate: Date | null) {
   if (!referenceDate) return [];
-  const windowDays = getPeriodDays(period);
-  const now = new Date(referenceDate);
-  const start = new Date(referenceDate);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - (windowDays - 1));
 
-  return campaigns.filter((campaign) => {
-    const campaignDate = getCampaignDate(campaign);
-    return campaignDate ? campaignDate >= start && campaignDate <= now : false;
-  });
-}
-
-function buildDailyBars(campaigns: Campaign[], period: Period, referenceDate: Date | null): DayBar[] {
-  if (!referenceDate) return [];
-  const windowDays = getPeriodDays(period);
   const now = new Date(referenceDate);
   now.setHours(0, 0, 0, 0);
 
@@ -98,9 +87,9 @@ function buildDailyBars(campaigns: Campaign[], period: Period, referenceDate: Da
     totalsByDay.set(dayKey, (totalsByDay.get(dayKey) ?? 0) + (campaign.totalSent ?? 0));
   }
 
-  return Array.from({ length: windowDays }, (_, index) => {
+  return Array.from({ length: periodDays }, (_, index) => {
     const date = new Date(now);
-    date.setDate(now.getDate() - (windowDays - index - 1));
+    date.setDate(now.getDate() - (periodDays - index - 1));
     const key = date.toISOString().slice(0, 10);
     return {
       date: date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
@@ -109,59 +98,10 @@ function buildDailyBars(campaigns: Campaign[], period: Period, referenceDate: Da
   });
 }
 
-function exportCsv(
-  campaigns: Campaign[],
-  summary: {
-    periodLabel: string;
-    totalSent: number;
-    totalDelivered: number;
-    totalFailed: number;
-    totalReplied: number;
-  },
-) {
-  const header = 'Campanha,Status,Enviadas,Entregues (%),Lidas (%),Respondidas (%),Data';
-  const rows = campaigns.map(c => {
-    const sent = c.totalSent ?? 0;
-    const delivered = c.totalDelivered ?? 0;
-    const read = c.totalRead ?? 0;
-    const replied = c.totalReplied ?? 0;
-    return [
-      c.name,
-      STATUS_LABELS[c.status ?? 'draft'] ?? c.status,
-      sent,
-      pct(delivered, sent),
-      pct(read, sent),
-      pct(replied, sent),
-      c.createdAt ? new Date(c.createdAt).toLocaleDateString('pt-BR') : '—',
-    ].map(v => `"${v}"`).join(',');
-  });
-  const summaryRows = [
-    'Período,Enviadas,Entregues,Respostas,Bloqueios',
-    [
-      summary.periodLabel,
-      summary.totalSent,
-      summary.totalDelivered,
-      summary.totalReplied,
-      summary.totalFailed,
-    ].map((value) => `"${value}"`).join(','),
-    '',
-  ];
-  const csv = [...summaryRows, header, ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `relatorio-campanhas-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-// ─── Inline SVG bar chart ─────────────────────────────────────────────────────
-
-function BarChart({ bars }: { bars: DayBar[] }) {
-  const max = Math.max(...bars.map(b => b.value), 1);
+function BarChart({ bars }: { bars: Array<{ date: string; value: number }> }) {
+  const max = Math.max(...bars.map((bar) => bar.value), 1);
   const chartH = 120;
-  const barW = Math.min(48, Math.floor(480 / bars.length) - 8);
+  const barW = Math.min(48, Math.floor(480 / Math.max(bars.length, 1)) - 8);
 
   return (
     <div className="w-full overflow-x-auto">
@@ -171,9 +111,9 @@ function BarChart({ bars }: { bars: DayBar[] }) {
         style={{ minWidth: bars.length * (barW + 12) }}
         aria-label="Gráfico de envios"
       >
-        {bars.map((bar, i) => {
+        {bars.map((bar, index) => {
           const barH = Math.max(4, (bar.value / max) * chartH);
-          const x = i * (barW + 12);
+          const x = index * (barW + 12);
           const y = chartH - barH;
           return (
             <g key={bar.date}>
@@ -183,18 +123,11 @@ function BarChart({ bars }: { bars: DayBar[] }) {
                 width={barW}
                 height={barH}
                 rx={4}
-                className="fill-primary opacity-80 hover:opacity-100 transition-opacity"
+                className="fill-primary opacity-80"
               />
-              <text
-                x={x + barW / 2}
-                y={chartH + 16}
-                textAnchor="middle"
-                fontSize={10}
-                className="fill-muted-foreground"
-              >
+              <text x={x + barW / 2} y={chartH + 16} textAnchor="middle" fontSize={10} className="fill-muted-foreground">
                 {bar.date}
               </text>
-              <title>{`${bar.date}: ${bar.value.toLocaleString('pt-BR')}`}</title>
             </g>
           );
         })}
@@ -203,190 +136,336 @@ function BarChart({ bars }: { bars: DayBar[] }) {
   );
 }
 
-// ─── Trend indicator ──────────────────────────────────────────────────────────
-
-function Trend({ value }: { value: number }) {
-  if (value === 0) return <span className="text-xs text-muted-foreground">—</span>;
-  const positive = value > 0;
-  const Icon = positive ? TrendingUp : TrendingDown;
-  return (
-    <span className={cn('inline-flex items-center gap-0.5 text-xs font-medium', positive ? 'text-green-600' : 'text-red-600')}>
-      <Icon className="h-3 w-3" />
-      {Math.abs(value)}%
-    </span>
-  );
-}
-
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
-
-interface KpiCardProps {
+function KpiCard({
+  label,
+  value,
+  icon: Icon,
+}: {
   label: string;
-  value: string | number;
-  trend: number;
+  value: number;
   icon: React.ComponentType<{ className?: string }>;
-  suffix?: string;
-}
-
-function KpiCard({ label, value, trend, icon: Icon, suffix }: KpiCardProps) {
+}) {
   return (
     <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</span>
         <Icon className="h-4 w-4 text-muted-foreground/60" />
       </div>
-      <div className="flex items-end gap-2">
-        <span className="text-2xl font-semibold tabular-nums">
-          {typeof value === 'number' ? value.toLocaleString('pt-BR') : value}
-          {suffix && <span className="text-base text-muted-foreground ml-0.5">{suffix}</span>}
-        </span>
-        <div className="mb-0.5">
-          <Trend value={trend} />
-        </div>
-      </div>
+      <span className="text-2xl font-semibold tabular-nums">{value.toLocaleString('pt-BR')}</span>
     </div>
   );
 }
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function RelatoriosPage() {
   const [period, setPeriod] = useState<Period>('7');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [referenceDate, setReferenceDate] = useState<Date | null>(null);
+  const [schedules, setSchedules] = useState<ReportSchedule[]>([]);
+  const [dispatches, setDispatches] = useState<ReportDispatch[]>([]);
+  const [scheduleForm, setScheduleForm] = useState<ScheduleForm>(EMPTY_SCHEDULE_FORM);
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
   useEffect(() => {
     setReferenceDate(new Date());
   }, []);
 
-  const load = useCallback(async () => {
+  const loadCampaigns = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/campaigns');
-      if (res.ok) setCampaigns(await res.json());
+      if (res.ok) {
+        setCampaigns(await res.json());
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadSchedules = useCallback(async () => {
+    const res = await fetch('/api/reports/schedules');
+    if (!res.ok) return;
+    const payload: ScheduleResponse = await res.json();
+    setSchedules(payload.schedules);
+    setDispatches(payload.dispatches);
+  }, []);
 
-  const filteredCampaigns = filterCampaignsByPeriod(campaigns, period, referenceDate);
-  const totalSent = filteredCampaigns.reduce((sum, campaign) => sum + (campaign.totalSent ?? 0), 0);
-  const totalDelivered = filteredCampaigns.reduce((sum, campaign) => sum + (campaign.totalDelivered ?? 0), 0);
-  const totalFailed = filteredCampaigns.reduce((sum, campaign) => sum + (campaign.totalFailed ?? 0), 0);
-  const totalReplied = filteredCampaigns.reduce((sum, campaign) => sum + (campaign.totalReplied ?? 0), 0);
-  const bars = buildDailyBars(filteredCampaigns, period, referenceDate);
-  const periodLabel = period === '7' ? 'Últimos 7 dias' : 'Últimos 14 dias';
+  useEffect(() => {
+    void loadCampaigns();
+    void loadSchedules();
+  }, [loadCampaigns, loadSchedules]);
+
+  const report = useMemo(
+    () => buildCampaignReport(campaigns, Number.parseInt(period, 10), referenceDate ?? new Date()),
+    [campaigns, period, referenceDate],
+  );
+  const bars = useMemo(
+    () => buildDailyBars(campaigns, Number.parseInt(period, 10), referenceDate),
+    [campaigns, period, referenceDate],
+  );
+
+  const downloadReport = useCallback(async (format: 'csv' | 'pdf') => {
+    const res = await fetch(`/api/reports/export?format=${format}&period=${period}`);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `relatorio-campanhas-${period}d.${format}`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }, [period]);
+
+  const createSchedule = useCallback(async () => {
+    setSavingSchedule(true);
+    try {
+      const res = await fetch('/api/reports/schedules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: scheduleForm.name,
+          recipients: scheduleForm.recipients.split(',').map((entry) => entry.trim()).filter(Boolean),
+          frequency: scheduleForm.frequency,
+          periodDays: Number.parseInt(scheduleForm.periodDays, 10),
+          format: scheduleForm.format,
+        }),
+      });
+
+      if (res.ok) {
+        setScheduleForm(EMPTY_SCHEDULE_FORM);
+        await loadSchedules();
+      }
+    } finally {
+      setSavingSchedule(false);
+    }
+  }, [loadSchedules, scheduleForm]);
+
+  const toggleSchedule = useCallback(async (schedule: ReportSchedule) => {
+    await fetch('/api/reports/schedules', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: schedule.id, active: !(schedule.active ?? true) }),
+    });
+    await loadSchedules();
+  }, [loadSchedules]);
+
+  const removeSchedule = useCallback(async (scheduleId: string) => {
+    await fetch(`/api/reports/schedules?id=${scheduleId}`, { method: 'DELETE' });
+    await loadSchedules();
+  }, [loadSchedules]);
 
   return (
     <SidebarLayout currentPage="relatorios">
       <div className="flex flex-col gap-6 p-6">
-        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="font-serif text-2xl font-semibold text-foreground">Relatórios</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Desempenho das campanhas e alcance eleitoral</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Exports CSV/PDF e entrega agendada por email</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Select value={period} onValueChange={v => setPeriod(v as Period)}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={period} onValueChange={(value) => setPeriod(value as Period)}>
               <SelectTrigger className="w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="7">Últimos 7 dias</SelectItem>
                 <SelectItem value="14">Últimos 14 dias</SelectItem>
+                <SelectItem value="30">Últimos 30 dias</SelectItem>
               </SelectContent>
             </Select>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => exportCsv(filteredCampaigns, {
-                periodLabel,
-                totalSent,
-                totalDelivered,
-                totalFailed,
-                totalReplied,
-              })}
-              className="gap-2"
-            >
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => void downloadReport('csv')}>
               <Download className="h-4 w-4" />
-              Exportar CSV
+              CSV
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => void downloadReport('pdf')}>
+              <FileText className="h-4 w-4" />
+              PDF
             </Button>
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard label="Mensagens enviadas" value={totalSent} trend={0} icon={Send} />
-          <KpiCard label="Entregues" value={totalDelivered} trend={0} icon={CheckCheck} />
-          <KpiCard label="Respostas" value={totalReplied} trend={0} icon={MessageSquare} />
-          <KpiCard label="Bloqueios" value={totalFailed} trend={0} icon={Users} />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <KpiCard label="Enviadas" value={report.summary.totalSent} icon={Send} />
+          <KpiCard label="Entregues" value={report.summary.totalDelivered} icon={CheckCheck} />
+          <KpiCard label="Lidas" value={report.summary.totalRead} icon={Mail} />
+          <KpiCard label="Respondidas" value={report.summary.totalReplied} icon={MessageSquare} />
+          <KpiCard label="Bloqueios" value={report.summary.totalFailed} icon={Users} />
         </div>
 
-        {/* Bar Chart */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold mb-4 text-foreground">Volume de envios — {periodLabel.toLowerCase()}</h2>
+          <h2 className="text-sm font-semibold mb-4 text-foreground">Volume de envios</h2>
           <BarChart bars={bars} />
         </div>
 
-        {/* Campaign performance table */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-foreground">Desempenho por campanha</h2>
-          </div>
-          <div className="rounded-xl border border-border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40">
-                  <TableHead>Campanha</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Enviadas</TableHead>
-                  <TableHead className="text-right">Entregues</TableHead>
-                  <TableHead className="text-right">Lidas</TableHead>
-                  <TableHead className="text-right">Respondidas</TableHead>
-                  <TableHead>Data</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
-                      Carregando…
-                    </TableCell>
+        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-6">
+            <div className="rounded-xl border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead>Campanha</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Enviadas</TableHead>
+                    <TableHead className="text-right">Entregues</TableHead>
+                    <TableHead className="text-right">Lidas</TableHead>
+                    <TableHead className="text-right">Respondidas</TableHead>
+                    <TableHead>Data</TableHead>
                   </TableRow>
-                ) : filteredCampaigns.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
-                      Nenhuma campanha enviada neste período. Crie campanhas em{' '}
-                      <a href="/campanhas" className="underline text-primary">Campanhas</a>.
-                    </TableCell>
-                  </TableRow>
-                ) : filteredCampaigns.map(c => {
-                  const sent = c.totalSent ?? 0;
-                  const delivered = c.totalDelivered ?? 0;
-                  const read = c.totalRead ?? 0;
-                  const replied = c.totalReplied ?? 0;
-                  return (
-                    <TableRow key={c.id} className="hover:bg-muted/30">
-                      <TableCell className="font-medium">{c.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn('text-xs', STATUS_CLASSES[c.status ?? 'draft'])}>
-                          {STATUS_LABELS[c.status ?? 'draft']}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{sent.toLocaleString('pt-BR')}</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{pct(delivered, sent)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{pct(read, sent)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{pct(replied, sent)}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {c.createdAt ? new Date(c.createdAt).toLocaleDateString('pt-BR') : '—'}
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                        Carregando…
                       </TableCell>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                  ) : report.rows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                        Nenhuma campanha no período selecionado.
+                      </TableCell>
+                    </TableRow>
+                  ) : report.rows.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="font-medium">{row.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn('text-xs', STATUS_CLASSES[row.status ?? 'draft'])}>
+                          {STATUS_LABELS[row.status ?? 'draft'] ?? row.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{row.sent.toLocaleString('pt-BR')}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{row.deliveredRate}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{row.readRate}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{row.repliedRate}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{row.createdAt}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">Agendar entrega por email</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Crie rotinas automáticas para enviar o relatório operacional sem ação manual.
+                </p>
+              </div>
+              <Input value={scheduleForm.name} onChange={(event) => setScheduleForm((current) => ({ ...current, name: event.target.value }))} placeholder="Nome do agendamento" />
+              <Input value={scheduleForm.recipients} onChange={(event) => setScheduleForm((current) => ({ ...current, recipients: event.target.value }))} placeholder="emails separados por vírgula" />
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Select value={scheduleForm.frequency} onValueChange={(value) => setScheduleForm((current) => ({ ...current, frequency: value as ReportFrequency }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Diário</SelectItem>
+                    <SelectItem value="weekly">Semanal</SelectItem>
+                    <SelectItem value="monthly">Mensal</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={scheduleForm.periodDays} onValueChange={(value) => setScheduleForm((current) => ({ ...current, periodDays: value as Period }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">7 dias</SelectItem>
+                    <SelectItem value="14">14 dias</SelectItem>
+                    <SelectItem value="30">30 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={scheduleForm.format} onValueChange={(value) => setScheduleForm((current) => ({ ...current, format: value as ReportFormat }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="csv">CSV</SelectItem>
+                    <SelectItem value="pdf">PDF</SelectItem>
+                    <SelectItem value="both">CSV + PDF</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button className="w-full" onClick={() => void createSchedule()} disabled={savingSchedule || !scheduleForm.recipients.trim()}>
+                {savingSchedule ? 'Salvando...' : 'Criar agendamento'}
+              </Button>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h2 className="text-sm font-semibold text-foreground">Agendamentos ativos</h2>
+                <Badge variant="secondary">{schedules.length}</Badge>
+              </div>
+              <div className="space-y-3">
+                {schedules.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhum agendamento cadastrado.</p>
+                )}
+                {schedules.map((schedule) => (
+                  <div key={schedule.id} className="rounded-lg border border-border p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{schedule.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(schedule.recipients ?? []).join(', ')}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={cn(
+                        'text-xs',
+                        schedule.active ? 'border-green-200 bg-green-500/10 text-green-600' : 'border-border bg-muted text-muted-foreground',
+                      )}>
+                        {schedule.active ? 'Ativo' : 'Pausado'}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {schedule.frequency} · {schedule.periodDays} dias · {schedule.format} · próximo disparo{' '}
+                      {schedule.nextRunAt ? new Date(schedule.nextRunAt).toLocaleString('pt-BR') : '—'}
+                    </p>
+                    {schedule.lastError && (
+                      <p className="mt-2 text-xs text-red-600">{schedule.lastError}</p>
+                    )}
+                    <div className="mt-3 flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => void toggleSchedule(schedule)}>
+                        {schedule.active ? 'Pausar' : 'Reativar'}
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => void removeSchedule(schedule.id)}>
+                        <Trash2 className="h-4 w-4" />
+                        Remover
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <h2 className="text-sm font-semibold text-foreground">Últimos dispatches</h2>
+                <Badge variant="secondary">{dispatches.length}</Badge>
+              </div>
+              <div className="space-y-2">
+                {dispatches.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhum envio registrado ainda.</p>
+                )}
+                {dispatches.map((dispatch) => (
+                  <div key={dispatch.id} className="rounded-lg border border-border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-foreground">{(dispatch.recipients ?? []).join(', ') || 'Sem destinatários'}</span>
+                      <Badge variant="outline" className={cn(
+                        'text-xs',
+                        dispatch.status === 'sent'
+                          ? 'border-green-200 bg-green-500/10 text-green-600'
+                          : dispatch.status === 'dry_run'
+                            ? 'border-blue-200 bg-blue-500/10 text-blue-600'
+                            : 'border-red-200 bg-red-500/10 text-red-600',
+                      )}>
+                        {dispatch.status}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {dispatch.createdAt ? new Date(dispatch.createdAt).toLocaleString('pt-BR') : '—'} · formato {dispatch.format}
+                    </p>
+                    {dispatch.errorMessage && (
+                      <p className="mt-2 text-xs text-red-600">{dispatch.errorMessage}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

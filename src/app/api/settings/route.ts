@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isCandidateProfileConfigured } from '@/lib/campaign-variables';
 import { loadConfig, normalizeCandidateProfile, saveConfig, validateConfig } from '@/lib/db-config';
-import { validateSession } from '@/lib/db-auth';
+import { requirePermission } from '@/lib/api-auth';
 import { testConnection } from '@/lib/evolution';
 import type { Config } from '@/db';
-
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  if (!await validateSession(token)) {
-    return null;
-  }
-  return await loadConfig();
-}
 
 function maskApiKey(key: string): string {
   if (key.length <= 8) return '***';
@@ -19,10 +11,10 @@ function maskApiKey(key: string): string {
 }
 
 export async function GET(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'settings.view', 'Seu operador não pode ver configurações');
+  if (auth.response) return auth.response;
+  const config = await loadConfig();
+  if (!config) return NextResponse.json({ error: 'Configuração ausente' }, { status: 404 });
 
   // Return config without raw password; mask the API key
   const { authPassword: _, ...rest } = config;
@@ -34,10 +26,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'settings.manage', 'Seu operador não pode editar configurações');
+  if (auth.response) return auth.response;
+  const config = await loadConfig();
+  if (!config) return NextResponse.json({ error: 'Configuração ausente' }, { status: 404 });
 
   try {
     const body = await request.json() as Partial<Config>;
@@ -85,10 +77,10 @@ export async function PUT(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   // Test connection endpoint
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'settings.manage', 'Seu operador não pode testar a configuração');
+  if (auth.response) return auth.response;
+  const config = await loadConfig();
+  if (!config) return NextResponse.json({ error: 'Configuração ausente' }, { status: 404 });
 
   try {
     const result = await testConnection(config.evolutionApiUrl, config.evolutionApiKey);

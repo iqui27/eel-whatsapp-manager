@@ -1,31 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig } from '@/lib/db-config';
 import { addCluster, deleteCluster, loadClusters, updateCluster } from '@/lib/db-contacts';
-import { validateSession } from '@/lib/db-auth';
-
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  if (!await validateSession(token)) {
-    return null;
-  }
-  return loadConfig();
-}
+import { requirePermission } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'operations.view', 'Seu operador não pode ver clusters');
+  if (auth.response) return auth.response;
 
   const clusters = await loadClusters();
   return NextResponse.json(clusters);
 }
 
 export async function POST(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'operations.manage', 'Seu operador não pode cadastrar clusters');
+  if (auth.response) return auth.response;
 
   try {
     const body = await request.json() as {
@@ -66,10 +53,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'operations.manage', 'Seu operador não pode editar clusters');
+  if (auth.response) return auth.response;
 
   try {
     const body = await request.json() as {
@@ -103,10 +88,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'operations.manage', 'Seu operador não pode remover clusters');
+  if (auth.response) return auth.response;
 
   try {
     const { searchParams } = new URL(request.url);

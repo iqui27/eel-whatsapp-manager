@@ -280,6 +280,14 @@ function CommandPanel({
           <BarChart3 className="h-4 w-4 text-purple-500 shrink-0" />
           <span className="font-medium">Ver relatórios</span>
         </Link>
+        <Link href="/mobile/captura" className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-sm transition-colors hover:bg-accent">
+          <Smartphone className="h-4 w-4 text-cyan-600 shrink-0" />
+          <span className="font-medium">Captura mobile</span>
+        </Link>
+        <Link href="/mobile/inbox" className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-sm transition-colors hover:bg-accent">
+          <MessageCircle className="h-4 w-4 text-amber-600 shrink-0" />
+          <span className="font-medium">Inbox prioritária</span>
+        </Link>
 
         {/* System status */}
         <div className="mt-4 pt-4 border-t border-border space-y-2">

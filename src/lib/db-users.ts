@@ -15,15 +15,32 @@ export async function loadUsers(): Promise<User[]> {
   return db.select().from(users).orderBy(desc(users.createdAt));
 }
 
+export async function loadEnabledUsers(): Promise<User[]> {
+  return db
+    .select()
+    .from(users)
+    .where(eq(users.enabled, true))
+    .orderBy(desc(users.createdAt));
+}
+
 export async function getUser(id: string): Promise<User | undefined> {
   const rows = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function getUserByEmail(email: string): Promise<User | undefined> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const rows = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
   return rows[0];
 }
 
 export async function addUser(
   data: Omit<NewUser, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<User> {
-  const rows = await db.insert(users).values(data).returning();
+  const rows = await db.insert(users).values({
+    ...data,
+    email: data.email.trim().toLowerCase(),
+  }).returning();
   return rows[0];
 }
 

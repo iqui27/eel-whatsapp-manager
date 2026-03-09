@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateSession } from '@/lib/db-auth';
+import { requirePermission } from '@/lib/api-auth';
 import { loadUsers, addUser, updateUser, deleteUser } from '@/lib/db-users';
 
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  return await validateSession(token);
-}
-
 export async function GET(request: NextRequest) {
-  if (!await verifyAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'admin.manage', 'Somente administradores podem gerenciar usuários');
+  if (auth.response) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const role = searchParams.get('role') ?? undefined;
@@ -26,9 +20,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!await verifyAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'admin.manage', 'Somente administradores podem criar usuários');
+  if (auth.response) return auth.response;
 
   try {
     const body = await request.json();
@@ -40,6 +33,7 @@ export async function POST(request: NextRequest) {
       name: body.name,
       role: body.role ?? 'voluntario',
       regionScope: body.regionScope ?? null,
+      permissions: Array.isArray(body.permissions) ? body.permissions : [],
       enabled: body.enabled ?? true,
     });
     return NextResponse.json(user, { status: 201 });
@@ -50,9 +44,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  if (!await verifyAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'admin.manage', 'Somente administradores podem editar usuários');
+  if (auth.response) return auth.response;
 
   try {
     const body = await request.json();
@@ -60,6 +53,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
     }
     const { id, ...updates } = body;
+    if (updates.email) {
+      updates.email = String(updates.email).trim().toLowerCase();
+    }
     const user = await updateUser(id, updates);
     if (!user) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     return NextResponse.json(user);
@@ -70,9 +66,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!await verifyAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'admin.manage', 'Somente administradores podem remover usuários');
+  if (auth.response) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');

@@ -1,24 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateSession } from '@/lib/db-auth';
+import { requirePermission } from '@/lib/api-auth';
 import { addMessage, getConversation, getMessages } from '@/lib/db-conversations';
 import { loadChips } from '@/lib/db-chips';
 import { loadConfig } from '@/lib/db-config';
 import { sendText } from '@/lib/evolution';
-
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  return await validateSession(token);
-}
+import { isVoterInScope } from '@/lib/authorization';
+import { getVoter } from '@/lib/db-voters';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!await verifyAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'conversations.view', 'Seu operador não pode ler mensagens');
+  if (auth.response) return auth.response;
   const { id } = await params;
   try {
+    const conversation = await getConversation(id);
+    if (!conversation) {
+      return NextResponse.json({ error: 'Conversa não encontrada' }, { status: 404 });
+    }
+    if (conversation.voterId) {
+      const voter = await getVoter(conversation.voterId);
+      if (voter && !isVoterInScope(auth.actor, voter)) {
+        return NextResponse.json({ error: 'Fora do seu escopo regional' }, { status: 403 });
+      }
+    }
     const messages = await getMessages(id);
     return NextResponse.json(messages);
   } catch (err) {
@@ -31,9 +37,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!await verifyAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'conversations.reply', 'Seu operador não pode responder conversas');
+  if (auth.response) return auth.response;
   const { id } = await params;
   try {
     const body = await request.json();
@@ -45,6 +50,12 @@ export async function POST(
       const conversation = await getConversation(id);
       if (!conversation) {
         return NextResponse.json({ error: 'Conversa não encontrada' }, { status: 404 });
+      }
+      if (conversation.voterId) {
+        const voter = await getVoter(conversation.voterId);
+        if (voter && !isVoterInScope(auth.actor, voter)) {
+          return NextResponse.json({ error: 'Fora do seu escopo regional' }, { status: 403 });
+        }
       }
 
       const config = await loadConfig();

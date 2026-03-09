@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateSession } from '@/lib/db-auth';
+import { requirePermission } from '@/lib/api-auth';
+import { isVoterInScope } from '@/lib/authorization';
 import {
   CONVERSATION_STREAM_EVENT,
   createConnectedPayload,
@@ -15,22 +16,16 @@ import {
   type ConversationStreamFilters,
 } from '@/lib/conversation-stream';
 import { getConversationDeltas, getMessageDeltas } from '@/lib/db-conversations';
-
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+import { getVoter } from '@/lib/db-voters';
 
 const POLL_INTERVAL_MS = 1500;
 const HEARTBEAT_INTERVAL_MS = 15000;
-
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  return validateSession(token);
-}
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  if (!await verifyAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'conversations.view', 'Seu operador não pode acompanhar o stream de conversas');
+  if (auth.response) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const filters: ConversationStreamFilters = {
@@ -96,6 +91,12 @@ export async function GET(request: NextRequest) {
             });
 
             for (const conversation of conversationDeltas) {
+              if (conversation.voterId && auth.actor?.regionScope) {
+                const voter = await getVoter(conversation.voterId);
+                if (voter && !isVoterInScope(auth.actor, voter)) {
+                  continue;
+                }
+              }
               const matchesStatus = !filters.status || conversation.status === filters.status;
               const shouldEmit = matchesStatus || trackedConversationIds.has(conversation.id);
               if (!shouldEmit) {
@@ -123,6 +124,12 @@ export async function GET(request: NextRequest) {
               });
 
               for (const message of messageDeltas) {
+                if (filters.voterId) {
+                  const voter = await getVoter(filters.voterId);
+                  if (voter && !isVoterInScope(auth.actor, voter)) {
+                    continue;
+                  }
+                }
                 cursor = withMessageCursor(cursor, message);
                 push(
                   CONVERSATION_STREAM_EVENT.messageCreated,

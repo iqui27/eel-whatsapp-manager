@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateSession } from '@/lib/db-auth';
+import { requirePermission } from '@/lib/api-auth';
+import { isVoterInScope } from '@/lib/authorization';
 import {
   addConversation,
   getConversation,
@@ -10,16 +11,16 @@ import { db } from '@/db';
 import { conversationMessages, conversations } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import type { Conversation } from '@/db/schema';
+import { getVoter, loadVoters } from '@/lib/db-voters';
 
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  return await validateSession(token);
+async function getVisibleConversationIds(actor: Awaited<ReturnType<typeof requirePermission>>['actor']) {
+  const voters = await loadVoters();
+  return new Set(voters.filter((voter) => isVoterInScope(actor, voter)).map((voter) => voter.id));
 }
 
 export async function GET(request: NextRequest) {
-  if (!await verifyAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'conversations.view', 'Seu operador não pode acessar conversas');
+  if (auth.response) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
@@ -29,15 +30,32 @@ export async function GET(request: NextRequest) {
   try {
     if (id) {
       const conv = await getConversation(id);
+      if (conv?.voterId) {
+        const voter = await getVoter(conv.voterId);
+        if (voter && !isVoterInScope(auth.actor, voter)) {
+          return NextResponse.json({ error: 'Fora do seu escopo regional' }, { status: 403 });
+        }
+      }
       return conv
         ? NextResponse.json(conv)
         : NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
     if (voterId) {
+      const voter = await getVoter(voterId);
+      if (voter && !isVoterInScope(auth.actor, voter)) {
+        return NextResponse.json({ error: 'Fora do seu escopo regional' }, { status: 403 });
+      }
       return NextResponse.json(await getConversationsByVoter(voterId));
     }
     const data = await loadConversations(status ?? undefined);
-    return NextResponse.json(data);
+    if (auth.actor?.role === 'admin' || !auth.actor?.regionScope) {
+      return NextResponse.json(data);
+    }
+
+    const visibleIds = await getVisibleConversationIds(auth.actor);
+    return NextResponse.json(
+      data.filter((conversation) => conversation.voterId && visibleIds.has(conversation.voterId)),
+    );
   } catch (err) {
     console.error('GET conversations error:', err);
     return NextResponse.json({ error: 'Erro ao carregar conversas' }, { status: 500 });
@@ -45,12 +63,17 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!await verifyAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'conversations.reply', 'Seu operador não pode criar conversas');
+  if (auth.response) return auth.response;
 
   try {
     const body = await request.json();
+    if (body.voterId) {
+      const voter = await getVoter(body.voterId);
+      if (voter && !isVoterInScope(auth.actor, voter)) {
+        return NextResponse.json({ error: 'Fora do seu escopo regional' }, { status: 403 });
+      }
+    }
     if (body.chipId === 'auto' || body.chipId === '') {
       body.chipId = null;
     }
@@ -63,14 +86,23 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  if (!await verifyAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'conversations.reply', 'Seu operador não pode atualizar conversas');
+  if (auth.response) return auth.response;
 
   try {
     const body = await request.json();
     if (!body.id) {
       return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+    }
+    const current = await getConversation(body.id);
+    if (!current) {
+      return NextResponse.json({ error: 'Conversa não encontrada' }, { status: 404 });
+    }
+    if (current.voterId) {
+      const voter = await getVoter(current.voterId);
+      if (voter && !isVoterInScope(auth.actor, voter)) {
+        return NextResponse.json({ error: 'Fora do seu escopo regional' }, { status: 403 });
+      }
     }
     const updates: Partial<Conversation> & { updatedAt: Date } = { updatedAt: new Date() };
     if (body.status !== undefined) updates.status = body.status as NonNullable<Conversation['status']>;
@@ -86,15 +118,24 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!await verifyAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'conversations.reply', 'Seu operador não pode remover conversas');
+  if (auth.response) return auth.response;
 
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) {
       return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+    }
+    const current = await getConversation(id);
+    if (!current) {
+      return NextResponse.json({ error: 'Conversa não encontrada' }, { status: 404 });
+    }
+    if (current.voterId) {
+      const voter = await getVoter(current.voterId);
+      if (voter && !isVoterInScope(auth.actor, voter)) {
+        return NextResponse.json({ error: 'Fora do seu escopo regional' }, { status: 403 });
+      }
     }
 
     await db.delete(conversationMessages).where(eq(conversationMessages.conversationId, id));

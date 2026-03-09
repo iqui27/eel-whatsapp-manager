@@ -1,31 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfig } from '@/lib/db-config';
 import { loadChips, addChip, updateChip, deleteChip } from '@/lib/db-chips';
-import { validateSession } from '@/lib/db-auth';
-
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  if (!await validateSession(token)) {
-    return null;
-  }
-  return await loadConfig();
-}
+import { requirePermission } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'operations.view', 'Seu operador não pode ver chips');
+  if (auth.response) return auth.response;
 
   const chips = await loadChips();
   return NextResponse.json(chips);
 }
 
 export async function POST(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'operations.manage', 'Seu operador não pode cadastrar chips');
+  if (auth.response) return auth.response;
 
   try {
     const body = await request.json();
@@ -46,10 +33,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'operations.manage', 'Seu operador não pode editar chips');
+  if (auth.response) return auth.response;
 
   try {
     const body = await request.json();
@@ -62,10 +47,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'operations.manage', 'Seu operador não pode remover chips');
+  if (auth.response) return auth.response;
 
   try {
     const { searchParams } = new URL(request.url);

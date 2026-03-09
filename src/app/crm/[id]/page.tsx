@@ -147,10 +147,8 @@ export default function VoterProfilePage() {
   const [newTag, setNewTag] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
   const [savingTags, setSavingTags] = useState(false);
+  const [savingCrmContext, setSavingCrmContext] = useState(false);
 
-  // Checklist (localStorage)
-  const checklistKey = `eel_checklist_${voterId}`;
-  const notesKey = `eel_notes_${voterId}`;
   const [checklist, setChecklist] = useState<boolean[]>([false, false, false, false]);
   const [notes, setNotes] = useState('');
 
@@ -177,6 +175,8 @@ export default function VoterProfilePage() {
       const voterData: Voter = await voterRes.json();
       setVoter(voterData);
       setTags(voterData.tags ?? []);
+      setChecklist(CHECKLIST_ITEMS.map((item) => (voterData.crmChecklist ?? []).includes(item)));
+      setNotes(voterData.crmNotes ?? '');
 
       const [cRes, clRes] = await Promise.all([
         fetch(`/api/conversations?voterId=${voterId}`),
@@ -196,29 +196,56 @@ export default function VoterProfilePage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Load checklist + notes from localStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(checklistKey);
-      if (stored) setChecklist(JSON.parse(stored));
-      const storedNotes = localStorage.getItem(notesKey);
-      if (storedNotes) setNotes(storedNotes);
-    } catch { /* silent */ }
-  }, [checklistKey, notesKey]);
+  const persistCrmContext = useCallback(async (
+    nextChecklist: boolean[],
+    nextNotes: string,
+    successMessage?: string,
+  ) => {
+    if (!voter) return false;
 
-  const toggleCheck = (i: number) => {
+    setSavingCrmContext(true);
+    try {
+      const crmChecklist = CHECKLIST_ITEMS.filter((_, index) => nextChecklist[index]);
+      const res = await fetch('/api/voters', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: voter.id,
+          crmChecklist,
+          crmNotes: nextNotes.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Erro ao salvar contexto do CRM');
+      }
+
+      const updated = await res.json() as Voter;
+      setVoter(updated);
+      setChecklist(CHECKLIST_ITEMS.map((item) => (updated.crmChecklist ?? []).includes(item)));
+      setNotes(updated.crmNotes ?? '');
+
+      if (successMessage) {
+        toast.success(successMessage);
+      }
+
+      return true;
+    } catch {
+      toast.error('Erro ao salvar contexto do CRM');
+      return false;
+    } finally {
+      setSavingCrmContext(false);
+    }
+  }, [voter]);
+
+  const toggleCheck = async (i: number) => {
     const next = checklist.map((v, idx) => idx === i ? !v : v);
     setChecklist(next);
-    try { localStorage.setItem(checklistKey, JSON.stringify(next)); } catch { /* silent */ }
+    await persistCrmContext(next, notes, 'Checklist salvo');
   };
 
-  const saveNotes = () => {
-    try {
-      localStorage.setItem(notesKey, notes);
-      toast.success('Notas salvas');
-    } catch {
-      toast.error('Erro ao salvar notas');
-    }
+  const saveNotes = async () => {
+    await persistCrmContext(checklist, notes, 'Notas salvas');
   };
 
   const saveTags = async () => {
@@ -468,7 +495,7 @@ export default function VoterProfilePage() {
                   </button>
                 ))}
                 <p className="text-xs text-muted-foreground pt-1 italic">
-                  Salvo localmente neste dispositivo
+                  Compartilhado entre sessões e dispositivos
                 </p>
               </CardContent>
             </Card>
@@ -486,9 +513,9 @@ export default function VoterProfilePage() {
                   rows={5}
                   className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                 />
-                <Button size="sm" onClick={saveNotes} className="w-full gap-1.5">
+                <Button size="sm" onClick={saveNotes} className="w-full gap-1.5" disabled={savingCrmContext}>
                   <Save className="h-3.5 w-3.5" />
-                  Salvar notas
+                  {savingCrmContext ? 'Salvando...' : 'Salvar notas'}
                 </Button>
               </CardContent>
             </Card>

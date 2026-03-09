@@ -1,23 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/db-config';
 import { loadChipsWithClusters } from '@/lib/db-chips';
-import { validateSession } from '@/lib/db-auth';
+import { requirePermission } from '@/lib/api-auth';
 import { runWarming } from '@/lib/warming';
 import { toAppConfig, toWarmingChips } from '@/lib/warming-compat';
 
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  if (!await validateSession(token)) {
-    return null;
-  }
-  return await loadConfig();
-}
-
 export async function POST(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'operations.manage', 'Seu operador não pode disparar aquecimento');
+  if (auth.response) return auth.response;
+  const config = await loadConfig();
+  if (!config) return NextResponse.json({ error: 'Configuração ausente' }, { status: 404 });
 
   try {
     let id: string | undefined;
@@ -48,10 +40,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'operations.view', 'Seu operador não pode ver o status de aquecimento');
+  if (auth.response) return auth.response;
+  const config = await loadConfig();
+  if (!config) return NextResponse.json({ error: 'Configuração ausente' }, { status: 404 });
 
   const chips = await loadChipsWithClusters();
   return NextResponse.json({

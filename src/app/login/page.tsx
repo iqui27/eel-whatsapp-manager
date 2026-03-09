@@ -1,12 +1,60 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2, Lock } from 'lucide-react';
 
+interface LoginMetaUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string | null;
+  regionScope: string | null;
+}
+
 export default function LoginPage() {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [metaLoading, setMetaLoading] = useState(true);
+  const [requireEmail, setRequireEmail] = useState(false);
+  const [users, setUsers] = useState<LoginMetaUser[]>([]);
+  const [configured, setConfigured] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadMeta = async () => {
+      setMetaLoading(true);
+      try {
+        const res = await fetch('/api/auth/login');
+        const data = await res.json();
+        if (!active) return;
+
+        setConfigured(Boolean(data.configured));
+        setRequireEmail(Boolean(data.requireEmail));
+        setUsers(Array.isArray(data.users) ? data.users : []);
+        if (Array.isArray(data.users) && data.users.length === 1) {
+          setEmail(data.users[0].email);
+        }
+      } catch {
+        if (!active) return;
+        setConfigured(true);
+        setRequireEmail(false);
+        setUsers([]);
+      } finally {
+        if (active) {
+          setMetaLoading(false);
+        }
+      }
+    };
+
+    void loadMeta();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,17 +64,49 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
-      if (!res.ok) throw new Error();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || 'Falha no login');
+      }
       // Hard navigate so the browser sends the new auth cookie
       window.location.href = '/';
-    } catch {
-      setError('Senha incorreta. Tente novamente.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha no login');
     } finally {
       setLoading(false);
     }
   };
+
+  if (!configured && !metaLoading) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center px-6"
+        style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}
+      >
+        <div
+          className="w-full max-w-md rounded-2xl p-8 text-center"
+          style={{
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <h1 className="text-xl font-semibold">Sistema ainda não configurado</h1>
+          <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            Faça o setup inicial antes de tentar acessar o painel.
+          </p>
+          <a
+            href="/setup"
+            className="mt-6 inline-flex h-11 items-center justify-center rounded-lg px-4 text-sm font-medium"
+            style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
+          >
+            Ir para setup
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -52,7 +132,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-sm leading-relaxed max-w-xs" style={{ color: 'var(--muted-foreground)' }}>
-          Gerencie seus chips WhatsApp e automatize o aquecimento de números com a Evolution API.
+          Acesse a operação com o operador correto para respeitar permissões, escopo regional e trilha de auditoria.
         </p>
 
         {/* Feature pills */}
@@ -95,6 +175,36 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            {requireEmail && (
+              <div className="space-y-1.5">
+                <label
+                  className="text-xs font-medium uppercase tracking-wide"
+                  style={{ color: 'var(--muted-foreground)' }}
+                >
+                  Operador
+                </label>
+                <select
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className="flex h-11 w-full rounded-lg px-3 text-sm focus:outline-none focus:ring-2 transition-colors"
+                  style={{
+                    border: '1px solid var(--border)',
+                    background: 'var(--background)',
+                    color: 'var(--foreground)',
+                    '--tw-ring-color': 'var(--ring)',
+                  } as React.CSSProperties}
+                >
+                  <option value="">Selecione o operador</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.email}>
+                      {user.name}
+                      {user.regionScope ? ` · ${user.regionScope}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <label
                 className="text-xs font-medium uppercase tracking-wide"
@@ -139,15 +249,15 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading || !password}
+              disabled={loading || metaLoading || !password || (requireEmail && !email)}
               className="flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background: 'var(--primary)',
                 color: 'var(--primary-foreground)',
               }}
             >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? 'Entrando...' : 'Entrar'}
+              {(loading || metaLoading) && <Loader2 className="h-4 w-4 animate-spin" />}
+              {metaLoading ? 'Carregando...' : loading ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
         </div>

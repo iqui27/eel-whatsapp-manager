@@ -1,21 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateSession } from '@/lib/db-auth';
-import { loadConfig } from '@/lib/db-config';
+import { requirePermission } from '@/lib/api-auth';
 import { ensureSingleVoterSegment } from '@/lib/db-segments';
 
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  if (!await validateSession(token)) {
-    return null;
-  }
-  return await loadConfig();
-}
-
 export async function POST(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'campaigns.manage', 'Seu operador não pode preparar segmentos individuais');
+  if (auth.response) return auth.response;
 
   try {
     const body = await request.json();

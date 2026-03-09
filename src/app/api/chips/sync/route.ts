@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/db-config';
 import { loadChips, updateChip } from '@/lib/db-chips';
-import { validateSession } from '@/lib/db-auth';
+import { requirePermission } from '@/lib/api-auth';
 import { fetchInstances } from '@/lib/evolution';
-
-async function verifyAuth(request: NextRequest) {
-  const token = request.cookies.get('auth')?.value;
-  if (!await validateSession(token)) return null;
-  return await loadConfig();
-}
 
 /**
  * POST /api/chips/sync
@@ -16,10 +10,10 @@ async function verifyAuth(request: NextRequest) {
  * connectionStatus based on its instanceName field.
  */
 export async function POST(request: NextRequest) {
-  const config = await verifyAuth(request);
-  if (!config) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(request, 'operations.manage', 'Seu operador não pode sincronizar chips');
+  if (auth.response) return auth.response;
+  const config = await loadConfig();
+  if (!config) return NextResponse.json({ error: 'Configuração ausente' }, { status: 404 });
 
   try {
     const [chips, instances] = await Promise.all([

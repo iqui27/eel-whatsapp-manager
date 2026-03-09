@@ -32,6 +32,7 @@ import {
 import { UserPlus, Check, X, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { User } from '@/lib/db-users';
+import { PERMISSIONS as AVAILABLE_PERMISSIONS, resolvePermissions, type AppRole, type Permission } from '@/lib/authorization';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -49,26 +50,28 @@ const ROLE_CLASSES: Record<string, string> = {
   voluntario: 'bg-green-500/10 text-green-600 border-green-200',
 };
 
-// Modules × Roles permission matrix (static, informational)
-const MODULES = [
-  'Dashboard',
-  'CRM',
-  'Campanhas',
-  'Conversas',
-  'Conformidade',
-  'Relatórios',
-  'Admin',
+const MODULE_POLICIES: Array<{
+  label: string;
+  view: Permission;
+  manage?: Permission;
+}> = [
+  { label: 'Dashboard', view: 'dashboard.view' },
+  { label: 'CRM', view: 'crm.view', manage: 'crm.edit' },
+  { label: 'Campanhas', view: 'campaigns.view', manage: 'campaigns.manage' },
+  { label: 'Conversas', view: 'conversations.view', manage: 'conversations.reply' },
+  { label: 'Compliance', view: 'compliance.view', manage: 'compliance.manage' },
+  { label: 'Relatórios', view: 'reports.view', manage: 'reports.export' },
+  { label: 'Operacional', view: 'operations.view', manage: 'operations.manage' },
+  { label: 'Configurações', view: 'settings.view', manage: 'settings.manage' },
+  { label: 'Admin', view: 'admin.manage' },
 ];
 
-const PERMISSIONS: Record<string, Record<string, boolean>> = {
-  Dashboard:    { admin: true,  coordenador: true,  cabo: true,  voluntario: true  },
-  CRM:          { admin: true,  coordenador: true,  cabo: true,  voluntario: false },
-  Campanhas:    { admin: true,  coordenador: true,  cabo: false, voluntario: false },
-  Conversas:    { admin: true,  coordenador: true,  cabo: true,  voluntario: true  },
-  Conformidade: { admin: true,  coordenador: true,  cabo: false, voluntario: false },
-  'Relatórios': { admin: true,  coordenador: true,  cabo: false, voluntario: false },
-  Admin:        { admin: true,  coordenador: false, cabo: false, voluntario: false },
-};
+function getModuleLevel(role: AppRole, policy: typeof MODULE_POLICIES[number]) {
+  const rolePermissions = resolvePermissions(role, []);
+  if (policy.manage && rolePermissions.includes(policy.manage)) return 'Gerir';
+  if (rolePermissions.includes(policy.view)) return 'Visualizar';
+  return 'Bloqueado';
+}
 
 // ─── Invite form state ────────────────────────────────────────────────────────
 
@@ -91,6 +94,8 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [editingRole, setEditingRole] = useState<string | null>(null); // userId being edited
   const [confirmRemove, setConfirmRemove] = useState<User | null>(null);
+  const [permissionsUser, setPermissionsUser] = useState<User | null>(null);
+  const [permissionsDraft, setPermissionsDraft] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -159,6 +164,42 @@ export default function AdminPage() {
     setConfirmRemove(null);
   }, []);
 
+  const openPermissionsDialog = useCallback((user: User) => {
+    setPermissionsUser(user);
+    setPermissionsDraft(user.permissions ?? []);
+  }, []);
+
+  const togglePermission = useCallback((permission: string) => {
+    setPermissionsDraft((prev) => (
+      prev.includes(permission)
+        ? prev.filter((item) => item !== permission)
+        : [...prev, permission]
+    ));
+  }, []);
+
+  const savePermissions = useCallback(async () => {
+    if (!permissionsUser) return;
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: permissionsUser.id, permissions: permissionsDraft }),
+      });
+      if (res.ok) {
+        setUsers((prev) => prev.map((user) => (
+          user.id === permissionsUser.id
+            ? { ...user, permissions: permissionsDraft }
+            : user
+        )));
+        setPermissionsUser(null);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }, [permissionsDraft, permissionsUser]);
+
   return (
     <SidebarLayout currentPage="admin">
       <div className="flex flex-col gap-6 p-6">
@@ -191,19 +232,20 @@ export default function AdminPage() {
                     <TableHead>Função</TableHead>
                     <TableHead>Região</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Permissões extras</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                         Carregando…
                       </TableCell>
                     </TableRow>
                   ) : users.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                         Nenhum usuário cadastrado. Use "Convidar usuário" para adicionar.
                       </TableCell>
                     </TableRow>
@@ -256,6 +298,18 @@ export default function AdminPage() {
                         </button>
                       </TableCell>
                       <TableCell>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => openPermissionsDialog(user)}
+                        >
+                          {(user.permissions?.length ?? 0) > 0
+                            ? `${user.permissions?.length ?? 0} ativas`
+                            : 'Configurar'}
+                        </Button>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex justify-end gap-1">
                           <Button
                             size="sm"
@@ -298,16 +352,21 @@ export default function AdminPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {MODULES.map(mod => (
-                    <TableRow key={mod} className="hover:bg-muted/30">
-                      <TableCell className="font-medium">{mod}</TableCell>
-                      {['admin', 'coordenador', 'cabo', 'voluntario'].map(role => (
+                  {MODULE_POLICIES.map((policy) => (
+                    <TableRow key={policy.label} className="hover:bg-muted/30">
+                      <TableCell className="font-medium">{policy.label}</TableCell>
+                      {(['admin', 'coordenador', 'cabo', 'voluntario'] as AppRole[]).map((role) => (
                         <TableCell key={role} className="text-center">
-                          {PERMISSIONS[mod]?.[role] ? (
-                            <Check className="h-4 w-4 text-green-500 mx-auto" />
-                          ) : (
-                            <X className="h-4 w-4 text-muted-foreground/40 mx-auto" />
-                          )}
+                          <span className={cn(
+                            'inline-flex rounded-full border px-2 py-0.5 text-xs',
+                            getModuleLevel(role, policy) === 'Gerir'
+                              ? 'border-green-200 bg-green-500/10 text-green-600'
+                              : getModuleLevel(role, policy) === 'Visualizar'
+                                ? 'border-blue-200 bg-blue-500/10 text-blue-600'
+                                : 'border-border bg-muted text-muted-foreground',
+                          )}>
+                            {getModuleLevel(role, policy)}
+                          </span>
                         </TableCell>
                       ))}
                     </TableRow>
@@ -315,9 +374,12 @@ export default function AdminPage() {
                 </TableBody>
               </Table>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Permissões personalizadas por usuário disponíveis em breve.
-            </p>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-sm font-medium text-foreground">Permissões personalizadas</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Além do papel base, cada usuário pode receber permissões extras específicas. Isso afeta as APIs e os módulos visíveis no shell.
+              </p>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
@@ -375,6 +437,40 @@ export default function AdminPage() {
             <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancelar</Button>
             <Button onClick={handleInvite} disabled={saving || !form.name || !form.email}>
               {saving ? 'Salvando…' : 'Convidar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!permissionsUser} onOpenChange={open => !open && setPermissionsUser(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Permissões extras de {permissionsUser?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2 py-2 sm:grid-cols-2">
+            {AVAILABLE_PERMISSIONS.map((permission) => {
+              const active = permissionsDraft.includes(permission);
+              return (
+                <button
+                  key={permission}
+                  type="button"
+                  onClick={() => togglePermission(permission)}
+                  className={cn(
+                    'rounded-lg border px-3 py-2 text-left text-sm transition-colors',
+                    active
+                      ? 'border-primary bg-primary/5 text-foreground'
+                      : 'border-border bg-background text-muted-foreground hover:bg-muted/40',
+                  )}
+                >
+                  {permission}
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPermissionsUser(null)}>Cancelar</Button>
+            <Button onClick={savePermissions} disabled={saving}>
+              {saving ? 'Salvando…' : 'Salvar permissões'}
             </Button>
           </DialogFooter>
         </DialogContent>

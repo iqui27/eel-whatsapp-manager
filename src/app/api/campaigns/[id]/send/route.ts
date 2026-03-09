@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateSession } from '@/lib/db-auth';
+import { requirePermission } from '@/lib/api-auth';
 import { executeCampaignSend, getDeliveryErrorStatus } from '@/lib/campaign-delivery';
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const token = req.cookies.get('auth')?.value;
-  if (!await validateSession(token)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requirePermission(req, 'campaigns.manage', 'Seu operador não pode disparar campanhas');
+  if (auth.response) return auth.response;
 
   let body: { chipId?: string } = {};
   try {

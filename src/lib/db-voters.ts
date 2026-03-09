@@ -56,7 +56,7 @@ export async function searchVoters(query: string): Promise<Voter[]> {
     .select()
     .from(voters)
     .where(or(ilike(voters.name, pattern), ilike(voters.phone, pattern)))
-    .limit(50)
+    .limit(500)
     .orderBy(desc(voters.engagementScore));
 }
 

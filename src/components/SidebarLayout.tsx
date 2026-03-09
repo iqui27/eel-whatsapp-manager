@@ -30,6 +30,7 @@ import { ThemeToggle } from './theme-toggle';
 import { CommandPalette } from './command-palette';
 import { Topbar } from './topbar';
 import { cn } from '@/lib/utils';
+import { actorLabel, pagePermission, type SessionActor } from '@/lib/authorization';
 
 type PageId =
   | 'dashboard'
@@ -57,6 +58,10 @@ interface ShellChipStatus {
   enabledCount: number;
   connectedCount: number;
   loading: boolean;
+}
+
+interface SessionResponse {
+  actor: SessionActor & { label: string };
 }
 
 // Primary electoral navigation (8 items)
@@ -95,6 +100,8 @@ function SidebarContent({
   currentPage,
   apiConnected,
   chipConnectivityLabel,
+  primaryNavItems,
+  secondaryNavItems,
   onLogout,
   onLinkClick,
 }: {
@@ -102,6 +109,8 @@ function SidebarContent({
   currentPage: PageId;
   apiConnected: boolean;
   chipConnectivityLabel: string;
+  primaryNavItems: typeof electoralNavItems;
+  secondaryNavItems: typeof legacyNavItems;
   onLogout: () => void;
   onLinkClick?: () => void;
 }) {
@@ -188,30 +197,34 @@ function SidebarContent({
       {/* Navigation */}
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2 pt-3">
         {/* Primary electoral nav */}
-        {renderNavItem(electoralNavItems)}
+        {renderNavItem(primaryNavItems)}
 
         {/* Separator + legacy section */}
-        <div className={cn('mt-3 mb-1', collapsed && 'hidden')}>
-          <div className="mx-2.5 border-t border-sidebar-border" />
-        </div>
-        <AnimatePresence initial={false}>
-          {!collapsed && (
-            <motion.div
-              key="legacy-section-header"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.12 }}
-              className="px-2.5 pb-1"
-            >
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Operacional
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {secondaryNavItems.length > 0 && (
+          <>
+            <div className={cn('mt-3 mb-1', collapsed && 'hidden')}>
+              <div className="mx-2.5 border-t border-sidebar-border" />
+            </div>
+            <AnimatePresence initial={false}>
+              {!collapsed && (
+                <motion.div
+                  key="legacy-section-header"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.12 }}
+                  className="px-2.5 pb-1"
+                >
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Operacional
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>
+        )}
         <div className={cn(collapsed && 'mt-3')}>
-          {legacyNavItems.map(({ id, label, href, icon: Icon }) => {
+          {secondaryNavItems.map(({ id, label, href, icon: Icon }) => {
             const isActive = currentPage === id;
             return (
               <Link
@@ -327,10 +340,16 @@ function SidebarContent({
 }
 
 // ─── Bottom nav (mobile) — 5 electoral items ─────────────────────────────
-function BottomNav({ currentPage }: { currentPage: PageId }) {
+function BottomNav({
+  currentPage,
+  items,
+}: {
+  currentPage: PageId;
+  items: typeof mobileNavItems;
+}) {
   return (
     <nav className="flex h-16 items-center justify-around border-t border-border bg-sidebar px-2 md:hidden shrink-0">
-      {mobileNavItems.map(({ id, label, href, icon: Icon }) => {
+      {items.map(({ id, label, href, icon: Icon }) => {
         const isActive = currentPage === id;
         return (
           <Link
@@ -381,11 +400,48 @@ export default function SidebarLayout({
     connectedCount: 0,
     loading: true,
   });
+  const [sessionActor, setSessionActor] = useState<SessionActor | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
   };
+
+  useEffect(() => {
+    let active = true;
+
+    const loadSession = async () => {
+      setSessionLoading(true);
+      try {
+        const res = await fetch('/api/auth/session');
+        if (!res.ok) {
+          if (active) {
+            setSessionActor(null);
+          }
+          return;
+        }
+
+        const data = await res.json() as SessionResponse;
+        if (!active) return;
+        setSessionActor(data.actor);
+      } catch {
+        if (active) {
+          setSessionActor(null);
+        }
+      } finally {
+        if (active) {
+          setSessionLoading(false);
+        }
+      }
+    };
+
+    void loadSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -461,6 +517,28 @@ export default function SidebarLayout({
     : chipStatus.enabledCount === 0
       ? 'Nenhum chip habilitado'
       : `${chipStatus.connectedCount}/${chipStatus.enabledCount} chips conectados`;
+  const allowedPrimaryNavItems = sessionActor
+    ? electoralNavItems.filter((item) => {
+        const permission = pagePermission(item.id);
+        return !permission || sessionActor.permissions.includes(permission);
+      })
+    : electoralNavItems;
+  const allowedSecondaryNavItems = sessionActor
+    ? legacyNavItems.filter((item) => {
+        const permission = pagePermission(item.id);
+        return !permission || sessionActor.permissions.includes(permission);
+      })
+    : legacyNavItems;
+  const allowedMobileNavItems = sessionActor
+    ? mobileNavItems.filter((item) => {
+        const permission = pagePermission(item.id);
+        return !permission || sessionActor.permissions.includes(permission);
+      })
+    : mobileNavItems;
+  const currentPagePermission = pagePermission(currentPage);
+  const currentPageAllowed = currentPagePermission
+    ? (sessionActor ? sessionActor.permissions.includes(currentPagePermission) : sessionLoading)
+    : true;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -476,6 +554,8 @@ export default function SidebarLayout({
           currentPage={currentPage}
           apiConnected={effectiveApiConnected}
           chipConnectivityLabel={chipConnectivityLabel}
+          primaryNavItems={allowedPrimaryNavItems}
+          secondaryNavItems={allowedSecondaryNavItems}
           onLogout={handleLogout}
         />
 
@@ -519,6 +599,8 @@ export default function SidebarLayout({
                 currentPage={currentPage}
                 apiConnected={effectiveApiConnected}
                 chipConnectivityLabel={chipConnectivityLabel}
+                primaryNavItems={allowedPrimaryNavItems}
+                secondaryNavItems={allowedSecondaryNavItems}
                 onLogout={handleLogout}
                 onLinkClick={() => setMobileOpen(false)}
               />
@@ -537,7 +619,7 @@ export default function SidebarLayout({
             periodLabel="Período definido por página"
             alertLabel={topbarAlertLabel}
             alertTone={topbarAlertTone}
-            sessionLabel="Sessão ativa"
+            sessionLabel={actorLabel(sessionActor)}
           />
         </header>
 
@@ -558,11 +640,27 @@ export default function SidebarLayout({
 
         {/* Page content — desktop full scroll, mobile with bottom nav */}
         <main className="flex-1 overflow-y-auto">
-          {children}
+          {currentPageAllowed ? (
+            children
+          ) : (
+            <div className="flex min-h-full items-center justify-center p-6">
+              <div className="max-w-md rounded-2xl border border-border bg-card p-6 text-center">
+                <h2 className="text-lg font-semibold text-foreground">Acesso restrito</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Seu operador não possui permissão para acessar esta área.
+                </p>
+                {sessionActor?.regionScope && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Escopo atual: {sessionActor.regionScope}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </main>
 
         {/* Mobile bottom navigation */}
-        <BottomNav currentPage={currentPage} />
+        <BottomNav currentPage={currentPage} items={allowedMobileNavItems} />
       </div>
 
       {/* Command palette (global, portal) */}

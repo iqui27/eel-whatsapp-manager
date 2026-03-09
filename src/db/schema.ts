@@ -127,6 +127,12 @@ export const sessions = pgTable(
   {
     id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
     token: text('token').unique().notNull(),
+    userId: uuid('user_id'),
+    actorName: text('actor_name'),
+    actorEmail: text('actor_email'),
+    actorRole: text('actor_role'),
+    actorRegionScope: text('actor_region_scope'),
+    actorPermissions: text('actor_permissions').array().default(sql`'{}'`),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   },
@@ -149,6 +155,8 @@ export const voters = pgTable('voters', {
   optInDate: timestamp('opt_in_date', { withTimezone: true }),
   lastContacted: timestamp('last_contacted', { withTimezone: true }),
   contactCount: integer('contact_count').default(0),
+  crmNotes: text('crm_notes'),
+  crmChecklist: text('crm_checklist').array().default(sql`'{}'`),
   enabled: boolean('enabled').default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
@@ -311,12 +319,46 @@ export const users = pgTable('users', {
   email: text('email').notNull(),
   role: text('role', { enum: ['coordenador', 'cabo', 'voluntario', 'admin'] }).default('voluntario'),
   regionScope: text('region_scope'),
+  permissions: text('permissions').array().default(sql`'{}'`),
   enabled: boolean('enabled').default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
 }, (t) => [
   index('idx_users_email').on(t.email),
   index('idx_users_role').on(t.role),
+]);
+
+export const reportSchedules = pgTable('report_schedules', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  name: text('name').notNull(),
+  recipients: text('recipients').array().notNull().default(sql`'{}'`),
+  frequency: text('frequency', { enum: ['daily', 'weekly', 'monthly'] }).notNull().default('weekly'),
+  periodDays: integer('period_days').notNull().default(7),
+  format: text('format', { enum: ['csv', 'pdf', 'both'] }).notNull().default('pdf'),
+  active: boolean('active').notNull().default(true),
+  nextRunAt: timestamp('next_run_at', { withTimezone: true }).notNull(),
+  lastRunAt: timestamp('last_run_at', { withTimezone: true }),
+  lastStatus: text('last_status', { enum: ['idle', 'sent', 'failed', 'dry_run'] }).notNull().default('idle'),
+  lastError: text('last_error'),
+  createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_report_schedules_next_run').on(t.nextRunAt),
+]);
+
+export const reportDispatches = pgTable('report_dispatches', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  scheduleId: uuid('schedule_id').references(() => reportSchedules.id, { onDelete: 'set null' }),
+  recipients: text('recipients').array().notNull().default(sql`'{}'`),
+  format: text('format', { enum: ['csv', 'pdf', 'both'] }).notNull().default('pdf'),
+  status: text('status', { enum: ['sent', 'failed', 'dry_run'] }).notNull(),
+  errorMessage: text('error_message'),
+  metadata: jsonb('metadata').$type<Record<string, unknown> | null>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_report_dispatches_schedule').on(t.scheduleId),
+  index('idx_report_dispatches_created_at').on(t.createdAt),
 ]);
 
 export type Conversation = typeof conversations.$inferSelect;
@@ -330,3 +372,9 @@ export type NewConsentLog = typeof consentLogs.$inferInsert;
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+
+export type ReportSchedule = typeof reportSchedules.$inferSelect;
+export type NewReportSchedule = typeof reportSchedules.$inferInsert;
+
+export type ReportDispatch = typeof reportDispatches.$inferSelect;
+export type NewReportDispatch = typeof reportDispatches.$inferInsert;
