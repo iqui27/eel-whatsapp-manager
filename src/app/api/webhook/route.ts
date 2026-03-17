@@ -6,6 +6,7 @@ import { loadChips, updateChip, updateChipHealth } from '@/lib/db-chips';
 import { addConversation, addMessage } from '@/lib/db-conversations';
 import { searchVoters } from '@/lib/db-voters';
 import { normalizePhone } from '@/lib/phone';
+import { getGroupByJid, updateGroupSize } from '@/lib/db-groups';
 
 // ─── Dedup cache — prevents storing duplicate webhook deliveries ─────────────
 // Evolution API occasionally fires the same event twice within a few seconds.
@@ -186,11 +187,54 @@ export async function POST(request: NextRequest) {
     // TODO(Phase 17): process delivery status codes (DELIVERY_ACK=3, READ=4, PLAYED=5)
   }
 
-  // ─── group_participants.update — group management (Phase 16 placeholder) ────
+  // ─── group_participants.update — group management ────────────────────────────
   if (event === 'group_participants.update') {
-    const data = body.data as Record<string, unknown> | undefined;
-    console.log('[webhook] group_participants.update received for group', data?.id, 'on instance', instanceName);
-    // TODO(Phase 16): sync group membership changes
+    try {
+      const data = body.data as Record<string, unknown> | undefined;
+      const groupJid = data?.id as string | undefined;
+      const action = data?.action as string | undefined;
+      const participants = (data?.participants as string[]) ?? [];
+
+      console.log('[webhook] group_participants.update for', groupJid, 'action:', action, 'participants:', participants.length);
+
+      if (groupJid && action) {
+        // Look up group in database
+        const group = await getGroupByJid(groupJid);
+        
+        if (group) {
+          // Calculate size change based on action
+          let sizeDelta = 0;
+          
+          if (action === 'add') {
+            sizeDelta = participants.length;
+          } else if (action === 'remove') {
+            sizeDelta = -participants.length;
+          }
+          
+          // Update group size
+          const newSize = Math.max(0, group.currentSize + sizeDelta);
+          const newStatus = newSize >= group.maxSize ? 'full' : 'active';
+          
+          await updateGroupSize(group.id, newSize, newStatus);
+          
+          console.log('[webhook] Updated group', group.name, 'size:', group.currentSize, '→', newSize, 'status:', newStatus);
+          
+          // Log warning if near capacity
+          if (newSize >= group.maxSize * 0.9 && newSize < group.maxSize) {
+            console.warn('[webhook] Group', group.name, 'at', Math.round(newSize / group.maxSize * 100), '% capacity - overflow recommended');
+          }
+          
+          // Log if full
+          if (newStatus === 'full') {
+            console.warn('[webhook] Group', group.name, 'is now FULL at', newSize, 'members');
+          }
+        } else {
+          console.log('[webhook] Group', groupJid, 'not found in database - sync needed');
+        }
+      }
+    } catch (err) {
+      console.error('[webhook] group_participants.update error:', err);
+    }
   }
 
   return NextResponse.json({ success: true });

@@ -435,3 +435,30 @@ export type NewReportDispatch = typeof reportDispatches.$inferInsert;
 
 export type MessageQueue = typeof messageQueue.$inferSelect;
 export type NewMessageQueue = typeof messageQueue.$inferInsert;
+
+// ─── WhatsApp Groups (Phase 16 - Group Management) ─────────────────────────────
+export const whatsappGroups = pgTable('whatsapp_groups', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  groupJid: text('group_jid').notNull().unique(),
+  name: text('name').notNull(),
+  description: text('description'),
+  inviteUrl: text('invite_url'),
+  inviteCode: text('invite_code'),
+  campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
+  segmentTag: text('segment_tag'),
+  chipId: uuid('chip_id').references(() => chips.id, { onDelete: 'set null' }),
+  chipInstanceName: text('chip_instance_name'),
+  currentSize: integer('current_size').default(0).notNull(),
+  maxSize: integer('max_size').default(1024).notNull(),
+  status: text('status', { enum: ['active', 'full', 'archived'] }).default('active').notNull(),
+  admins: text('admins').array().default(sql`'{}'`),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_whatsapp_groups_campaign').on(t.campaignId),
+  index('idx_whatsapp_groups_chip').on(t.chipId),
+  index('idx_whatsapp_groups_status').on(t.status),
+]);
+
+export type WhatsappGroup = typeof whatsappGroups.$inferSelect;
+export type NewWhatsappGroup = typeof whatsappGroups.$inferInsert;
