@@ -40,10 +40,25 @@ export const chips = pgTable('chips', {
   groupId: text('group_id'),
   enabled: boolean('enabled').default(true),
   lastWarmed: timestamp('last_warmed', { withTimezone: true }),
+  // Legacy status field (kept for backward compatibility)
   status: text('status', { enum: ['connected', 'disconnected', 'warming'] })
     .default('disconnected')
     .notNull(),
   warmCount: integer('warm_count').default(0),
+  // ─── Health monitoring fields (Phase 14) ────────────────────────────────
+  // 7-state health: healthy | degraded | cooldown | quarantined | banned | warming_up | disconnected
+  healthStatus: text('health_status').default('disconnected').notNull(),
+  messagesSentToday: integer('messages_sent_today').default(0).notNull(),
+  messagesSentThisHour: integer('messages_sent_this_hour').default(0).notNull(),
+  dailyLimit: integer('daily_limit').default(200).notNull(),
+  hourlyLimit: integer('hourly_limit').default(25).notNull(),
+  lastHealthCheck: timestamp('last_health_check', { withTimezone: true }),
+  lastWebhookEvent: timestamp('last_webhook_event', { withTimezone: true }),
+  cooldownUntil: timestamp('cooldown_until', { withTimezone: true }),
+  bannedAt: timestamp('banned_at', { withTimezone: true }),
+  errorCount: integer('error_count').default(0).notNull(),
+  blockRate: integer('block_rate').default(0), // percentage * 100 (e.g., 250 = 2.5%)
+  assignedSegments: text('assigned_segments').array(),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
 });

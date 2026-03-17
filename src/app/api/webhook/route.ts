@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { conversations } from '@/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
-import { loadChips, updateChip } from '@/lib/db-chips';
+import { loadChips, updateChip, updateChipHealth } from '@/lib/db-chips';
 import { addConversation, addMessage } from '@/lib/db-conversations';
 import { searchVoters } from '@/lib/db-voters';
 
@@ -24,6 +24,21 @@ export async function POST(request: NextRequest) {
   const event = body.event as string | undefined;
   const instanceName = body.instance as string | undefined;
 
+  // ─── Track lastWebhookEvent on EVERY event for health monitoring ────────────
+  if (instanceName) {
+    try {
+      const chips = await loadChips();
+      const chip = chips.find(
+        (c) => c.name === instanceName || c.instanceName === instanceName,
+      );
+      if (chip) {
+        await updateChipHealth(chip.id, { lastWebhookEvent: new Date() });
+      }
+    } catch (err) {
+      console.error('[webhook] Failed to update lastWebhookEvent:', err);
+    }
+  }
+
   // ─── connection.update — keep chip status in sync ───────────────────────────
   if (event === 'connection.update') {
     try {
@@ -33,11 +48,31 @@ export async function POST(request: NextRequest) {
       );
 
       if (chip) {
-        const state = (body.data as Record<string, unknown>)?.state as string | undefined;
+        const data = body.data as Record<string, unknown> | undefined;
+        const state = data?.state as string | undefined;
+        const statusReason = data?.statusReason as number | undefined;
+
         const newStatus: 'connected' | 'disconnected' =
           state === 'open' ? 'connected' : 'disconnected';
+
+        // Update legacy status field (backward compat)
         await updateChip(chip.id, { status: newStatus });
-        console.log('[webhook] Chip', instanceName, '→', newStatus);
+
+        // Handle statusReason codes for health monitoring
+        if (statusReason === 401) {
+          // Logged out — mark disconnected, user must rescan QR
+          await updateChipHealth(chip.id, { healthStatus: 'disconnected' });
+          console.warn('[webhook] Chip', instanceName, 'logged out (statusReason 401)');
+        } else if (statusReason === 408 || statusReason === 515) {
+          // Timeout (408) or restart needed (515) — cron will handle restart
+          // Just update status, don't block webhook response
+          console.warn('[webhook] Chip', instanceName, 'needs restart (statusReason', statusReason, ')');
+        } else if (state === 'open') {
+          // Healthy connection established
+          await updateChipHealth(chip.id, { healthStatus: 'healthy', errorCount: 0 });
+        }
+
+        console.log('[webhook] connection.update for', instanceName, '→', newStatus, 'statusReason:', statusReason);
       }
     } catch (err) {
       console.error('[webhook] connection.update error:', err);
@@ -136,6 +171,21 @@ export async function POST(request: NextRequest) {
         // Continue processing remaining messages
       }
     }
+  }
+
+  // ─── messages.update — delivery status tracking (Phase 17 placeholder) ──────
+  if (event === 'messages.update') {
+    const updates = (body.data as unknown[]) ?? [];
+    // Log delivery status updates for future Phase 17 implementation
+    console.log('[webhook] messages.update received:', updates.length, 'update(s) on instance', instanceName);
+    // TODO(Phase 17): process delivery status codes (DELIVERY_ACK=3, READ=4, PLAYED=5)
+  }
+
+  // ─── group_participants.update — group management (Phase 16 placeholder) ────
+  if (event === 'group_participants.update') {
+    const data = body.data as Record<string, unknown> | undefined;
+    console.log('[webhook] group_participants.update received for group', data?.id, 'on instance', instanceName);
+    // TODO(Phase 16): sync group membership changes
   }
 
   return NextResponse.json({ success: true });

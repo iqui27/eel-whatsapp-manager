@@ -3,7 +3,7 @@
  * Drop-in replacement for the old JSON-based chips.ts
  */
 import { db, chips, chipClusters, type Chip, type NewChip } from '@/db';
-import { eq } from 'drizzle-orm';
+import { eq, inArray, sql as drizzleSql } from 'drizzle-orm';
 
 export type { Chip, NewChip };
 
@@ -54,6 +54,87 @@ export async function setChipClusters(chipId: string, clusterIds: string[]): Pro
       clusterIds.map((clusterId) => ({ chipId, clusterId })),
     );
   }
+}
+
+// ─── Health monitoring helpers (Phase 14) ─────────────────────────────────
+
+export type ChipHealthStatus =
+  | 'healthy'
+  | 'degraded'
+  | 'cooldown'
+  | 'quarantined'
+  | 'banned'
+  | 'warming_up'
+  | 'disconnected';
+
+type HealthFields = Partial<Pick<
+  Chip,
+  | 'healthStatus'
+  | 'messagesSentToday'
+  | 'messagesSentThisHour'
+  | 'dailyLimit'
+  | 'hourlyLimit'
+  | 'lastHealthCheck'
+  | 'lastWebhookEvent'
+  | 'cooldownUntil'
+  | 'bannedAt'
+  | 'errorCount'
+  | 'blockRate'
+  | 'assignedSegments'
+>>;
+
+/** Partial update of health-related fields on a chip */
+export async function updateChipHealth(
+  chipId: string,
+  healthFields: HealthFields,
+): Promise<Chip | undefined> {
+  const rows = await db
+    .update(chips)
+    .set({ ...healthFields, updatedAt: new Date() })
+    .where(eq(chips.id, chipId))
+    .returning();
+  return rows[0];
+}
+
+/** Returns chips that are healthy or degraded AND have daily capacity remaining */
+export async function getHealthyChips(): Promise<Chip[]> {
+  return db
+    .select()
+    .from(chips)
+    .where(
+      inArray(chips.healthStatus, ['healthy', 'degraded']),
+    )
+    .then((rows) =>
+      rows.filter(
+        (c) =>
+          c.enabled &&
+          (c.messagesSentToday ?? 0) < (c.dailyLimit ?? 200),
+      ),
+    );
+}
+
+/** Atomically increment a counter field using SQL */
+export async function incrementChipCounter(
+  chipId: string,
+  field: 'messagesSentToday' | 'messagesSentThisHour',
+): Promise<void> {
+  const col = field === 'messagesSentToday' ? chips.messagesSentToday : chips.messagesSentThisHour;
+  await db
+    .update(chips)
+    .set({
+      [field]: drizzleSql`${col} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(chips.id, chipId));
+}
+
+/** Reset daily + hourly counters for all chips (called by daily cron) */
+export async function resetDailyCounters(): Promise<void> {
+  await db.update(chips).set({
+    messagesSentToday: 0,
+    messagesSentThisHour: 0,
+    updatedAt: new Date(),
+  });
 }
 
 /** Load all chips with their clusterIds already populated */
