@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
   let degraded = 0;
   let disconnected = 0;
   let quarantined = 0;
+  let notFound = 0;
 
   const now = new Date();
 
@@ -55,16 +56,32 @@ export async function GET(request: NextRequest) {
     const instanceName = chip.instanceName!;
 
     try {
-      let state = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+      let { status: connStatus, instanceExists } = await getConnectionState(
+        evolutionApiUrl, 
+        evolutionApiKey, 
+        instanceName
+      );
+
+      // ─── Instance doesn't exist in Evolution API ────────────────────────────
+      if (!instanceExists) {
+        await updateChipHealth(chip.id, {
+          healthStatus: 'not_found',
+          lastHealthCheck: now,
+        });
+        notFound++;
+        console.warn(`[chip-health] Instance "${instanceName}" not found in Evolution API`);
+        continue;
+      }
 
       // ─── Connection handling ─────────────────────────────────────────────
-      if (state === 'connecting' || state === 'disconnected') {
+      if (connStatus === 'connecting' || connStatus === 'disconnected') {
         // Attempt restart unless already quarantined
         if ((chip.errorCount ?? 0) < 3) {
           try {
             await restartInstance(evolutionApiUrl, evolutionApiKey, instanceName);
             await sleep(RESTART_WAIT_MS);
-            state = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+            const recheck = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+            connStatus = recheck.status;
           } catch (restartErr) {
             console.error(`[chip-health] restart failed for ${instanceName}:`, restartErr);
           }
@@ -78,7 +95,7 @@ export async function GET(request: NextRequest) {
         new Date(chip.cooldownUntil) <= now
       ) {
         // Cooldown expired — restore to healthy if connected
-        if (state === 'connected') {
+        if (connStatus === 'connected') {
           await updateChipHealth(chip.id, {
             healthStatus: 'healthy',
             errorCount: 0,
@@ -91,7 +108,7 @@ export async function GET(request: NextRequest) {
       }
 
       // ─── Determine new health status ─────────────────────────────────────
-      if (state === 'connected') {
+      if (connStatus === 'connected') {
         const isWebhookStale =
           chip.lastWebhookEvent
             ? now.getTime() - new Date(chip.lastWebhookEvent).getTime() > WEBHOOK_STALE_MS
@@ -150,6 +167,7 @@ export async function GET(request: NextRequest) {
     degraded,
     disconnected,
     quarantined,
+    notFound,
     skipped: allChips.length - enabled.length,
   };
 

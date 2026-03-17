@@ -98,17 +98,20 @@ export async function getConnectionState(
   apiUrl: string,
   apiKey: string,
   instanceName: string,
-): Promise<ConnectionStatus> {
+): Promise<{ status: ConnectionStatus; instanceExists: boolean }> {
   const res = await fetch(
     `${baseUrl(apiUrl)}/instance/connectionState/${encodeURIComponent(instanceName)}`,
     { headers: { apikey: apiKey } },
   );
-  if (res.status === 404) return 'disconnected';
+  if (res.status === 404) {
+    // Instance doesn't exist in Evolution API
+    return { status: 'disconnected', instanceExists: false };
+  }
   await throwIfNotOk(res, 'getConnectionState');
   const data = await res.json();
   // v2 returns { instance: { state: 'open' | 'close' } }
   const state: string = data?.instance?.state ?? data?.state ?? 'close';
-  return mapStatus(state);
+  return { status: mapStatus(state), instanceExists: true };
 }
 
 /** Restart a running instance */

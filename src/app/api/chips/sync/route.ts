@@ -40,20 +40,39 @@ export async function POST(request: NextRequest) {
     let healthy = 0;
     let degraded = 0;
     let disconnected = 0;
+    let notFound = 0;
     const results: Array<{ id: string; name: string; healthStatus: string; changed: boolean }> = [];
 
     for (const chip of enabled) {
       const instanceName = chip.instanceName!;
 
       try {
-        let state = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+        let { status: state, instanceExists } = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+
+        // Instance doesn't exist
+        if (!instanceExists) {
+          await updateChipHealth(chip.id, {
+            healthStatus: 'not_found',
+            lastHealthCheck: now,
+          });
+          await updateChip(chip.id, { status: 'disconnected' });
+          notFound++;
+          results.push({
+            id: chip.id,
+            name: chip.name,
+            healthStatus: 'not_found',
+            changed: chip.healthStatus !== 'not_found',
+          });
+          continue;
+        }
 
         // Attempt restart for non-healthy states
         if (state !== 'connected') {
           try {
             await restartInstance(evolutionApiUrl, evolutionApiKey, instanceName);
             await sleep(3000);
-            state = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+            const recheck = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+            state = recheck.status;
           } catch { /* restart failed, continue with current state */ }
         }
 
@@ -108,6 +127,7 @@ export async function POST(request: NextRequest) {
       healthy,
       degraded,
       disconnected,
+      notFound,
       chips: results,
     });
   } catch (error) {

@@ -71,7 +71,18 @@ export async function PUT(request: NextRequest) {
       try {
         await restartInstance(config.evolutionApiUrl, config.evolutionApiKey, chip.instanceName);
         await sleep(5000);
-        const newState = await getConnectionState(config.evolutionApiUrl, config.evolutionApiKey, chip.instanceName);
+        const { status: newState, instanceExists } = await getConnectionState(
+          config.evolutionApiUrl, 
+          config.evolutionApiKey, 
+          chip.instanceName
+        );
+
+        if (!instanceExists) {
+          return NextResponse.json({ 
+            error: 'Instância não encontrada', 
+            details: `A instância "${chip.instanceName}" não existe na Evolution API. Verifique o nome ou crie a instância.` 
+          }, { status: 404 });
+        }
 
         const healthStatus = newState === 'connected' ? 'healthy' : 'disconnected';
         await updateChipHealth(chipId, {

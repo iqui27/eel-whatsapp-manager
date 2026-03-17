@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 
 type ChipHealthStatus =
   | 'healthy' | 'degraded' | 'cooldown' | 'quarantined'
-  | 'banned' | 'warming_up' | 'disconnected';
+  | 'banned' | 'warming_up' | 'disconnected' | 'not_found';
 
 interface Chip {
   id: string;
@@ -102,6 +102,13 @@ const HEALTH_CONFIG: Record<ChipHealthStatus, {
     badgeClass: 'bg-slate-50 text-slate-600 border-slate-200',    
     canRestart: true  
   },
+  not_found: { 
+    label: 'Não encontrado', 
+    description: 'Instância não existe na Evolution API — verifique o nome ou crie a instância',
+    dotColor: 'bg-gray-500',  
+    badgeClass: 'bg-gray-50 text-gray-700 border-gray-200',    
+    canRestart: false  
+  },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -173,6 +180,7 @@ const FILTER_BTNS: { label: string; value: HealthFilter }[] = [
   { label: 'Saudável', value: 'healthy' },
   { label: 'Degradado', value: 'degraded' },
   { label: 'Desconectado', value: 'disconnected' },
+  { label: 'Não encontrado', value: 'not_found' },
   { label: 'Quarentena', value: 'quarantined' },
   { label: 'Banido', value: 'banned' },
   { label: 'Aquecendo', value: 'warming_up' },
@@ -281,7 +289,17 @@ export default function ChipsPage() {
       const res = await fetch('/api/chips/sync', { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Saúde verificada! ${data.healthy} saudável, ${data.degraded} degradado, ${data.disconnected} desconectado`);
+        const parts = [];
+        if (data.healthy) parts.push(`${data.healthy} saudável`);
+        if (data.degraded) parts.push(`${data.degraded} degradado`);
+        if (data.disconnected) parts.push(`${data.disconnected} desconectado`);
+        if (data.notFound) parts.push(`${data.notFound} não encontrado`);
+        
+        if (data.notFound > 0) {
+          toast.warning(`Verificação: ${parts.join(', ')} — instâncias não encontradas precisam ser criadas na Evolution API`, { duration: 6000 });
+        } else {
+          toast.success(`Saúde verificada! ${parts.join(', ')}`);
+        }
         fetchChips(true);
       } else {
         toast.error(data.error || 'Erro ao sincronizar');
@@ -352,6 +370,7 @@ export default function ChipsPage() {
     degraded: chips.filter((c) => c.healthStatus === 'degraded').length,
     disconnected: chips.filter((c) => c.healthStatus === 'disconnected').length,
     quarantined: chips.filter((c) => c.healthStatus === 'quarantined' || c.healthStatus === 'banned').length,
+    notFound: chips.filter((c) => c.healthStatus === 'not_found').length,
   };
 
   const currentFilterLabel = FILTER_BTNS.find((b) => b.value === filter)?.label ?? 'Todos';
@@ -403,6 +422,12 @@ export default function ChipsPage() {
               <span className="h-2 w-2 rounded-full bg-slate-400" />
               <span className="text-muted-foreground">{summary.disconnected} desconectado</span>
             </div>
+            {summary.notFound > 0 && (
+              <div className="flex items-center gap-1.5 text-sm">
+                <span className="h-2 w-2 rounded-full bg-gray-500" />
+                <span className="text-gray-600 font-medium">{summary.notFound} não encontrado</span>
+              </div>
+            )}
             {summary.quarantined > 0 && (
               <div className="flex items-center gap-1.5 text-sm">
                 <span className="h-2 w-2 rounded-full bg-red-500" />
