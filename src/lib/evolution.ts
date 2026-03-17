@@ -120,15 +120,29 @@ export async function restartInstance(
   apiKey: string,
   instanceName: string,
 ): Promise<void> {
-  const res = await fetch(
-    `${baseUrl(apiUrl)}/instance/restart/${encodeURIComponent(instanceName)}`,
-    {
-      method: 'PUT',
-      headers: { apikey: apiKey },
-    },
-  );
+  const url = `${baseUrl(apiUrl)}/instance/restart/${encodeURIComponent(instanceName)}`;
+  console.log(`[evolution] Attempting restart at: ${url}`);
+  
+  // Try PUT first (documented endpoint)
+  let res = await fetch(url, {
+    method: 'PUT',
+    headers: { apikey: apiKey },
+  });
+  
+  console.log(`[evolution] PUT /instance/restart response: ${res.status}`);
+  
+  // If PUT fails with 404, try POST (some versions use POST)
   if (res.status === 404) {
-    throw new Error(`Instância "${instanceName}" não encontrada na Evolution API. Verifique se o nome está correto ou crie a instância primeiro.`);
+    console.log(`[evolution] PUT /instance/restart returned 404, trying POST...`);
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { apikey: apiKey },
+    });
+    console.log(`[evolution] POST /instance/restart response: ${res.status}`);
+  }
+  
+  if (res.status === 404) {
+    throw new Error(`Endpoint restart não encontrado. A instância "${instanceName}" pode estar em uma versão da Evolution API que não suporta restart remoto.`);
   }
   await throwIfNotOk(res, 'restartInstance');
 }
