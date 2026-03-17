@@ -2,34 +2,34 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 15
-current_phase_name: mass-messaging-engine
-current_plan: 3
+current_phase: 16
+current_phase_name: group-management
+current_plan: 2
 status: complete
-stopped_at: "Phase 15 complete — ready for Phase 16 (WhatsApp Group Management)"
-last_updated: "2026-03-17T23:00:00.000Z"
+stopped_at: "Phase 16 complete — ready for Phase 17 (Delivery Tracking)"
+last_updated: "2026-03-17T23:30:00.000Z"
 last_activity: 2026-03-17
 progress:
   total_phases: 19
-  completed_phases: 14
-  total_plans: 44
-  completed_plans: 44
-  percent: 74
+  completed_phases: 15
+  total_plans: 46
+  completed_plans: 46
+  percent: 79
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 15
-**Current Phase Name:** mass-messaging-engine
-**Current Plan:** 3
+**Current Phase:** 16
+**Current Phase Name:** group-management
+**Current Plan:** 2
 **Total Phases:** 19
-**Total Plans in Phase:** 3
+**Total Plans in Phase:** 2
 **Status:** Complete
 **Progress:** [██████████] 100%
 **Last Activity:** 2026-03-17
-**Last Activity Description:** Phase 15 complete — message queue, chip router, campaign hydration, message variation, chip failover, counter reset
-**Stopped At:** Phase 15 complete — ready for Phase 16 (WhatsApp Group Management)
+**Last Activity Description:** Phase 16 complete — groups schema, API routes, management page, webhook handler, campaign integration
+**Stopped At:** Phase 16 complete — ready for Phase 17 (Delivery Tracking)
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -150,6 +150,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Plan 15-02: Campaign hydration pipeline, message variation engine (spintax, greetings, emojis) ✅
 - Plan 15-03: Automatic chip failover, hourly/daily counter reset cron ✅
 
+**Phase 16 (WhatsApp Group Management) — COMPLETE** ✅
+- Plan 16-01: Groups schema (whatsapp_groups table), db-groups.ts with CRUD + overflow, group-sync utility, GROUP_PARTICIPANTS_UPDATE webhook handler ✅
+- Plan 16-02: Groups API routes, /grupos page with status filters, GroupCard/CreateGroupDialog components, campaign integration with {link_grupo} variable ✅
+
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
 - [x] Database: Supabase PostgreSQL (already in use)
@@ -223,6 +227,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 15-mass-messaging-engine]: Spintax resolves randomly; greetings are time-aware; emoji added at 30% chance per strategic position
 - [Phase 15-mass-messaging-engine]: Campaign cron hydrates to queue; send-queue cron delivers (separation of concerns)
 - [Phase 15-mass-messaging-engine]: Chip failover triggers when chip becomes quarantined; pending messages reset to queued status
+- [Phase 16-group-management]: Groups table stores groupJid, invite link, capacity, status (active/full/archived)
+- [Phase 16-group-management]: Overflow detected at 90% capacity, groups marked full at 100%
+- [Phase 16-group-management]: GROUP_PARTICIPANTS_UPDATE webhook updates group size on join/leave
+- [Phase 16-group-management]: {link_grupo} variable resolves to active group invite link in campaigns
 
 ## Accumulated Context
 
@@ -309,6 +317,8 @@ src/components/
 | 15-mass-messaging-engine P01 | 20 min | 4/4 | 6 files |
 | 15-mass-messaging-engine P02 | 12 min | 4/4 | 5 files |
 | 15-mass-messaging-engine P03 | 10 min | 2/2 | 3 files |
+| 16-group-management P01 | 15 min | 6/6 | 5 files |
+| 16-group-management P02 | 20 min | 8/8 | 10 files |
 
 ## Next Actions
-Phase 15 complete. Continue with Phase 16 (WhatsApp Group Management) or Phase 17 (Delivery Tracking & Conversion Funnel).
+Phase 16 complete. Continue with Phase 17 (Delivery Tracking & Conversion Funnel).

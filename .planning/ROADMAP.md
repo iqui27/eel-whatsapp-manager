@@ -345,7 +345,7 @@ Plans:
 ---
 
 ### Phase 16: WhatsApp Group Management
-**Status:** Not started
+**Status:** COMPLETE ✅
 **Goal:** Full WhatsApp group lifecycle — create groups via Evolution API, assign specific admins, generate invite links, monitor capacity (max 1024), auto-create overflow groups when full, and a management panel showing all groups with member counts and links.
 
 **Requirements:** [GRP-01, GRP-02, GRP-03, GRP-04, GRP-05, GRP-06]
@@ -357,10 +357,10 @@ Plans:
 - GRP-05: GROUP_PARTICIPANTS_UPDATE webhook handler — track joins/leaves, update currentSize, detect when group is full
 - GRP-06: Groups management page (/grupos) with: group list (name, size bar, invite link copy, status badge), create group dialog (name, description, admins to add), member count real-time updates
 
-**Plans:** 2 plans
+**Plans:** 2 plans (2/2 complete)
 Plans:
-- [ ] 16-01-PLAN.md — Groups DB schema + Evolution API group endpoints + overflow logic + webhook handler
-- [ ] 16-02-PLAN.md — Groups management page UI + campaign group integration
+- [x] 16-01-PLAN.md — Groups DB schema + Evolution API group endpoints + overflow logic + webhook handler
+- [x] 16-02-PLAN.md — Groups management page UI + campaign group integration
 
 ---
 
