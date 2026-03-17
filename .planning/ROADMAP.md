@@ -365,7 +365,7 @@ Plans:
 ---
 
 ### Phase 17: Delivery Tracking & Conversion Funnel
-**Status:** Not started
+**Status:** COMPLETE ✅
 **Goal:** Complete delivery lifecycle tracking via MESSAGES_UPDATE webhook (pending→server_ack→delivered→read), reply detection correlated back to campaigns, group join tracking as conversion event, and a visual funnel showing sent→delivered→read→replied→joined→converted per campaign.
 
 **Requirements:** [TRACK-01, TRACK-02, TRACK-03, TRACK-04, TRACK-05]
@@ -376,10 +376,10 @@ Plans:
 - TRACK-04: Conversion funnel visualization component — stacked bar or Sankey showing per-campaign: Total→Sent→Delivered→Read→Replied→Clicked→Joined Group, with percentages at each step
 - TRACK-05: Campaign detail page with delivery timeline (events over time), per-chip breakdown, block/error rate alerts
 
-**Plans:** 2 plans
+**Plans:** 2 plans (2/2 complete)
 Plans:
-- [ ] 17-01-PLAN.md — Webhook handlers for MESSAGES_UPDATE + reply correlation + group join tracking
-- [ ] 17-02-PLAN.md — Conversion funnel UI + campaign detail delivery analytics
+- [x] 17-01-PLAN.md — Webhook handlers for MESSAGES_UPDATE + reply correlation + group join tracking
+- [x] 17-02-PLAN.md — Conversion funnel UI + campaign detail delivery analytics
 
 ---
 

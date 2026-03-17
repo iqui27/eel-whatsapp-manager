@@ -2,34 +2,34 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 16
-current_phase_name: group-management
+current_phase: 17
+current_phase_name: delivery-tracking
 current_plan: 2
 status: complete
-stopped_at: "Phase 16 complete — ready for Phase 17 (Delivery Tracking)"
-last_updated: "2026-03-17T23:30:00.000Z"
+stopped_at: "Phase 17 complete — ready for Phase 18 (AI Lead Analysis)"
+last_updated: "2026-03-18T00:00:00.000Z"
 last_activity: 2026-03-17
 progress:
   total_phases: 19
-  completed_phases: 15
-  total_plans: 46
-  completed_plans: 46
-  percent: 79
+  completed_phases: 16
+  total_plans: 48
+  completed_plans: 48
+  percent: 84
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 16
-**Current Phase Name:** group-management
+**Current Phase:** 17
+**Current Phase Name:** delivery-tracking
 **Current Plan:** 2
 **Total Phases:** 19
 **Total Plans in Phase:** 2
 **Status:** Complete
 **Progress:** [██████████] 100%
 **Last Activity:** 2026-03-17
-**Last Activity Description:** Phase 16 complete — groups schema, API routes, management page, webhook handler, campaign integration
-**Stopped At:** Phase 16 complete — ready for Phase 17 (Delivery Tracking)
+**Last Activity Description:** Phase 17 complete — delivery tracking, conversion events, funnel UI, campaign analytics
+**Stopped At:** Phase 17 complete — ready for Phase 18 (AI Lead Analysis)
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -153,6 +153,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 **Phase 16 (WhatsApp Group Management) — COMPLETE** ✅
 - Plan 16-01: Groups schema (whatsapp_groups table), db-groups.ts with CRUD + overflow, group-sync utility, GROUP_PARTICIPANTS_UPDATE webhook handler ✅
 - Plan 16-02: Groups API routes, /grupos page with status filters, GroupCard/CreateGroupDialog components, campaign integration with {link_grupo} variable ✅
+
+**Phase 17 (Delivery Tracking & Conversion Funnel) — COMPLETE** ✅
+- Plan 17-01: Conversion events table, MESSAGES_UPDATE webhook for delivery status, reply correlation, group join conversion tracking ✅
+- Plan 17-02: Funnel API, ConversionFunnel/DeliveryTimeline/ChipBreakdown components, campaign detail page at /campanhas/[id] ✅
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -319,6 +323,8 @@ src/components/
 | 15-mass-messaging-engine P03 | 10 min | 2/2 | 3 files |
 | 16-group-management P01 | 15 min | 6/6 | 5 files |
 | 16-group-management P02 | 20 min | 8/8 | 10 files |
+| 17-delivery-tracking P01 | 18 min | 6/6 | 5 files |
+| 17-delivery-tracking P02 | 15 min | 7/7 | 6 files |
 
 ## Next Actions
-Phase 16 complete. Continue with Phase 17 (Delivery Tracking & Conversion Funnel).
+Phase 17 complete. Continue with Phase 18 (AI Lead Analysis with Gemini) or Phase 19 (Operations Dashboard Rebuild).
