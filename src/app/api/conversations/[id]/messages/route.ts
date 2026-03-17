@@ -89,10 +89,21 @@ export async function POST(
         );
       } catch (err) {
         console.error('[POST message sendText]', err);
-        return NextResponse.json(
-          { error: err instanceof Error ? err.message : 'Erro ao enviar mensagem no WhatsApp' },
-          { status: 500 },
-        );
+        
+        // Parse Evolution API error for user-friendly message
+        let errorMsg = 'Erro ao enviar mensagem no WhatsApp';
+        if (err instanceof Error) {
+          const match = err.message.match(/"exists":\s*false/);
+          if (match) {
+            errorMsg = `O número ${normalizedPhone} não possui WhatsApp cadastrado`;
+          } else if (err.message.includes('(401)')) {
+            errorMsg = 'Chip desconectado do WhatsApp. Reconecte na Evolution API.';
+          } else {
+            errorMsg = err.message;
+          }
+        }
+        
+        return NextResponse.json({ error: errorMsg }, { status: 400 });
       }
     }
 

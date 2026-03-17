@@ -198,6 +198,10 @@ export async function sendText(
   );
   if (!res.ok) {
     const body = await res.text();
+    // Check for specific WhatsApp errors
+    if (body.includes('"exists":false')) {
+      throw new Error(`Número não possui WhatsApp: ${body}`);
+    }
     throw new Error(`sendText failed (${res.status}): ${body}`);
   }
   const data = await res.json();
