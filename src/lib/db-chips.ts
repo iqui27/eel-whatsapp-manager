@@ -137,6 +137,14 @@ export async function resetDailyCounters(): Promise<void> {
   });
 }
 
+/** Reset hourly counter for all chips (called by hourly cron) */
+export async function resetHourlyCounters(): Promise<void> {
+  await db.update(chips).set({
+    messagesSentThisHour: 0,
+    updatedAt: new Date(),
+  });
+}
+
 /** Load all chips with their clusterIds already populated */
 export async function loadChipsWithClusters(): Promise<(Chip & { clusterIds: string[] })[]> {
   const allChips = await loadChips();
