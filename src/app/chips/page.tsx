@@ -3,7 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Flame, Trash2, Smartphone, Loader2, X, RefreshCw } from 'lucide-react';
+import {
+  Plus, Search, Flame, Trash2, Smartphone, Loader2, X, RefreshCw,
+  RotateCcw, AlertTriangle, Wifi, WifiOff, Clock, ChevronDown,
+} from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import SidebarLayout from '@/components/SidebarLayout';
@@ -11,52 +14,145 @@ import { EmptyState } from '@/components/empty-state';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type ChipHealthStatus =
+  | 'healthy' | 'degraded' | 'cooldown' | 'quarantined'
+  | 'banned' | 'warming_up' | 'disconnected';
+
 interface Chip {
-  id: string; name: string; phone: string;
-  instanceName: string | null; groupId: string | null;
-  enabled: boolean | null; lastWarmed: string | null;
+  id: string;
+  name: string;
+  phone: string;
+  instanceName: string | null;
+  groupId: string | null;
+  enabled: boolean | null;
+  lastWarmed: string | null;
   status: 'connected' | 'disconnected' | 'warming';
   warmCount: number | null;
+  // Health monitoring fields (Phase 14)
+  healthStatus: ChipHealthStatus;
+  messagesSentToday: number;
+  messagesSentThisHour: number;
+  dailyLimit: number;
+  hourlyLimit: number;
+  lastHealthCheck: string | null;
+  lastWebhookEvent: string | null;
+  cooldownUntil: string | null;
+  bannedAt: string | null;
+  errorCount: number;
+  blockRate: number | null;
 }
 
-const STATUS_MAP = {
-  connected:    { label: 'Conectado',    cls: 'badge-success' },
-  warming:      { label: 'Aquecendo',    cls: 'badge-warning' },
-  disconnected: { label: 'Desconectado', cls: 'badge-muted'   },
+// ─── Health status config ─────────────────────────────────────────────────────
+
+const HEALTH_CONFIG: Record<ChipHealthStatus, {
+  label: string;
+  dotColor: string;
+  badgeClass: string;
+  canRestart: boolean;
+}> = {
+  healthy:      { label: 'Saudável',    dotColor: 'bg-green-500',  badgeClass: 'bg-green-50 text-green-700 border-green-200',    canRestart: false },
+  degraded:     { label: 'Degradado',   dotColor: 'bg-yellow-500', badgeClass: 'bg-yellow-50 text-yellow-700 border-yellow-200',  canRestart: true  },
+  cooldown:     { label: 'Descanso',    dotColor: 'bg-orange-500', badgeClass: 'bg-orange-50 text-orange-700 border-orange-200',  canRestart: false },
+  quarantined:  { label: 'Quarentena',  dotColor: 'bg-red-500',    badgeClass: 'bg-red-50 text-red-700 border-red-200',          canRestart: true  },
+  banned:       { label: 'Banido',      dotColor: 'bg-red-900',    badgeClass: 'bg-red-100 text-red-900 border-red-300',         canRestart: false },
+  warming_up:   { label: 'Aquecendo',   dotColor: 'bg-blue-500',   badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',       canRestart: false },
+  disconnected: { label: 'Desconect.',  dotColor: 'bg-slate-400',  badgeClass: 'bg-slate-50 text-slate-600 border-slate-200',    canRestart: true  },
 };
 
-function StatusBadge({ status }: { status: Chip['status'] }) {
-  const { label, cls } = STATUS_MAP[status];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtAgo(iso: string | null): string {
+  if (!iso) return 'Nunca';
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return `${s}s atrás`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}min atrás`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h atrás`;
+  return `${Math.floor(h / 24)}d atrás`;
+}
+
+function isWebhookStale(iso: string | null): boolean {
+  if (!iso) return true;
+  return Date.now() - new Date(iso).getTime() > 2 * 60 * 1000;
+}
+
+function progressColor(pct: number): string {
+  if (pct >= 0.9) return 'bg-red-500';
+  if (pct >= 0.7) return 'bg-yellow-500';
+  return 'bg-green-500';
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function HealthBadge({ status }: { status: ChipHealthStatus }) {
+  const cfg = HEALTH_CONFIG[status];
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium', cls)}>
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />{label}
+    <span className={cn(
+      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+      cfg.badgeClass,
+    )}>
+      <span className={cn('h-1.5 w-1.5 rounded-full', cfg.dotColor)} />
+      {cfg.label}
     </span>
   );
 }
 
-function fmt(iso: string | null) {
-  if (!iso) return 'Nunca';
-  const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (m < 1) return 'Agora';
-  if (m < 60) return `${m}min`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}d`;
+function ProgressBar({ value, max, label }: { value: number; max: number; label: string }) {
+  const pct = max > 0 ? Math.min(value / max, 1) : 0;
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{label}</span>
+        <span className="font-mono">{value}/{max}</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-muted">
+        <div
+          className={cn('h-1.5 rounded-full transition-all', progressColor(pct))}
+          style={{ width: `${pct * 100}%` }}
+        />
+      </div>
+    </div>
+  );
 }
 
-type Filter = 'all' | 'connected' | 'warming' | 'disconnected';
+// ─── Filter types ─────────────────────────────────────────────────────────────
+
+type HealthFilter = 'all' | ChipHealthStatus;
+
+const FILTER_BTNS: { label: string; value: HealthFilter }[] = [
+  { label: 'Todos', value: 'all' },
+  { label: 'Saudável', value: 'healthy' },
+  { label: 'Degradado', value: 'degraded' },
+  { label: 'Desconectado', value: 'disconnected' },
+  { label: 'Quarentena', value: 'quarantined' },
+  { label: 'Banido', value: 'banned' },
+  { label: 'Aquecendo', value: 'warming_up' },
+  { label: 'Descanso', value: 'cooldown' },
+];
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function ChipsPage() {
   const router = useRouter();
   const [chips, setChips] = useState<Chip[]>([]);
   const [loading, setLoading] = useState(true);
-  const [warmingId, setWarmingId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [restartingId, setRestartingId] = useState<string | null>(null);
+  const [warmingId, setWarmingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<Filter>('all');
-  const [form, setForm] = useState({ name: '', phone: '', instanceName: '', groupId: '' });
+  const [filter, setFilter] = useState<HealthFilter>('all');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [form, setForm] = useState({
+    name: '', phone: '', instanceName: '', groupId: '',
+    dailyLimit: '200', hourlyLimit: '25',
+  });
+
+  // ─── Data loading ──────────────────────────────────────────────────────────
 
   const fetchChips = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -64,33 +160,73 @@ export default function ChipsPage() {
       const res = await fetch('/api/chips');
       if (res.status === 401) { router.push('/login'); return; }
       setChips(await res.json());
-    } catch { toast.error('Erro ao carregar chips'); }
-    finally { setLoading(false); }
+    } catch {
+      toast.error('Erro ao carregar chips');
+    } finally {
+      setLoading(false);
+    }
   }, [router]);
 
-  useEffect(() => { fetchChips(); }, [fetchChips]);
+  // Auto-refresh every 15 seconds
+  useEffect(() => {
+    fetchChips();
+    const interval = setInterval(() => fetchChips(true), 15000);
+    return () => clearInterval(interval);
+  }, [fetchChips]);
+
+  // ─── Actions ───────────────────────────────────────────────────────────────
 
   const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+    setSaving(true);
     try {
-      const res = await fetch('/api/chips', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-      if (res.ok) { toast.success('Chip adicionado'); setForm({ name: '', phone: '', instanceName: '', groupId: '' }); setShowForm(false); fetchChips(true); }
-      else { const d = await res.json(); toast.error(d.error || 'Erro ao adicionar chip'); }
-    } catch { toast.error('Erro ao adicionar chip'); }
-    finally { setSaving(false); }
+      const res = await fetch('/api/chips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          dailyLimit: parseInt(form.dailyLimit) || 200,
+          hourlyLimit: parseInt(form.hourlyLimit) || 25,
+        }),
+      });
+      if (res.ok) {
+        toast.success('Chip adicionado');
+        setForm({ name: '', phone: '', instanceName: '', groupId: '', dailyLimit: '200', hourlyLimit: '25' });
+        setShowForm(false);
+        fetchChips(true);
+      } else {
+        const d = await res.json();
+        toast.error(d.error || 'Erro ao adicionar chip');
+      }
+    } catch {
+      toast.error('Erro ao adicionar chip');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleToggle = async (chip: Chip) => {
     try {
-      await fetch('/api/chips', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: chip.id, updates: { enabled: !chip.enabled } }) });
+      await fetch('/api/chips', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: chip.id, updates: { enabled: !chip.enabled } }),
+      });
       fetchChips(true);
-    } catch { toast.error('Erro ao atualizar chip'); }
+    } catch {
+      toast.error('Erro ao atualizar chip');
+    }
   };
 
   const handleDelete = async (chip: Chip) => {
     if (!confirm(`Excluir "${chip.name}"?`)) return;
-    try { await fetch(`/api/chips?id=${chip.id}`, { method: 'DELETE' }); toast.success('Chip removido'); fetchChips(true); }
-    catch { toast.error('Erro ao deletar chip'); }
+    try {
+      await fetch(`/api/chips?id=${chip.id}`, { method: 'DELETE' });
+      toast.success('Chip removido');
+      fetchChips(true);
+    } catch {
+      toast.error('Erro ao deletar chip');
+    }
   };
 
   const handleSync = async () => {
@@ -99,78 +235,189 @@ export default function ChipsPage() {
       const res = await fetch('/api/chips/sync', { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Sincronizado! ${data.updated} chip(s) atualizado(s)`);
+        toast.success(`Saúde verificada! ${data.healthy} saudável, ${data.degraded} degradado, ${data.disconnected} desconectado`);
         fetchChips(true);
       } else {
         toast.error(data.error || 'Erro ao sincronizar');
       }
-    } catch { toast.error('Erro ao sincronizar com a Evolution API'); }
-    finally { setSyncing(false); }
+    } catch {
+      toast.error('Erro ao sincronizar com a Evolution API');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleRestart = async (chip: Chip) => {
+    setRestartingId(chip.id);
+    try {
+      const res = await fetch('/api/chips', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: chip.id, action: 'restart' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Chip ${chip.name} reiniciado — ${data.healthStatus === 'healthy' ? 'saudável' : 'verificando...'}`);
+        fetchChips(true);
+      } else {
+        toast.error(data.error || 'Erro ao reiniciar chip');
+      }
+    } catch {
+      toast.error('Erro ao reiniciar chip');
+    } finally {
+      setRestartingId(null);
+    }
   };
 
   const handleWarm = async (chip: Chip) => {
     setWarmingId(chip.id);
     try {
-      const res = await fetch('/api/warming', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: chip.id }) });
-      if (res.ok) toast.success(`Aquecendo ${chip.name}`); else toast.error('Erro ao aquecer');
+      const res = await fetch('/api/warming', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: chip.id }),
+      });
+      if (res.ok) {
+        toast.success(`Aquecendo ${chip.name}`);
+      } else {
+        toast.error('Erro ao aquecer');
+      }
       fetchChips(true);
-    } catch { toast.error('Erro ao aquecer chip'); }
-    finally { setWarmingId(null); }
+    } catch {
+      toast.error('Erro ao aquecer chip');
+    } finally {
+      setWarmingId(null);
+    }
   };
 
-  const filtered = chips.filter(c => {
+  // ─── Computed values ───────────────────────────────────────────────────────
+
+  const filtered = chips.filter((c) => {
     const q = search.toLowerCase();
-    return (!q || c.name.toLowerCase().includes(q) || c.phone.includes(q)) && (filter === 'all' || c.status === filter);
+    const matchSearch = !q || c.name.toLowerCase().includes(q) || c.phone.includes(q);
+    const matchFilter = filter === 'all' || c.healthStatus === filter;
+    return matchSearch && matchFilter;
   });
 
-  const filterBtns: { label: string; value: Filter }[] = [
-    { label: 'Todos', value: 'all' }, { label: 'Conectados', value: 'connected' },
-    { label: 'Aquecendo', value: 'warming' }, { label: 'Desconectados', value: 'disconnected' },
-  ];
+  const summary = {
+    healthy: chips.filter((c) => c.healthStatus === 'healthy').length,
+    degraded: chips.filter((c) => c.healthStatus === 'degraded').length,
+    disconnected: chips.filter((c) => c.healthStatus === 'disconnected').length,
+    quarantined: chips.filter((c) => c.healthStatus === 'quarantined' || c.healthStatus === 'banned').length,
+  };
+
+  const currentFilterLabel = FILTER_BTNS.find((b) => b.value === filter)?.label ?? 'Todos';
+
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <SidebarLayout currentPage="chips" pageTitle="Chips">
       <div className="p-6 space-y-5">
+
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-xl font-semibold text-foreground">Chips</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">{chips.length} chip{chips.length !== 1 ? 's' : ''} cadastrado{chips.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {chips.length} chip{chips.length !== 1 ? 's' : ''} cadastrado{chips.length !== 1 ? 's' : ''}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={handleSync} disabled={syncing}
-              className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 transition-colors">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 transition-colors"
+            >
               <RefreshCw className={cn('h-3.5 w-3.5', syncing && 'animate-spin')} />
-              {syncing ? 'Sincronizando...' : 'Sincronizar'}
+              {syncing ? 'Verificando...' : 'Sincronizar Saúde'}
             </button>
-            <button onClick={() => setShowForm(v => !v)} className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            <button
+              onClick={() => setShowForm((v) => !v)}
+              className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
               <Plus className="h-4 w-4" /> Novo chip
             </button>
           </div>
         </div>
 
-        {/* Add form */}
+        {/* Health Summary Bar */}
+        {!loading && chips.length > 0 && (
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="h-2 w-2 rounded-full bg-green-500" />
+              <span className="text-muted-foreground">{summary.healthy} saudável</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="h-2 w-2 rounded-full bg-yellow-500" />
+              <span className="text-muted-foreground">{summary.degraded} degradado</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="h-2 w-2 rounded-full bg-slate-400" />
+              <span className="text-muted-foreground">{summary.disconnected} desconectado</span>
+            </div>
+            {summary.quarantined > 0 && (
+              <div className="flex items-center gap-1.5 text-sm">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                <span className="text-red-600 font-medium">{summary.quarantined} em quarentena/banido</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Add chip form */}
         <AnimatePresence>
           {showForm && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
               <form onSubmit={handleAdd} className="rounded-xl border border-border bg-card p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-foreground">Novo chip</h2>
-                  <button type="button" onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground">
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {([['Nome', 'name', 'Chip 1', true], ['Telefone', 'phone', '5511999999999', true], ['Instância API', 'instanceName', 'Marcela1', false], ['Grupo (opcional)', 'groupId', 'ID do grupo', false]] as const).map(([label, key, ph, req]) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {([
+                    ['Nome', 'name', 'Chip 1', 'text', true],
+                    ['Telefone', 'phone', '5511999999999', 'text', true],
+                    ['Instância API', 'instanceName', 'Marcela1', 'text', false],
+                    ['Grupo (opcional)', 'groupId', 'ID do grupo', 'text', false],
+                    ['Limite diário', 'dailyLimit', '200', 'number', false],
+                    ['Limite por hora', 'hourlyLimit', '25', 'number', false],
+                  ] as const).map(([label, key, ph, type, req]) => (
                     <div key={key} className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">{label}</label>
-                      <input type="text" placeholder={ph} required={req} value={form[key as keyof typeof form]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                      <input
+                        type={type}
+                        placeholder={String(ph)}
+                        required={req}
+                        value={form[key as keyof typeof form]}
+                        onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
                     </div>
                   ))}
                 </div>
                 <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setShowForm(false)} className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent">Cancelar</button>
-                  <button type="submit" disabled={saving} className="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
-                    {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}{saving ? 'Salvando...' : 'Salvar'}
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {saving ? 'Salvando...' : 'Salvar'}
                   </button>
                 </div>
               </form>
@@ -182,73 +429,245 @@ export default function ChipsPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative max-w-xs flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <input type="text" placeholder="Buscar chips..." value={search} onChange={e => setSearch(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+            <input
+              type="text"
+              placeholder="Buscar chips..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
           </div>
-          <div className="flex gap-1 flex-wrap">
-            {filterBtns.map(({ label, value }) => (
-              <button key={value} onClick={() => setFilter(value)} className={cn('rounded-md px-3 py-1.5 text-xs font-medium transition-colors', filter === value ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:bg-accent')}>
+
+          {/* Filter dropdown for mobile, buttons for desktop */}
+          <div className="hidden sm:flex gap-1 flex-wrap">
+            {FILTER_BTNS.slice(0, 5).map(({ label, value }) => (
+              <button
+                key={value}
+                onClick={() => setFilter(value)}
+                className={cn(
+                  'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                  filter === value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border border-border text-muted-foreground hover:bg-accent',
+                )}
+              >
                 {label}
               </button>
             ))}
           </div>
+
+          {/* Mobile filter dropdown */}
+          <div className="sm:hidden relative">
+            <button
+              onClick={() => setShowFilterDropdown((v) => !v)}
+              className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent w-full justify-between"
+            >
+              {currentFilterLabel}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+            {showFilterDropdown && (
+              <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-md shadow-md z-10 w-full">
+                {FILTER_BTNS.map(({ label, value }) => (
+                  <button
+                    key={value}
+                    onClick={() => { setFilter(value); setShowFilterDropdown(false); }}
+                    className={cn(
+                      'w-full text-left px-3 py-2 text-sm hover:bg-accent',
+                      filter === value && 'font-medium text-primary',
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Table */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                {['Nome', 'Telefone', 'Instância', 'Status', 'Último', 'Total', ''].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            {loading ? <TableSkeleton rows={5} cols={7} /> : filtered.length === 0 ? (
-              <tbody><tr><td colSpan={7}>
-                {search || filter !== 'all'
-                  ? <EmptyState illustration="smartphone" title="Nenhum resultado" description="Tente ajustar os filtros ou a busca" />
-                  : <EmptyState illustration="smartphone" title="Nenhum chip cadastrado" description="Adicione seu primeiro chip WhatsApp para começar" action={<button onClick={() => setShowForm(true)} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">Adicionar chip</button>} />
-                }
-              </td></tr></tbody>
-            ) : (
-              <tbody>
-                {filtered.map((chip, i) => (
-                  <motion.tr key={chip.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
-                    className={cn('border-b border-border last:border-0 hover:bg-muted/30 transition-colors', !chip.enabled && 'opacity-50')}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                          <Smartphone className="h-3.5 w-3.5 text-primary" />
+        {/* Chips grid */}
+        {loading ? (
+          <TableSkeleton rows={3} cols={4} />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            illustration="smartphone"
+            title={search || filter !== 'all' ? 'Nenhum resultado' : 'Nenhum chip cadastrado'}
+            description={
+              search || filter !== 'all'
+                ? 'Tente ajustar os filtros ou a busca'
+                : 'Adicione um chip para começar'
+            }
+            action={
+              !search && filter === 'all' ? (
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Adicionar chip
+                </button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filtered.map((chip, i) => {
+              const health = HEALTH_CONFIG[chip.healthStatus ?? 'disconnected'];
+              const dailyPct = (chip.dailyLimit ?? 200) > 0
+                ? (chip.messagesSentToday ?? 0) / (chip.dailyLimit ?? 200)
+                : 0;
+              const hourlyPct = (chip.hourlyLimit ?? 25) > 0
+                ? (chip.messagesSentThisHour ?? 0) / (chip.hourlyLimit ?? 25)
+                : 0;
+              const webhookStale = isWebhookStale(chip.lastWebhookEvent);
+
+              return (
+                <motion.div
+                  key={chip.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  className={cn(
+                    'rounded-xl border border-border bg-card p-4 space-y-3 transition-opacity',
+                    !chip.enabled && 'opacity-50',
+                  )}
+                >
+                  {/* Card header */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="relative shrink-0">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+                          <Smartphone className="h-4 w-4 text-primary" />
                         </div>
-                        <span className="font-medium text-foreground">{chip.name}</span>
+                        {/* Live status dot */}
+                        <span className={cn(
+                          'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card',
+                          health.dotColor,
+                        )} />
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{chip.phone}</td>
-                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{chip.instanceName || '—'}</td>
-                    <td className="px-4 py-3"><StatusBadge status={chip.status} /></td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">{fmt(chip.lastWarmed)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{chip.warmCount ?? 0}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 justify-end">
-                        <Switch checked={chip.enabled ?? false} onCheckedChange={() => handleToggle(chip)} />
-                        <button onClick={() => handleWarm(chip)} disabled={!chip.enabled || warmingId === chip.id} title="Aquecer"
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-amber-500/10 hover:text-amber-500 disabled:opacity-30">
-                          {warmingId === chip.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Flame className="h-3.5 w-3.5" />}
-                        </button>
-                        <button onClick={() => handleDelete(chip)} title="Excluir"
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm text-foreground truncate">{chip.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{chip.phone}</p>
                       </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            )}
-          </table>
-        </div>
-        {!loading && filtered.length > 0 && <p className="text-xs text-muted-foreground">{filtered.length} de {chips.length} chip{chips.length !== 1 ? 's' : ''}</p>}
+                    </div>
+                    <HealthBadge status={chip.healthStatus ?? 'disconnected'} />
+                  </div>
+
+                  {/* Instance name */}
+                  {chip.instanceName && (
+                    <p className="text-xs text-muted-foreground font-mono truncate">
+                      {chip.instanceName}
+                    </p>
+                  )}
+
+                  {/* Progress bars */}
+                  <div className="space-y-2">
+                    <ProgressBar
+                      value={chip.messagesSentToday ?? 0}
+                      max={chip.dailyLimit ?? 200}
+                      label="Enviados hoje"
+                    />
+                    <ProgressBar
+                      value={chip.messagesSentThisHour ?? 0}
+                      max={chip.hourlyLimit ?? 25}
+                      label="Esta hora"
+                    />
+                  </div>
+
+                  {/* Timestamps */}
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Clock className="h-3 w-3 shrink-0" />
+                      <span className="truncate">Check: {fmtAgo(chip.lastHealthCheck)}</span>
+                    </div>
+                    <div className={cn(
+                      'flex items-center gap-1',
+                      webhookStale && chip.healthStatus !== 'disconnected'
+                        ? 'text-yellow-600'
+                        : 'text-muted-foreground',
+                    )}>
+                      {webhookStale && chip.healthStatus !== 'disconnected'
+                        ? <AlertTriangle className="h-3 w-3 shrink-0" />
+                        : chip.healthStatus !== 'disconnected'
+                          ? <Wifi className="h-3 w-3 shrink-0" />
+                          : <WifiOff className="h-3 w-3 shrink-0" />
+                      }
+                      <span className="truncate">Evento: {fmtAgo(chip.lastWebhookEvent)}</span>
+                    </div>
+                  </div>
+
+                  {/* Error badge */}
+                  {(chip.errorCount ?? 0) > 0 && (
+                    <div className="flex items-center gap-1.5 text-xs text-red-600">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span>{chip.errorCount} erro{(chip.errorCount ?? 0) !== 1 ? 's' : ''} consecutivo{(chip.errorCount ?? 0) !== 1 ? 's' : ''}</span>
+                    </div>
+                  )}
+
+                  {/* Cooldown info */}
+                  {chip.healthStatus === 'cooldown' && chip.cooldownUntil && (
+                    <p className="text-xs text-orange-600">
+                      Descanso até {new Date(chip.cooldownUntil).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1.5 pt-1 border-t border-border flex-wrap">
+                    <Switch
+                      checked={chip.enabled ?? false}
+                      onCheckedChange={() => handleToggle(chip)}
+                    />
+                    <span className="text-xs text-muted-foreground mr-auto">
+                      {chip.enabled ? 'Ativo' : 'Inativo'}
+                    </span>
+
+                    {/* Restart button — only for chips that can be restarted */}
+                    {health.canRestart && chip.instanceName && (
+                      <button
+                        onClick={() => handleRestart(chip)}
+                        disabled={restartingId === chip.id}
+                        title="Reiniciar instância"
+                        className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40 transition-colors"
+                      >
+                        {restartingId === chip.id
+                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                          : <RotateCcw className="h-3 w-3" />
+                        }
+                        Reiniciar
+                      </button>
+                    )}
+
+                    {/* Warm button */}
+                    <button
+                      onClick={() => handleWarm(chip)}
+                      disabled={!chip.enabled || warmingId === chip.id}
+                      title="Aquecer"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-amber-500/10 hover:text-amber-500 disabled:opacity-30 transition-colors"
+                    >
+                      {warmingId === chip.id
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Flame className="h-3.5 w-3.5" />
+                      }
+                    </button>
+
+                    {/* Delete button */}
+                    <button
+                      onClick={() => handleDelete(chip)}
+                      title="Excluir"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {!loading && filtered.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {filtered.length} de {chips.length} chip{chips.length !== 1 ? 's' : ''} · Auto-atualiza a cada 15s
+          </p>
+        )}
       </div>
     </SidebarLayout>
   );
