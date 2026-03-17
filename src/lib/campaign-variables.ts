@@ -9,7 +9,8 @@ export type CampaignVariableKey =
   | '{zona}'
   | '{secao}'
   | '{data}'
-  | '{candidato}';
+  | '{candidato}'
+  | '{link_grupo}';
 
 export type CandidateProfileContext = Pick<
   Partial<Config>,
@@ -73,6 +74,13 @@ export const SUPPORTED_CAMPAIGN_VARIABLES: CampaignVariableDefinition[] = [
     source: 'candidate',
     description: 'Nome exibido do candidato configurado em Ajustes.',
     previewValue: 'Nome do candidato',
+  },
+  {
+    key: '{link_grupo}',
+    label: 'Link do Grupo',
+    source: 'runtime',
+    description: 'Link de convite do grupo WhatsApp associado à campanha.',
+    previewValue: 'https://chat.whatsapp.com/abc123',
   },
 ];
 
@@ -229,10 +237,11 @@ export function buildCampaignPreviewContext(options: BuildCampaignContextOptions
     '{candidato}':
       normalizeText(options.candidateProfile?.candidateDisplayName)
       || getCampaignVariableDefinition('{candidato}')!.previewValue,
+    '{link_grupo}': getCampaignVariableDefinition('{link_grupo}')!.previewValue,
   } satisfies Record<CampaignVariableKey, string>;
 }
 
-export function buildCampaignRuntimeContext(options: BuildCampaignContextOptions = {}) {
+export function buildCampaignRuntimeContext(options: BuildCampaignContextOptions & { groupInviteLink?: string } = {}) {
   const now = options.now ?? new Date();
   const firstInterest = options.voter?.tags?.[0];
 
@@ -244,6 +253,7 @@ export function buildCampaignRuntimeContext(options: BuildCampaignContextOptions
     '{secao}': normalizeText(options.voter?.section),
     '{data}': formatCampaignDate(options.scheduledAt, now),
     '{candidato}': normalizeText(options.candidateProfile?.candidateDisplayName),
+    '{link_grupo}': options.groupInviteLink ?? '',
   } satisfies Record<CampaignVariableKey, string>;
 }
 

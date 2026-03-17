@@ -21,6 +21,7 @@ import {
 } from './campaign-variables';
 import { applyVariations, type VariationOptions } from './message-variation';
 import { loadConfig } from './db-config';
+import { resolveGroupInviteVariable } from './campaign-groups';
 
 export type { Campaign, NewCampaign, CampaignDeliveryEvent, NewCampaignDeliveryEvent };
 
@@ -203,6 +204,15 @@ export async function hydrateCampaignToQueue(
     candidateRegion: config.candidateRegion,
   } : null;
 
+  // 4.5. Resolve group invite link if template contains {link_grupo}
+  let groupInviteLink = '';
+  if (campaign.template.includes('{link_grupo}')) {
+    groupInviteLink = await resolveGroupInviteVariable(campaignId);
+    if (!groupInviteLink) {
+      console.warn('[hydrateCampaignToQueue] Template contains {link_grupo} but no group found for campaign', campaignId);
+    }
+  }
+
   // 5. Load voter data in batches
   const batchSize = options?.batchSize ?? 100;
   const variationOptions = options?.variationOptions ?? {
@@ -233,6 +243,7 @@ export async function hydrateCampaignToQueue(
         candidateProfile,
         voter,
         scheduledAt: campaign.scheduledAt,
+        groupInviteLink,
       });
 
       // Resolve template variables
