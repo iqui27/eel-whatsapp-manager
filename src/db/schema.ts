@@ -173,6 +173,12 @@ export const voters = pgTable('voters', {
   crmNotes: text('crm_notes'),
   crmChecklist: text('crm_checklist').array().default(sql`'{}'`),
   enabled: boolean('enabled').default(true),
+  // AI analysis fields (Phase 18)
+  aiTier: text('ai_tier', { enum: ['hot', 'warm', 'cold', 'dead'] }),
+  aiSentiment: text('ai_sentiment', { enum: ['positive', 'neutral', 'negative'] }),
+  aiLastAnalyzed: timestamp('ai_last_analyzed', { withTimezone: true }),
+  aiAnalysisSummary: text('ai_analysis_summary'),
+  aiRecommendedAction: text('ai_recommended_action'),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
 }, (t) => [
@@ -180,6 +186,7 @@ export const voters = pgTable('voters', {
   index('idx_voters_zone').on(t.zone),
   index('idx_voters_opt_in').on(t.optInStatus),
   index('idx_voters_engagement').on(t.engagementScore),
+  index('idx_voters_ai_tier').on(t.aiTier),
 ]);
 
 // ─── Segments ─────────────────────────────────────────────────────────────────
@@ -485,3 +492,27 @@ export const conversionEvents = pgTable('conversion_events', {
 
 export type ConversionEvent = typeof conversionEvents.$inferSelect;
 export type NewConversionEvent = typeof conversionEvents.$inferInsert;
+
+// ─── AI Analyses (Phase 18 - AI Lead Analysis) ─────────────────────────────────
+export const aiAnalyses = pgTable('ai_analyses', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  voterId: uuid('voter_id').references(() => voters.id, { onDelete: 'set null' }),
+  voterPhone: text('voter_phone'),
+  conversationId: uuid('conversation_id').references(() => conversations.id, { onDelete: 'set null' }),
+  messageType: text('message_type', { enum: ['inbound', 'outbound'] }).notNull(),
+  messageText: text('message_text'),
+  sentiment: text('sentiment', { enum: ['positive', 'neutral', 'negative'] }),
+  intent: text('intent'),
+  suggestedTags: text('suggested_tags').array(),
+  recommendedAction: text('recommended_action'),
+  confidence: integer('confidence'),
+  summary: text('summary'),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_ai_analyses_voter').on(t.voterId),
+  index('idx_ai_analyses_conversation').on(t.conversationId),
+  index('idx_ai_analyses_created').on(t.createdAt),
+]);
+
+export type AiAnalysis = typeof aiAnalyses.$inferSelect;
+export type NewAiAnalysis = typeof aiAnalyses.$inferInsert;

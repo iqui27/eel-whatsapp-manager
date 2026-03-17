@@ -13,6 +13,8 @@ import {
   recordReply,
   recordGroupJoin 
 } from '@/lib/conversion-tracking';
+import { triggerAnalysis, applyAutoTags } from '@/lib/ai-analysis';
+import { isGeminiConfigured } from '@/lib/gemini';
 
 // ─── Dedup cache — prevents storing duplicate webhook deliveries ─────────────
 // Evolution API occasionally fires the same event twice within a few seconds.
@@ -162,9 +164,11 @@ export async function POST(request: NextRequest) {
           .limit(1);
 
         const existingConv = existingConvs[0];
+        let conversationId: string | undefined;
 
         if (existingConv) {
           await addMessage(existingConv.id, 'voter', messageText);
+          conversationId = existingConv.id;
           console.log('[webhook] Stored inbound from', phone, 'on', instanceName, '→ conv', existingConv.id);
         } else {
           // Create a new conversation
@@ -176,6 +180,7 @@ export async function POST(request: NextRequest) {
             priority: 0,
           });
           await addMessage(newConv.id, 'voter', messageText);
+          conversationId = newConv.id;
           console.log('[webhook] Created conversation for', phone, 'on', instanceName, '→ conv', newConv.id);
         }
 
@@ -195,6 +200,35 @@ export async function POST(request: NextRequest) {
           }
         } catch (replyErr) {
           console.error('[webhook] Reply correlation error:', replyErr);
+        }
+
+        // ─── AI Analysis (Phase 18) ───────────────────────────────────────────
+        // Trigger Gemini analysis for inbound message
+        if (isGeminiConfigured()) {
+          try {
+            const aiResult = await triggerAnalysis(phone, messageText, {
+              conversationId,
+              voterId: voterId ?? undefined,
+              voterName,
+              voterTags: voter?.tags ?? undefined,
+            });
+
+            if (aiResult?.analysis) {
+              console.log('[webhook] AI analysis for', phone, ':', 
+                aiResult.analysis.sentiment, aiResult.analysis.intent);
+              
+              // Auto-apply suggested tags if enabled
+              if (voterId && aiResult.analysis.suggestedTags.length > 0) {
+                const autoTagEnabled = process.env.AI_AUTO_TAG !== 'false';
+                if (autoTagEnabled) {
+                  await applyAutoTags(voterId, aiResult.analysis.suggestedTags);
+                }
+              }
+            }
+          } catch (aiErr) {
+            console.error('[webhook] AI analysis error:', aiErr);
+            // Don't fail the webhook for AI errors
+          }
         }
       } catch (err) {
         console.error('[webhook] messages.upsert error processing message:', err);
