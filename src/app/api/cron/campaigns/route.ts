@@ -4,11 +4,25 @@ import {
   addCampaignDeliveryEvent,
   claimScheduledCampaign,
   getDueScheduledCampaigns,
+  hydrateCampaignToQueue,
   updateCampaign,
 } from '@/lib/db-campaigns';
-import { executeCampaignSend } from '@/lib/campaign-delivery';
 import { isLocalInternalRequest, readCronToken, resolveServerEnv } from '@/lib/server-env';
 
+/**
+ * GET /api/cron/campaigns
+ * 
+ * Campaign scheduler cron.
+ * 
+ * OLD BEHAVIOR (Phase 09): Found scheduled campaigns and sent them directly.
+ * NEW BEHAVIOR (Phase 15): Finds scheduled campaigns, hydrates to queue.
+ * 
+ * This separates concerns:
+ * - Campaign cron: hydration + status management
+ * - Send-queue cron: actual message delivery with rate limiting
+ * 
+ * Triggered every ~1-5 minutes.
+ */
 export async function GET(request: NextRequest) {
   const cronSecret = resolveServerEnv('CRON_SECRET');
   const requestToken = readCronToken(request);
@@ -22,64 +36,104 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const dueCampaigns = await getDueScheduledCampaigns();
+  const now = new Date();
+  const dueCampaigns = await getDueScheduledCampaigns(now);
+  
   let claimed = 0;
-  let completed = 0;
+  let hydrated = 0;
   let failed = 0;
 
-  const results: Array<Record<string, unknown>> = [];
+  const results: Array<{
+    campaignId: string;
+    name: string;
+    status: 'hydrated' | 'failed';
+    enqueued?: number;
+    error?: string;
+  }> = [];
 
   for (const campaign of dueCampaigns) {
+    // Claim the campaign (atomic status change)
     const claimedCampaign = await claimScheduledCampaign(campaign.id);
     if (!claimedCampaign) {
-      continue;
+      continue; // Already claimed by another process
     }
 
     claimed += 1;
 
+    // Log claim event
     await addCampaignDeliveryEvent({
       campaignId: claimedCampaign.id,
       chipId: claimedCampaign.chipId ?? null,
       eventType: 'scheduled_claimed',
-      message: 'Agendamento reivindicado pelo dispatcher',
+      message: 'Agendamento reivindicado para hidratação',
       metadata: {
         scheduledAt: claimedCampaign.scheduledAt?.toISOString() ?? null,
       },
     });
 
     try {
-      const result = await executeCampaignSend({
-        campaignId: claimedCampaign.id,
-        skipScheduleGuard: true,
-      });
-      completed += 1;
-      results.push(result);
-    } catch (error) {
-      failed += 1;
-      await updateCampaign(claimedCampaign.id, {
-        status: 'paused',
-      });
+      // Hydrate to queue (this resolves variables, applies variations, enqueues)
+      const hydrationResult = await hydrateCampaignToQueue(claimedCampaign.id);
+
+      if (hydrationResult.errors.length > 0) {
+        throw new Error(hydrationResult.errors.join('; '));
+      }
+
+      // Update status to 'sending' (queue processor will handle delivery)
+      await updateCampaign(claimedCampaign.id, { status: 'sending' });
+
+      // Log hydration event
       await addCampaignDeliveryEvent({
         campaignId: claimedCampaign.id,
-        chipId: claimedCampaign.chipId ?? null,
-        eventType: 'send_failed',
-        message: 'Agendamento pausado por erro antes do envio',
+        chipId: null,
+        eventType: 'hydrated',
+        message: `Campanha hidratada: ${hydrationResult.enqueued} mensagens enfileiradas`,
+        metadata: {
+          totalVoters: hydrationResult.totalVoters,
+          enqueued: hydrationResult.enqueued,
+          skipped: hydrationResult.skipped,
+        },
+      });
+
+      hydrated += 1;
+      results.push({
+        campaignId: claimedCampaign.id,
+        name: claimedCampaign.name,
+        status: 'hydrated',
+        enqueued: hydrationResult.enqueued,
+      });
+
+    } catch (error) {
+      failed += 1;
+      
+      // Pause the campaign on error
+      await updateCampaign(claimedCampaign.id, { status: 'paused' });
+
+      // Log failure event
+      await addCampaignDeliveryEvent({
+        campaignId: claimedCampaign.id,
+        chipId: null,
+        eventType: 'hydration_failed',
+        message: 'Hidratação falhou, campanha pausada',
         metadata: {
           error: error instanceof Error ? error.message : String(error),
         },
       });
+
       results.push({
         campaignId: claimedCampaign.id,
+        name: claimedCampaign.name,
+        status: 'failed',
         error: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
   return NextResponse.json({
-    timestamp: new Date().toISOString(),
+    timestamp: now.toISOString(),
     scanned: dueCampaigns.length,
     claimed,
-    completed,
+    hydrated,
     failed,
     results,
   });
