@@ -69,8 +69,14 @@ export async function PUT(request: NextRequest) {
       }
 
       try {
-        await restartInstance(config.evolutionApiUrl, config.evolutionApiKey, chip.instanceName);
-        await sleep(5000);
+        const restartResult = await restartInstance(config.evolutionApiUrl, config.evolutionApiKey, chip.instanceName);
+        
+        if (!restartResult.success) {
+          // Restart not available, but we can still check state
+          console.log(`[restart] ${restartResult.message}`);
+        }
+        
+        await sleep(3000);
         const { status: newState, instanceExists } = await getConnectionState(
           config.evolutionApiUrl, 
           config.evolutionApiKey, 
@@ -93,7 +99,13 @@ export async function PUT(request: NextRequest) {
         // Also update legacy status field
         await updateChip(chipId, { status: newState === 'connected' ? 'connected' : 'disconnected' });
 
-        return NextResponse.json({ success: true, healthStatus, connectionState: newState });
+        return NextResponse.json({ 
+          success: true, 
+          healthStatus, 
+          connectionState: newState,
+          restartAvailable: restartResult.success,
+          restartMessage: restartResult.message,
+        });
       } catch (restartError) {
         console.error('Restart error:', restartError);
         await updateChipHealth(chipId, {

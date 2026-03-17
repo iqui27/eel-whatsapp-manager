@@ -321,7 +321,11 @@ export default function ChipsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Chip ${chip.name} reiniciado — ${data.healthStatus === 'healthy' ? 'saudável' : 'verificando...'}`);
+        if (!data.restartAvailable) {
+          toast.warning(`Reiniciar não disponível: ${data.restartMessage}`, { duration: 5000 });
+        } else {
+          toast.success(`Chip ${chip.name} reiniciado — ${data.healthStatus === 'healthy' ? 'saudável' : 'verificando...'}`);
+        }
         fetchChips(true);
       } else {
         // Show detailed error message

@@ -114,14 +114,13 @@ export async function getConnectionState(
   return { status: mapStatus(state), instanceExists: true };
 }
 
-/** Restart a running instance */
+/** Restart a running instance (may not be available in all Evolution API versions) */
 export async function restartInstance(
   apiUrl: string,
   apiKey: string,
   instanceName: string,
-): Promise<void> {
+): Promise<{ success: boolean; message: string }> {
   const url = `${baseUrl(apiUrl)}/instance/restart/${encodeURIComponent(instanceName)}`;
-  console.log(`[evolution] Attempting restart at: ${url}`);
   
   // Try PUT first (documented endpoint)
   let res = await fetch(url, {
@@ -129,22 +128,28 @@ export async function restartInstance(
     headers: { apikey: apiKey },
   });
   
-  console.log(`[evolution] PUT /instance/restart response: ${res.status}`);
-  
   // If PUT fails with 404, try POST (some versions use POST)
   if (res.status === 404) {
-    console.log(`[evolution] PUT /instance/restart returned 404, trying POST...`);
     res = await fetch(url, {
       method: 'POST',
       headers: { apikey: apiKey },
     });
-    console.log(`[evolution] POST /instance/restart response: ${res.status}`);
   }
   
+  // If restart endpoint doesn't exist, return gracefully
   if (res.status === 404) {
-    throw new Error(`Endpoint restart não encontrado. A instância "${instanceName}" pode estar em uma versão da Evolution API que não suporta restart remoto.`);
+    return { 
+      success: false, 
+      message: 'Endpoint de restart não disponível nesta versão da Evolution API' 
+    };
   }
-  await throwIfNotOk(res, 'restartInstance');
+  
+  if (!res.ok) {
+    const body = await res.text();
+    return { success: false, message: `Erro ${res.status}: ${body}` };
+  }
+  
+  return { success: true, message: 'Instância reiniciada' };
 }
 
 /** Get QR code / connection data for an instance */

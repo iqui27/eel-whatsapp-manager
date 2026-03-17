@@ -68,12 +68,13 @@ export async function POST(request: NextRequest) {
 
         // Attempt restart for non-healthy states
         if (state !== 'connected') {
-          try {
-            await restartInstance(evolutionApiUrl, evolutionApiKey, instanceName);
-            await sleep(3000);
-            const recheck = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
-            state = recheck.status;
-          } catch { /* restart failed, continue with current state */ }
+          const result = await restartInstance(evolutionApiUrl, evolutionApiKey, instanceName);
+          if (!result.success) {
+            console.log(`[sync] Restart not available for ${instanceName}: ${result.message}`);
+          }
+          await sleep(3000);
+          const recheck = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+          state = recheck.status;
         }
 
         const legacyStatus: 'connected' | 'disconnected' = state === 'connected' ? 'connected' : 'disconnected';

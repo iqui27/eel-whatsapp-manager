@@ -77,14 +77,13 @@ export async function GET(request: NextRequest) {
       if (connStatus === 'connecting' || connStatus === 'disconnected') {
         // Attempt restart unless already quarantined
         if ((chip.errorCount ?? 0) < 3) {
-          try {
-            await restartInstance(evolutionApiUrl, evolutionApiKey, instanceName);
-            await sleep(RESTART_WAIT_MS);
-            const recheck = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
-            connStatus = recheck.status;
-          } catch (restartErr) {
-            console.error(`[chip-health] restart failed for ${instanceName}:`, restartErr);
+          const result = await restartInstance(evolutionApiUrl, evolutionApiKey, instanceName);
+          if (!result.success) {
+            console.log(`[chip-health] Restart not available for ${instanceName}: ${result.message}`);
           }
+          await sleep(RESTART_WAIT_MS);
+          const recheck = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+          connStatus = recheck.status;
         }
       }
 
