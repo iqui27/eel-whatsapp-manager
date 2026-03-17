@@ -7,6 +7,12 @@ import { addConversation, addMessage } from '@/lib/db-conversations';
 import { searchVoters } from '@/lib/db-voters';
 import { normalizePhone } from '@/lib/phone';
 import { getGroupByJid, updateGroupSize } from '@/lib/db-groups';
+import { 
+  updateMessageDeliveryStatus, 
+  findRecentMessageToPhone, 
+  recordReply,
+  recordGroupJoin 
+} from '@/lib/conversion-tracking';
 
 // ─── Dedup cache — prevents storing duplicate webhook deliveries ─────────────
 // Evolution API occasionally fires the same event twice within a few seconds.
@@ -172,6 +178,24 @@ export async function POST(request: NextRequest) {
           await addMessage(newConv.id, 'voter', messageText);
           console.log('[webhook] Created conversation for', phone, 'on', instanceName, '→ conv', newConv.id);
         }
+
+        // ─── Reply correlation (Phase 17) ───────────────────────────────────────
+        // Check if this sender has a recent message from an active campaign
+        try {
+          const recentMessage = await findRecentMessageToPhone(phone, 7);
+          if (recentMessage?.campaignId) {
+            const result = await recordReply(
+              recentMessage.campaignId, 
+              phone, 
+              voterId ?? undefined
+            );
+            if (result.updated) {
+              console.log('[webhook] Recorded reply for campaign', recentMessage.campaignId, 'from', phone);
+            }
+          }
+        } catch (replyErr) {
+          console.error('[webhook] Reply correlation error:', replyErr);
+        }
       } catch (err) {
         console.error('[webhook] messages.upsert error processing message:', err);
         // Continue processing remaining messages
@@ -179,15 +203,53 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // ─── messages.update — delivery status tracking (Phase 17 placeholder) ──────
+  // ─── messages.update — delivery status tracking (Phase 17) ───────────────────
   if (event === 'messages.update') {
     const updates = (body.data as unknown[]) ?? [];
-    // Log delivery status updates for future Phase 17 implementation
     console.log('[webhook] messages.update received:', updates.length, 'update(s) on instance', instanceName);
-    // TODO(Phase 17): process delivery status codes (DELIVERY_ACK=3, READ=4, PLAYED=5)
+
+    for (const rawUpdate of updates) {
+      const update = rawUpdate as Record<string, unknown>;
+      
+      try {
+        const key = update.key as Record<string, unknown> | undefined;
+        const status = update.status as number | undefined;
+        
+        if (!key || status === undefined) continue;
+
+        const msgId = key.id as string | undefined;
+        const remoteJid = key.remoteJid as string | undefined;
+
+        if (!msgId) continue;
+
+        // Evolution API status codes:
+        // 0 = error, 1 = pending, 2 = server_ack (sent), 3 = delivered, 4 = read, 5 = played
+        let deliveryStatus: 'delivered' | 'read' | 'failed' | null = null;
+        let failReason: string | undefined;
+
+        if (status === 0) {
+          deliveryStatus = 'failed';
+          failReason = (update.error as string) || 'Unknown error';
+        } else if (status === 3) {
+          deliveryStatus = 'delivered';
+        } else if (status === 4 || status === 5) {
+          deliveryStatus = 'read';
+        }
+
+        if (deliveryStatus && remoteJid) {
+          // The evolutionMessageId is the message key ID
+          const result = await updateMessageDeliveryStatus(msgId, deliveryStatus, failReason);
+          if (result.updated) {
+            console.log('[webhook] Updated message', msgId, '→', deliveryStatus, 'campaign:', result.campaignId);
+          }
+        }
+      } catch (updateErr) {
+        console.error('[webhook] messages.update error processing update:', updateErr);
+      }
+    }
   }
 
-  // ─── group_participants.update — group management ────────────────────────────
+  // ─── group_participants.update — group management + conversion tracking ─────
   if (event === 'group_participants.update') {
     try {
       const data = body.data as Record<string, unknown> | undefined;
@@ -227,6 +289,30 @@ export async function POST(request: NextRequest) {
           // Log if full
           if (newStatus === 'full') {
             console.warn('[webhook] Group', group.name, 'is now FULL at', newSize, 'members');
+          }
+
+          // ─── Group join conversion tracking (Phase 17) ─────────────────────────
+          if (action === 'add' && group.campaignId && participants.length > 0) {
+            for (const participantJid of participants) {
+              try {
+                // Extract phone from participant JID
+                const participantPhone = participantJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+                const normalizedPhone = normalizePhone(participantPhone);
+                
+                if (normalizedPhone) {
+                  const result = await recordGroupJoin(
+                    group.campaignId,
+                    normalizedPhone,
+                    groupJid
+                  );
+                  if (result.updated) {
+                    console.log('[webhook] Recorded group join for campaign', group.campaignId, 'from', normalizedPhone);
+                  }
+                }
+              } catch (joinErr) {
+                console.error('[webhook] Group join tracking error:', joinErr);
+              }
+            }
           }
         } else {
           console.log('[webhook] Group', groupJid, 'not found in database - sync needed');

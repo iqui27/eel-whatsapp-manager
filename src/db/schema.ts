@@ -213,6 +213,9 @@ export const campaigns = pgTable('campaigns', {
   totalRead: integer('total_read').default(0),
   totalReplied: integer('total_replied').default(0),
   totalFailed: integer('total_failed').default(0),
+  // Conversion tracking (Phase 17)
+  totalClicked: integer('total_clicked').default(0),
+  totalJoinedGroup: integer('total_joined_group').default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
 }, (t) => [
@@ -462,3 +465,23 @@ export const whatsappGroups = pgTable('whatsapp_groups', {
 
 export type WhatsappGroup = typeof whatsappGroups.$inferSelect;
 export type NewWhatsappGroup = typeof whatsappGroups.$inferInsert;
+
+// ─── Conversion Events (Phase 17 - Delivery Tracking) ──────────────────────────
+export const conversionEvents = pgTable('conversion_events', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: uuid('campaign_id').notNull().references(() => campaigns.id, { onDelete: 'cascade' }),
+  voterId: uuid('voter_id').references(() => voters.id, { onDelete: 'set null' }),
+  voterPhone: text('voter_phone'),
+  eventType: text('event_type', { enum: ['reply', 'click', 'group_join', 'conversion'] }).notNull(),
+  groupJid: text('group_jid'),
+  metadata: jsonb('metadata').$type<Record<string, unknown> | null>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_conversion_events_campaign').on(t.campaignId),
+  index('idx_conversion_events_type').on(t.eventType),
+  index('idx_conversion_events_created').on(t.createdAt),
+  index('idx_conversion_events_voter').on(t.voterId),
+]);
+
+export type ConversionEvent = typeof conversionEvents.$inferSelect;
+export type NewConversionEvent = typeof conversionEvents.$inferInsert;
