@@ -286,6 +286,168 @@ Plans:
 
 ---
 
+## Milestone 2: Mass Messaging Operations (100K Leads)
+
+> Transform EEL from a campaign editor into a full-scale mass messaging operations center.
+> 100K leads across sectors (advogados, mães, casamento comunitário, etc.), WhatsApp group funnels, chip rotation, AI-powered lead analysis.
+
+| Phase | Name | Priority | Depends On | Plans |
+|-------|------|----------|------------|-------|
+| 14 | Chip Health & Connection Reliability | P0 | 13 | 2 plans |
+| 15 | Mass Messaging Engine | P0 | 14 | 3 plans |
+| 16 | WhatsApp Group Management | P0 | 14, 15 | 2 plans |
+| 17 | Delivery Tracking & Conversion Funnel | P0 | 15, 16 | 2 plans |
+| 18 | AI Lead Analysis (Gemini) | P1 | 17 | 2 plans |
+| 19 | Operations Dashboard Rebuild | P0 | 14, 15, 16, 17 | 3 plans |
+
+---
+
+### Phase 14: Chip Health & Connection Reliability
+**Status:** Not started
+**Goal:** Rock-solid chip connection monitoring — reliable health checks combining heartbeat polling + webhook events, auto-restart on disconnect, proper status tracking in DB, and a completely rewritten Evolution API wrapper that supports all v2 endpoints needed for mass messaging.
+
+**Requirements:** [CHIP-01, CHIP-02, CHIP-03, CHIP-04, CHIP-05, CHIP-06]
+
+- CHIP-01: Rewrite evolution.ts to support all v2 endpoints (sendText with delay/linkPreview, sendMedia, group CRUD, instance restart, connectionState, fetchInstances, connect/QR)
+- CHIP-02: Reliable health check combining connectionState polling (30s) + webhook CONNECTION_UPDATE events + lastWebhookTimestamp staleness detection (>2min = degraded)
+- CHIP-03: Extended chip status enum: healthy, degraded, cooldown, quarantined, banned, warming_up, disconnected (replace current 3-state connected/disconnected/warming)
+- CHIP-04: Chip health cron endpoint (/api/cron/chip-health) that polls all instances every 30s, auto-restarts disconnected ones, tracks daily/hourly message counters
+- CHIP-05: Webhook handler for CONNECTION_UPDATE with statusReason codes (200=ok, 401=logged out, 408=timeout, 515=restart needed)
+- CHIP-06: Chips page UI showing real-time connection status with color indicators (🟢🟡🔴⛔🔵⚫), last seen timestamp, messages sent today/hour, daily limit progress bar
+
+**Plans:** 2 plans
+Plans:
+- [ ] 14-01-PLAN.md — Evolution API v2 full wrapper + chip health backend (cron, extended statuses, webhook)
+- [ ] 14-02-PLAN.md — Chips page UI rebuild with real-time health indicators
+
+---
+
+### Phase 15: Mass Messaging Engine
+**Status:** Not started
+**Goal:** Queue-based message delivery system with chip rotation, rate limiting, anti-ban protections (random delays 15-60s, message variation, daily/hourly caps per chip), segment-to-chip affinity, and graceful failover when a chip gets banned.
+
+**Requirements:** [MASS-01, MASS-02, MASS-03, MASS-04, MASS-05, MASS-06, MASS-07]
+
+- MASS-01: Message queue table (message_queue) with status lifecycle: queued→assigned→sending→sent→delivered→read→failed→retry
+- MASS-02: Chip router that selects healthiest available chip with segment affinity, load balancing, and minimum 15s delay enforcement
+- MASS-03: Queue processor cron (/api/cron/send-queue) that dequeues messages respecting per-chip hourly/daily limits, time windows (09:00-20:00), and random delays (15-60s between messages)
+- MASS-04: Campaign-to-queue hydration — when campaign starts, resolve segment voters and enqueue all messages with template variables pre-resolved
+- MASS-05: Automatic chip failover — when chip gets quarantined/banned, un-assign its pending messages and re-route to healthy chips
+- MASS-06: Message variation engine — spintax resolution, greeting rotation, emoji variation, structural variation to avoid hash detection
+- MASS-07: Per-chip counters (messagesSentToday, messagesSentThisHour, lastMessageAt) with daily reset cron, and configurable limits based on chip warm-up phase
+
+**Plans:** 3 plans
+Plans:
+- [ ] 15-01-PLAN.md — Message queue schema + chip router + queue processor cron
+- [ ] 15-02-PLAN.md — Campaign hydration + message variation engine
+- [ ] 15-03-PLAN.md — Chip failover + counter management + anti-ban protections
+
+---
+
+### Phase 16: WhatsApp Group Management
+**Status:** Not started
+**Goal:** Full WhatsApp group lifecycle — create groups via Evolution API, assign specific admins, generate invite links, monitor capacity (max 1024), auto-create overflow groups when full, and a management panel showing all groups with member counts and links.
+
+**Requirements:** [GRP-01, GRP-02, GRP-03, GRP-04, GRP-05, GRP-06]
+
+- GRP-01: Groups table in DB (whatsapp_groups) storing: groupJid, name, inviteUrl, inviteCode, campaignId, segmentTag, chipInstanceName, currentSize, maxSize (1024), status (active/full/archived), admins[], createdAt
+- GRP-02: API endpoints for group CRUD — create group (via Evolution API), fetch invite link, check capacity, add admins (promote), revoke old invite when full
+- GRP-03: Auto-overflow logic — when group reaches 90% capacity (920+), auto-create a new group with same admins and update the campaign's invite link for subsequent messages
+- GRP-04: Campaign integration — each campaign/segment gets assigned group(s), messages include the current active invite link, link automatically updates when group overflows
+- GRP-05: GROUP_PARTICIPANTS_UPDATE webhook handler — track joins/leaves, update currentSize, detect when group is full
+- GRP-06: Groups management page (/grupos) with: group list (name, size bar, invite link copy, status badge), create group dialog (name, description, admins to add), member count real-time updates
+
+**Plans:** 2 plans
+Plans:
+- [ ] 16-01-PLAN.md — Groups DB schema + Evolution API group endpoints + overflow logic + webhook handler
+- [ ] 16-02-PLAN.md — Groups management page UI + campaign group integration
+
+---
+
+### Phase 17: Delivery Tracking & Conversion Funnel
+**Status:** Not started
+**Goal:** Complete delivery lifecycle tracking via MESSAGES_UPDATE webhook (pending→server_ack→delivered→read), reply detection correlated back to campaigns, group join tracking as conversion event, and a visual funnel showing sent→delivered→read→replied→joined→converted per campaign.
+
+**Requirements:** [TRACK-01, TRACK-02, TRACK-03, TRACK-04, TRACK-05]
+
+- TRACK-01: MESSAGES_UPDATE webhook handler — parse status codes (0=error, 1=pending, 2=server_ack, 3=delivered, 4=read, 5=played), update message_queue records with deliveredAt/readAt timestamps
+- TRACK-02: Campaign reply correlation — when MESSAGES_UPSERT arrives, check if sender has a queued/sent message from an active campaign, increment campaign.totalReplied
+- TRACK-03: Group join as conversion — when GROUP_PARTICIPANTS_UPDATE fires with action=add, look up which campaign sent that lead the invite link, record as conversion event
+- TRACK-04: Conversion funnel visualization component — stacked bar or Sankey showing per-campaign: Total→Sent→Delivered→Read→Replied→Clicked→Joined Group, with percentages at each step
+- TRACK-05: Campaign detail page with delivery timeline (events over time), per-chip breakdown, block/error rate alerts
+
+**Plans:** 2 plans
+Plans:
+- [ ] 17-01-PLAN.md — Webhook handlers for MESSAGES_UPDATE + reply correlation + group join tracking
+- [ ] 17-02-PLAN.md — Conversion funnel UI + campaign detail delivery analytics
+
+---
+
+### Phase 18: AI Lead Analysis (Gemini)
+**Status:** Not started
+**Goal:** Gemini Flash integration for real-time response analysis (sentiment, intent, auto-tags) when leads reply, plus nightly batch profiling for lead scoring (hot/warm/cold), with results feeding back into the CRM and segmentation system.
+
+**Requirements:** [AI-01, AI-02, AI-03, AI-04, AI-05]
+
+- AI-01: Gemini API integration module (src/lib/gemini.ts) using gemini-2.0-flash for real-time analysis and batch profiling
+- AI-02: Real-time analysis trigger — when lead replies (MESSAGES_UPSERT), call Gemini to classify sentiment, detect intent, suggest tags, and recommend next action (follow_up/send_offer/add_to_group/escalate/remove)
+- AI-03: Auto-tagging pipeline — Gemini-suggested tags written to voter.tags[] in DB, feeding into segmentation filters
+- AI-04: Nightly batch profiling cron — score all leads without recent analysis, assign tier (hot/warm/cold/dead), predict best contact time, update engagementScore
+- AI-05: AI insights panel in CRM voter profile — show Gemini's analysis summary, confidence level, suggested next actions, conversation sentiment timeline
+
+**Plans:** 2 plans
+Plans:
+- [ ] 18-01-PLAN.md — Gemini module + real-time response analysis + auto-tagging pipeline
+- [ ] 18-02-PLAN.md — Batch profiling cron + AI insights CRM panel
+
+---
+
+### Phase 19: Operations Dashboard Rebuild
+**Status:** Not started
+**Goal:** Rebuild the main dashboard as a real-time operations center — chip health overview, active send progress, group capacity grid, conversion metrics, message history feed, alerts panel, and fix all currently broken visualization features.
+
+**Requirements:** [OPS-01, OPS-02, OPS-03, OPS-04, OPS-05, OPS-06, OPS-07]
+
+- OPS-01: Chip health overview section — grid of all chips with status indicators (🟢🟡🔴), messages sent today/limit, connection quality, one-click restart
+- OPS-02: Active campaigns send progress — live progress bars per campaign showing queued/sending/delivered/failed with ETA
+- OPS-03: Group capacity grid — all WhatsApp groups with fill bars (current/1024), quick-create overflow, copy invite link
+- OPS-04: Conversion KPIs — real numbers from delivery tracking: total sent, delivered rate, read rate, reply rate, group join rate, with sparklines
+- OPS-05: Message feed — real-time scrolling feed of recent sent/received messages with chip, lead name, status icon, timestamp
+- OPS-06: Alerts panel — chip disconnected, chip near daily limit, group near capacity, high block rate, campaign stalled
+- OPS-07: Fix broken message visualization, connection status indicator, and all dashboard features flagged as non-functional
+
+**Plans:** 3 plans
+Plans:
+- [ ] 19-01-PLAN.md — Chip health grid + active campaign progress bars + alerts panel
+- [ ] 19-02-PLAN.md — Group capacity grid + conversion KPIs + message feed
+- [ ] 19-03-PLAN.md — Fix broken dashboard features + final integration polish
+
+---
+
+### Milestone 2 Dependency Graph
+
+```
+Phase 14 (Chip Health) ──────┬── Phase 15 (Mass Messaging) ──┬── Phase 17 (Tracking)
+                              │                                │
+                              ├── Phase 16 (Groups) ───────────┤
+                              │                                │
+                              │                                └── Phase 18 (AI/Gemini)
+                              │
+                              └── Phase 19 (Dashboard) ← depends on 14, 15, 16, 17
+```
+
+### Milestone 2 Wave Execution Plan
+
+| Wave | Phases | Parallelizable |
+|------|--------|----------------|
+| 1 | 14 (Chip Health) | Foundation — must be first |
+| 2 | 15 (Mass Messaging) + 16 (Groups) | Can overlap — 15 is engine, 16 is group API |
+| 3 | 17 (Delivery Tracking) | Needs 15+16 for data flow |
+| 4 | 18 (AI/Gemini) | Needs 17 for reply data |
+| 5 | 19 (Dashboard Rebuild) | Integrates everything above |
+
+---
+
 ## Dependency Graph
 
 ```
