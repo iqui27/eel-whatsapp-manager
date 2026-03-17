@@ -9,6 +9,9 @@ import { eq, and, inArray, desc, lte, gte, isNull, sql } from 'drizzle-orm';
 import type { Chip } from '@/db/schema';
 import { createGroup, getInviteCode, fetchGroupParticipants, type InviteCodeResponse } from '@/lib/evolution';
 
+// Re-export types for consumers
+export type { WhatsappGroup, NewWhatsappGroup };
+
 // ─── CRUD Operations ───────────────────────────────────────────────────────────
 
 /** Create a new group record */
