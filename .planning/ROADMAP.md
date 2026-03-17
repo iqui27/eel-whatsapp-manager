@@ -384,7 +384,7 @@ Plans:
 ---
 
 ### Phase 18: AI Lead Analysis (Gemini)
-**Status:** Not started
+**Status:** COMPLETE ✅
 **Goal:** Gemini Flash integration for real-time response analysis (sentiment, intent, auto-tags) when leads reply, plus nightly batch profiling for lead scoring (hot/warm/cold), with results feeding back into the CRM and segmentation system.
 
 **Requirements:** [AI-01, AI-02, AI-03, AI-04, AI-05]
@@ -395,10 +395,10 @@ Plans:
 - AI-04: Nightly batch profiling cron — score all leads without recent analysis, assign tier (hot/warm/cold/dead), predict best contact time, update engagementScore
 - AI-05: AI insights panel in CRM voter profile — show Gemini's analysis summary, confidence level, suggested next actions, conversation sentiment timeline
 
-**Plans:** 2 plans
+**Plans:** 2 plans (2/2 complete)
 Plans:
-- [ ] 18-01-PLAN.md — Gemini module + real-time response analysis + auto-tagging pipeline
-- [ ] 18-02-PLAN.md — Batch profiling cron + AI insights CRM panel
+- [x] 18-01-PLAN.md — Gemini module + real-time response analysis + auto-tagging pipeline
+- [x] 18-02-PLAN.md — Batch profiling cron + AI insights CRM panel
 
 ---
 
