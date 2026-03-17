@@ -2,34 +2,34 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 19
-current_phase_name: operations-dashboard
-current_plan: 3
+current_phase: 20
+current_phase_name: critical-fixes
+current_plan: 1
 status: complete
-stopped_at: "Project complete — all 19 phases finished"
-last_updated: "2026-03-18T01:00:00.000Z"
+stopped_at: "Phase 20 complete — critical fixes resolved"
+last_updated: "2026-03-18T02:00:00.000Z"
 last_activity: 2026-03-17
 progress:
-  total_phases: 19
-  completed_phases: 19
-  total_plans: 53
-  completed_plans: 53
+  total_phases: 20
+  completed_phases: 20
+  total_plans: 54
+  completed_plans: 54
   percent: 100
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 19
-**Current Phase Name:** operations-dashboard
-**Current Plan:** 3
-**Total Phases:** 19
-**Total Plans in Phase:** 3
+**Current Phase:** 20
+**Current Phase Name:** critical-fixes
+**Current Plan:** 1
+**Total Phases:** 20
+**Total Plans in Phase:** 1
 **Status:** Complete
 **Progress:** [██████████] 100%
 **Last Activity:** 2026-03-17
-**Last Activity Description:** Phase 19 complete — operations dashboard components, chip health grid, campaign progress, alerts, group capacity, KPIs, message feed
-**Stopped At:** Project complete — all 19 phases finished
+**Last Activity Description:** Phase 20 complete — fixed Evolution connection visualization, message feed, real-time monitoring, groups display, segment-group mapping
+**Stopped At:** Phase 20 complete — critical fixes resolved
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -167,13 +167,16 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Plan 19-02: GroupCapacityGrid, ConversionKPIs, MessageFeed, KPIs API, messages API ✅
 - Plan 19-03: All components verified, APIs tested, ready for integration ✅
 
+**Phase 20 (Critical Fixes) — COMPLETE** ✅
+- Plan 20-01: Fixed Evolution API connection visualization (5min stale threshold), message feed now includes inbound messages, real-time monitoring with 10s auto-refresh, GroupCapacityGrid with real data, segment-to-group mapping helpers, auto-admin promotion on group creation ✅
+
 Progress: [██████████] 100%
 
-Last session: 2026-03-18T01:00:00.000Z
+Last session: 2026-03-18T02:00:00.000Z
 
 ## 🎉 PROJECT COMPLETE
 
-All 19 phases of the EEL Eleicao project have been successfully completed.
+All 20 phases of the EEL Eleicao project have been successfully completed.
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -252,6 +255,11 @@ All 19 phases of the EEL Eleicao project have been successfully completed.
 - [Phase 16-group-management]: Overflow detected at 90% capacity, groups marked full at 100%
 - [Phase 16-group-management]: GROUP_PARTICIPANTS_UPDATE webhook updates group size on join/leave
 - [Phase 16-group-management]: {link_grupo} variable resolves to active group invite link in campaigns
+- [Phase 20-critical-fixes]: Webhook stale threshold increased from 2min to 5min for more reliable connection status
+- [Phase 20-critical-fixes]: Message feed now merges outbound (queue) + inbound (conversations) messages
+- [Phase 20-critical-fixes]: Operations tab auto-refreshes every 10 seconds when active
+- [Phase 20-critical-fixes]: Segment-to-group mapping via getGroupForSegment and getOrCreateGroupForSegment helpers
+- [Phase 20-critical-fixes]: Admin phone numbers can be auto-promoted when creating groups for segments
 
 ## Accumulated Context
 
@@ -347,6 +355,7 @@ src/components/
 | 19-operations-dashboard P01 | 15 min | 5/5 | 4 files |
 | 19-operations-dashboard P02 | 12 min | 6/6 | 5 files |
 | 19-operations-dashboard P03 | 5 min | 6/6 | 0 files |
+| 20-critical-fixes P01 | 10 min | 8/8 | 6 files |
 
 ## Next Actions
 
