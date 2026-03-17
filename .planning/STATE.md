@@ -2,34 +2,34 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 14
-current_phase_name: chip-health-reliability
-current_plan: 2
-status: checkpoint
-stopped_at: "Phase 14 Plans 1-2 complete — awaiting human-verify checkpoint for chip health monitoring UI"
-last_updated: "2026-03-17T17:50:00.000Z"
+current_phase: 15
+current_phase_name: mass-messaging-engine
+current_plan: 3
+status: complete
+stopped_at: "Phase 15 complete — ready for Phase 16 (WhatsApp Group Management)"
+last_updated: "2026-03-17T23:00:00.000Z"
 last_activity: 2026-03-17
 progress:
   total_phases: 19
-  completed_phases: 13
-  total_plans: 41
-  completed_plans: 41
-  percent: 68
+  completed_phases: 14
+  total_plans: 44
+  completed_plans: 44
+  percent: 74
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 14
-**Current Phase Name:** chip-health-reliability
-**Current Plan:** 2
+**Current Phase:** 15
+**Current Phase Name:** mass-messaging-engine
+**Current Plan:** 3
 **Total Phases:** 19
-**Total Plans in Phase:** 2
+**Total Plans in Phase:** 3
 **Status:** Complete
 **Progress:** [██████████] 100%
 **Last Activity:** 2026-03-17
-**Last Activity Description:** Phase 14 complete — Evolution API v2 wrapper, 8-state chip health monitoring, rebuilt chips dashboard with graceful restart handling
-**Stopped At:** Phase 14 complete — ready for Phase 15 (Mass Messaging Engine)
+**Last Activity Description:** Phase 15 complete — message queue, chip router, campaign hydration, message variation, chip failover, counter reset
+**Stopped At:** Phase 15 complete — ready for Phase 16 (WhatsApp Group Management)
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -141,9 +141,14 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Wave 3: Plan 13-04 — report export/scheduling automation complete ✅
 - Wave 4: Plan 13-05 — production deploy, cron hardening, and zero-pendency live sign-off complete ✅
 
-**Phase 14 — Chip Health Reliability — IN PROGRESS** 🔄
-- Plan 14-01: Evolution API v2 full wrapper (13+ exports), 7-state health schema fields, chip-health cron (auto-restart + quarantine), webhook hardened with statusReason codes + lastWebhookEvent ✅
-- Plan 14-02: Chips API returns all health data + restart action; rebuilt chips page as health monitoring dashboard (card grid, progress bars, timestamps, 7-state indicators) — awaiting verify ⏳
+**Phase 14 (Chip Health Reliability) — COMPLETE** ✅
+- Plan 14-01: Evolution API v2 full wrapper (13+ functions), 8-state chip health schema, health cron with auto-restart, webhook hardened with statusReason + lastWebhookEvent tracking ✅
+- Plan 14-02: Chips API returns all health data + graceful restart; chips page rebuilt as health monitoring dashboard with 8-state indicators, progress bars, timestamps ✅
+
+**Phase 15 (Mass Messaging Engine) — COMPLETE** ✅
+- Plan 15-01: Message queue schema (8-state lifecycle), chip router (health/capacity/affinity scoring), queue processor cron with anti-ban protections ✅
+- Plan 15-02: Campaign hydration pipeline, message variation engine (spintax, greetings, emojis) ✅
+- Plan 15-03: Automatic chip failover, hourly/daily counter reset cron ✅
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -212,6 +217,12 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 14-chip-health-reliability]: sendText now returns SendTextResponse with message key — breaking change that gives Phase 17 delivery tracking its foundation.
 - [Phase 14-chip-health-reliability]: Restart action added to PUT /api/chips with action='restart' param to avoid a separate endpoint.
 - [Phase 14-chip-health-reliability]: Webhook updates lastWebhookEvent on EVERY event type to enable accurate health staleness detection.
+- [Phase 15-mass-messaging-engine]: Message queue uses 8-state lifecycle: queued→assigned→sending→sent→delivered→read→failed→retry
+- [Phase 15-mass-messaging-engine]: Chip scoring weights: health(100/50) + capacity(50) + affinity(50) - errors + freshness
+- [Phase 15-mass-messaging-engine]: Random delay 15-60s between messages for anti-ban protection; time window 8:00-20:00
+- [Phase 15-mass-messaging-engine]: Spintax resolves randomly; greetings are time-aware; emoji added at 30% chance per strategic position
+- [Phase 15-mass-messaging-engine]: Campaign cron hydrates to queue; send-queue cron delivers (separation of concerns)
+- [Phase 15-mass-messaging-engine]: Chip failover triggers when chip becomes quarantined; pending messages reset to queued status
 
 ## Accumulated Context
 
@@ -231,24 +242,32 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 ## Key Files (Current)
 ```
 src/db/
-  schema.ts             # 12 tables: config, chips, contacts, clusters, chip_clusters, contact_clusters,
+  schema.ts             # 13 tables: config, chips, contacts, clusters, chip_clusters, contact_clusters,
                         #   logs, sessions, voters, segments, campaigns, segmentVoters,
-                        #   conversations, conversationMessages, consentLogs, users
+                        #   conversations, conversationMessages, consentLogs, users, messageQueue
 
 src/lib/
   db-chips.ts           # Chip CRUD
   db-contacts.ts        # Contact CRUD
   db-voters.ts          # Voter CRUD + bulk insert + search + segment join ✅ NEW
-  db-campaigns.ts       # Campaign CRUD + status filter ✅ NEW
+  db-campaigns.ts       # Campaign CRUD + status filter + hydration ✅ NEW
   db-segments.ts        # Segment CRUD + voter association (transactional) ✅ NEW
   db-conversations.ts   # Conversation CRUD + message append ✅ NEW
   db-compliance.ts      # Consent logging + stats ✅ NEW
   db-users.ts           # User CRUD ✅ NEW
+  db-message-queue.ts   # Message queue CRUD + lifecycle ✅ NEW
+  chip-router.ts        # Chip selection with scoring ✅ NEW
+  message-variation.ts  # Spintax, greetings, emoji variation ✅ NEW
+  phone.ts              # E.164 normalization + display formatting ✅ NEW
 
 src/app/api/
   voters/route.ts       # GET(search) POST PUT DELETE ✅ NEW
   campaigns/route.ts    # GET(status) POST PUT DELETE ✅ NEW
   segments/route.ts     # GET POST PUT DELETE ✅ NEW
+  cron/
+    send-queue/route.ts # Queue processor cron ✅ NEW
+    reset-counters/route.ts # Counter reset cron ✅ NEW
+    campaigns/route.ts  # Updated to hydrate to queue ✅
 
 src/components/
   SidebarLayout.tsx     # V2 shell with 8 electoral nav items + legacy section ✅
@@ -287,6 +306,9 @@ src/components/
 | Phase 12-campaign-personalization-completion P03 | 2 min | 2 tasks | 2 files |
 | 14-chip-health-reliability P01 | 18 min | 2/2 | 6 files |
 | 14-chip-health-reliability P02 | 15 min | 2/2 | 3 files |
+| 15-mass-messaging-engine P01 | 20 min | 4/4 | 6 files |
+| 15-mass-messaging-engine P02 | 12 min | 4/4 | 5 files |
+| 15-mass-messaging-engine P03 | 10 min | 2/2 | 3 files |
 
 ## Next Actions
-Phase 14 Plans 01+02 complete. Awaiting human verification of chip health monitoring UI at /chips. After verification: continue with Phase 15 (Mass Messaging Engine).
+Phase 15 complete. Continue with Phase 16 (WhatsApp Group Management) or Phase 17 (Delivery Tracking & Conversion Funnel).
