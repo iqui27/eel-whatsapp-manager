@@ -6,6 +6,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
+  Activity,
   Send,
   Target,
   MessageCircle,
@@ -16,6 +17,7 @@ import {
   Smartphone,
   Users,
   Layers,
+  UsersRound,
   History,
   Settings,
   LogOut,
@@ -34,6 +36,7 @@ import { actorLabel, pagePermission, type SessionActor } from '@/lib/authorizati
 
 type PageId =
   | 'dashboard'
+  | 'operacoes'
   | 'campanhas'
   | 'segmentacao'
   | 'conversas'
@@ -44,6 +47,7 @@ type PageId =
   | 'chips'
   | 'contacts'
   | 'clusters'
+  | 'grupos'
   | 'history'
   | 'settings';
 
@@ -67,21 +71,23 @@ interface SessionResponse {
 // Primary electoral navigation (8 items)
 const electoralNavItems = [
   { id: 'dashboard'   as PageId, label: 'Dashboard',    href: '/',             icon: LayoutDashboard },
+  { id: 'operacoes'   as PageId, label: 'Operacoes',    href: '/operacoes',    icon: Activity },
   { id: 'campanhas'   as PageId, label: 'Campanhas',    href: '/campanhas',    icon: Send },
   { id: 'segmentacao' as PageId, label: 'Segmentacao',  href: '/segmentacao',  icon: Target },
   { id: 'conversas'   as PageId, label: 'Conversas',    href: '/conversas',    icon: MessageCircle },
   { id: 'crm'         as PageId, label: 'CRM',          href: '/crm',          icon: UserCheck },
   { id: 'compliance'  as PageId, label: 'Compliance',   href: '/compliance',   icon: ShieldCheck },
   { id: 'relatorios'  as PageId, label: 'Relatorios',   href: '/relatorios',   icon: BarChart3 },
-  { id: 'admin'       as PageId, label: 'Admin',        href: '/admin',        icon: Lock },
 ];
 
 // Legacy operational navigation
 const legacyNavItems = [
-  { id: 'chips'    as PageId, label: 'Chips',         href: '/chips',    icon: Smartphone },
-  { id: 'contacts' as PageId, label: 'Contatos',      href: '/contacts', icon: Users },
-  { id: 'clusters' as PageId, label: 'Clusters',      href: '/clusters', icon: Layers },
-  { id: 'history'  as PageId, label: 'Historico',     href: '/history',  icon: History },
+  { id: 'admin'    as PageId, label: 'Admin',        href: '/admin',    icon: Lock },
+  { id: 'chips'    as PageId, label: 'Chips',        href: '/chips',    icon: Smartphone },
+  { id: 'grupos'   as PageId, label: 'Grupos',       href: '/grupos',   icon: UsersRound },
+  { id: 'contacts' as PageId, label: 'Contatos',     href: '/contacts', icon: Users },
+  { id: 'clusters' as PageId, label: 'Clusters',     href: '/clusters', icon: Layers },
+  { id: 'history'  as PageId, label: 'Historico',    href: '/history',  icon: History },
   { id: 'settings' as PageId, label: 'Configuracoes', href: '/settings', icon: Settings },
 ];
 

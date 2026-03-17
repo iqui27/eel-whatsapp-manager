@@ -43,7 +43,7 @@ export async function GET() {
         delivered: sql<number>`coalesce(sum(${campaigns.totalDelivered}), 0)`,
       })
       .from(campaigns)
-      .where(sql`${campaigns.updatedAt} >= ${sevenDaysAgo}`);
+      .where(sql`${campaigns.updatedAt} >= ${sevenDaysAgo.toISOString()}`);
 
     const [previousWeek] = await db
       .select({
@@ -51,7 +51,7 @@ export async function GET() {
         delivered: sql<number>`coalesce(sum(${campaigns.totalDelivered}), 0)`,
       })
       .from(campaigns)
-      .where(sql`${campaigns.updatedAt} >= ${fourteenDaysAgo} AND ${campaigns.updatedAt} < ${sevenDaysAgo}`);
+      .where(sql`${campaigns.updatedAt} >= ${fourteenDaysAgo.toISOString()} AND ${campaigns.updatedAt} < ${sevenDaysAgo.toISOString()}`);
 
     // Calculate trend percentages
     const calcTrend = (recent: number, previous: number): number => {
