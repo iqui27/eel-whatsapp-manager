@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { formatPhoneDisplay } from '@/lib/phone';
 import type { Chip, Conversation, ConversationMessage, Voter } from '@/db/schema';
 import {
   appendUniqueMessage,
@@ -113,7 +114,7 @@ function QueueItem({
             </div>
           </div>
           <p className="text-xs text-muted-foreground truncate mt-0.5">
-            {conv.voterPhone}
+            {formatPhoneDisplay(conv.voterPhone)}
             {conv.handoffReason ? ` · ${conv.handoffReason}` : ''}
           </p>
         </div>
@@ -334,7 +335,7 @@ function NewConvDialog({
                     >
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{voter.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{voter.phone}</p>
+                        <p className="text-xs text-muted-foreground truncate">{formatPhoneDisplay(voter.phone)}</p>
                       </div>
                       <p className="max-w-[45%] text-[11px] text-muted-foreground text-right">
                         {voter.tags?.length ? voter.tags.join(', ') : 'Sem tags'}
@@ -352,7 +353,7 @@ function NewConvDialog({
             </div>
           </div>
           <Input placeholder="Nome do eleitor" value={name} readOnly />
-          <Input placeholder="Telefone (+55 11 99999-0000)" value={phone} readOnly />
+          <Input placeholder="Telefone" value={formatPhoneDisplay(phone)} readOnly />
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground" htmlFor="chip-selector">
               Chip de saída
@@ -367,7 +368,7 @@ function NewConvDialog({
               <option value="auto">Auto (primeiro disponível)</option>
               {chips.map((chip) => (
                 <option key={chip.id} value={chip.id}>
-                  {chip.name} · {chip.phone}
+                  {chip.name} · {formatPhoneDisplay(chip.phone)}
                 </option>
               ))}
             </select>
@@ -751,7 +752,7 @@ export default function ConversasPage() {
                 <div className={cn('h-2.5 w-2.5 rounded-full shrink-0', STATUS_DOT[selectedConv.status ?? 'bot'])} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">{selectedConv.voterName}</p>
-                  <p className="text-xs text-muted-foreground">{selectedConv.voterPhone}</p>
+                  <p className="text-xs text-muted-foreground">{formatPhoneDisplay(selectedConv.voterPhone)}</p>
                 </div>
                 <Badge
                   variant="secondary"
@@ -842,7 +843,7 @@ export default function ConversasPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{selectedConv.voterName}</p>
-                        <p className="text-xs text-muted-foreground">{selectedConv.voterPhone}</p>
+                        <p className="text-xs text-muted-foreground">{formatPhoneDisplay(selectedConv.voterPhone)}</p>
                       </div>
                     </div>
                     {selectedConv.assignedAgent && (

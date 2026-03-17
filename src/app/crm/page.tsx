@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { formatPhoneDisplay, normalizePhone } from '@/lib/phone';
 import {
   Dialog,
   DialogContent,
@@ -328,7 +329,7 @@ export default function CrmPage() {
                 {voters.map(voter => (
                   <TableRow key={voter.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => router.push(`/crm/${voter.id}`)}>
                     <TableCell className="font-medium text-sm">{voter.name}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground font-mono">{voter.phone}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground font-mono">{formatPhoneDisplay(voter.phone)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {voter.zone ? `Zona ${voter.zone}` : <span className="text-muted-foreground/40">—</span>}
                     </TableCell>

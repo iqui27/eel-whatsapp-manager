@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { formatPhoneDisplay } from '@/lib/phone';
 import {
   Select,
   SelectContent,
@@ -320,7 +321,7 @@ export default function CompliancePage() {
                   ) : filteredVoters.map(voter => (
                     <TableRow key={voter.id} className="hover:bg-muted/30">
                       <TableCell className="font-medium">{voter.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{voter.phone}</TableCell>
+                      <TableCell className="text-muted-foreground">{formatPhoneDisplay(voter.phone)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={cn('text-xs', OPT_IN_CLASSES[voter.optInStatus ?? 'pending'])}>
                           {OPT_IN_LABELS[voter.optInStatus ?? 'pending']}

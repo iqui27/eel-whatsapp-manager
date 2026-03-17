@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { formatPhoneDisplay } from '@/lib/phone';
 import type { Voter, Conversation, ConsentLog } from '@/db/schema';
 import {
   ArrowLeft,
@@ -333,7 +334,7 @@ export default function VoterProfilePage() {
                   <div className="flex flex-wrap items-center gap-3 mt-1.5 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <Phone className="h-3.5 w-3.5" />
-                      {voter.phone}
+                      {formatPhoneDisplay(voter.phone)}
                     </span>
                     {voter.zone && (
                       <span className="flex items-center gap-1.5">

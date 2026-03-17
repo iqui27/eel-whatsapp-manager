@@ -10,6 +10,7 @@ import SidebarLayout from '@/components/SidebarLayout';
 import { EmptyState } from '@/components/empty-state';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { formatPhoneDisplay } from '@/lib/phone';
 
 interface Contact {
   id: string; name: string; phone: string;
@@ -175,7 +176,7 @@ export default function ContactsPage() {
                         <span className="font-medium text-foreground">{c.name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{c.phone}</td>
+                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{formatPhoneDisplay(c.phone)}</td>
                     <td className="px-4 py-3 text-muted-foreground text-xs">{fmt(c.lastContacted)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{c.contactCount ?? 0}</td>
                     <td className="px-4 py-3"><Switch checked={c.enabled ?? false} onCheckedChange={() => handleToggle(c)} /></td>

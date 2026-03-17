@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePermission } from '@/lib/api-auth';
+import { normalizePhone } from '@/lib/phone';
 import { addMessage, getConversation, getMessages } from '@/lib/db-conversations';
 import { loadChips } from '@/lib/db-chips';
 import { loadConfig } from '@/lib/db-config';
 import { sendText } from '@/lib/evolution';
 import { isVoterInScope } from '@/lib/authorization';
 import { getVoter } from '@/lib/db-voters';
+import { requirePermission } from '@/lib/api-auth';
 
 export async function GET(
   request: NextRequest,
@@ -74,8 +75,9 @@ export async function POST(
         return NextResponse.json({ error: 'Nenhum chip conectado disponível para envio' }, { status: 500 });
       }
 
-      const normalizedPhone = conversation.voterPhone.replace(/\D/g, '');
-      if (!normalizedPhone) {
+      // Normalize phone to E.164 format (55XXXXXXXXXXX)
+      const normalizedPhone = normalizePhone(conversation.voterPhone);
+      if (!normalizedPhone || normalizedPhone.length < 12) {
         return NextResponse.json({ error: 'Telefone do eleitor inválido para envio' }, { status: 400 });
       }
 

@@ -8,6 +8,7 @@ import {
   type Voter, type NewVoter,
 } from '@/db/schema';
 import { eq, desc, ilike, or } from 'drizzle-orm';
+import { normalizePhone } from '@/lib/phone';
 
 export type { Voter, NewVoter };
 
@@ -23,7 +24,12 @@ export async function getVoter(id: string): Promise<Voter | undefined> {
 export async function addVoter(
   data: Omit<NewVoter, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<Voter> {
-  const rows = await db.insert(voters).values(data).returning();
+  // Normalize phone number to E.164 format
+  const normalizedData = {
+    ...data,
+    phone: normalizePhone(data.phone),
+  };
+  const rows = await db.insert(voters).values(normalizedData).returning();
   return rows[0];
 }
 
@@ -31,9 +37,15 @@ export async function updateVoter(
   id: string,
   data: Partial<Omit<NewVoter, 'id' | 'createdAt'>>,
 ): Promise<Voter | undefined> {
+  // Normalize phone number if provided
+  const normalizedData = {
+    ...data,
+    ...(data.phone && { phone: normalizePhone(data.phone) }),
+    updatedAt: new Date(),
+  };
   const rows = await db
     .update(voters)
-    .set({ ...data, updatedAt: new Date() })
+    .set(normalizedData)
     .where(eq(voters.id, id))
     .returning();
   return rows[0];
@@ -47,15 +59,36 @@ export async function bulkInsertVoters(
   data: Omit<NewVoter, 'id' | 'createdAt' | 'updatedAt'>[],
 ): Promise<Voter[]> {
   if (data.length === 0) return [];
-  return db.insert(voters).values(data).returning();
+  // Normalize all phone numbers
+  const normalizedData = data.map(v => ({
+    ...v,
+    phone: normalizePhone(v.phone),
+  }));
+  return db.insert(voters).values(normalizedData).returning();
 }
 
 export async function searchVoters(query: string): Promise<Voter[]> {
+  // If query looks like a phone number, normalize it for search
+  const isPhoneQuery = /^\d/.test(query);
+  
+  if (isPhoneQuery) {
+    // Normalize and search by phone
+    const normalizedPhone = normalizePhone(query);
+    const pattern = `%${normalizedPhone}%`;
+    return db
+      .select()
+      .from(voters)
+      .where(ilike(voters.phone, pattern))
+      .limit(500)
+      .orderBy(desc(voters.engagementScore));
+  }
+  
+  // Otherwise search by name
   const pattern = `%${query}%`;
   return db
     .select()
     .from(voters)
-    .where(or(ilike(voters.name, pattern), ilike(voters.phone, pattern)))
+    .where(ilike(voters.name, pattern))
     .limit(500)
     .orderBy(desc(voters.engagementScore));
 }

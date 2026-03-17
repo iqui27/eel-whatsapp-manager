@@ -5,6 +5,7 @@ import { eq, and, inArray } from 'drizzle-orm';
 import { loadChips, updateChip, updateChipHealth } from '@/lib/db-chips';
 import { addConversation, addMessage } from '@/lib/db-conversations';
 import { searchVoters } from '@/lib/db-voters';
+import { normalizePhone } from '@/lib/phone';
 
 // ─── Dedup cache — prevents storing duplicate webhook deliveries ─────────────
 // Evolution API occasionally fires the same event twice within a few seconds.
@@ -115,8 +116,12 @@ export async function POST(request: NextRequest) {
           processedMessageIds.add(msgId);
         }
 
-        // Extract clean phone number (strip @s.whatsapp.net)
-        const phone = remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+        // Extract clean phone number (strip @s.whatsapp.net) and normalize
+        const rawPhone = remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+        if (!rawPhone) continue;
+        
+        // Normalize to E.164 format for database lookup
+        const phone = normalizePhone(rawPhone);
         if (!phone) continue;
 
         // Extract message text
@@ -130,9 +135,9 @@ export async function POST(request: NextRequest) {
 
         if (!messageText.trim()) continue; // Empty/media-only messages
 
-        // Look up voter by phone number
+        // Look up voter by phone number (already normalized)
         const matchedVoters = await searchVoters(phone);
-        const voter = matchedVoters.find((v) => v.phone.replace(/\D/g, '') === phone);
+        const voter = matchedVoters.find((v) => v.phone === phone);
 
         const voterId = voter?.id ?? null;
         const voterName = voter?.name ?? `+${phone}`;
