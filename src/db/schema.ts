@@ -376,6 +376,45 @@ export const reportDispatches = pgTable('report_dispatches', {
   index('idx_report_dispatches_created_at').on(t.createdAt),
 ]);
 
+// ─── Message Queue (Phase 15 - Mass Messaging) ────────────────────────────────
+export const messageQueue = pgTable('message_queue', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'set null' }),
+  chipId: uuid('chip_id').references(() => chips.id, { onDelete: 'set null' }),
+  voterId: uuid('voter_id').references(() => voters.id, { onDelete: 'set null' }),
+  voterPhone: text('voter_phone').notNull(),
+  voterName: text('voter_name'),
+  // Original template (for reference)
+  message: text('message').notNull(),
+  // Resolved template with variables substituted and variations applied
+  resolvedMessage: text('resolved_message').notNull(),
+  // Status lifecycle: queued→assigned→sending→sent→delivered→read→failed→retry
+  status: text('status', {
+    enum: ['queued', 'assigned', 'sending', 'sent', 'delivered', 'read', 'failed', 'retry']
+  }).default('queued').notNull(),
+  // Evolution API message tracking
+  evolutionMessageId: text('evolution_message_id'),
+  // Timestamps for each status transition
+  assignedAt: timestamp('assigned_at', { withTimezone: true }),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  failedAt: timestamp('failed_at', { withTimezone: true }),
+  failReason: text('fail_reason'),
+  retryCount: integer('retry_count').default(0).notNull(),
+  // Priority (higher = send first)
+  priority: integer('priority').default(0).notNull(),
+  // Segment affinity for chip selection
+  segmentId: uuid('segment_id').references(() => segments.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_message_queue_status').on(t.status),
+  index('idx_message_queue_campaign').on(t.campaignId),
+  index('idx_message_queue_chip').on(t.chipId),
+  index('idx_message_queue_created').on(t.createdAt),
+]);
+
 export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
 
@@ -393,3 +432,6 @@ export type NewReportSchedule = typeof reportSchedules.$inferInsert;
 
 export type ReportDispatch = typeof reportDispatches.$inferSelect;
 export type NewReportDispatch = typeof reportDispatches.$inferInsert;
+
+export type MessageQueue = typeof messageQueue.$inferSelect;
+export type NewMessageQueue = typeof messageQueue.$inferInsert;
