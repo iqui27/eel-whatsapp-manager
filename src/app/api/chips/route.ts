@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadChips, addChip, updateChip, deleteChip } from '@/lib/db-chips';
+import { loadChips, addChip, updateChip, deleteChip, updateChipHealth, getChip } from '@/lib/db-chips';
 import { requirePermission } from '@/lib/api-auth';
+import { getConnectionState, restartInstance } from '@/lib/evolution';
+import { loadConfig } from '@/lib/db-config';
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission(request, 'operations.view', 'Seu operador não pode ver chips');
   if (auth.response) return auth.response;
 
   const chips = await loadChips();
+  // Return all fields including health monitoring data
   return NextResponse.json(chips);
 }
 
@@ -24,6 +31,8 @@ export async function POST(request: NextRequest) {
       enabled: body.enabled ?? true,
       status: 'disconnected',
       warmCount: 0,
+      dailyLimit: body.dailyLimit ?? 200,
+      hourlyLimit: body.hourlyLimit ?? 25,
     });
     return NextResponse.json(chip, { status: 201 });
   } catch (error) {
@@ -38,6 +47,54 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
+
+    // ─── Restart action ────────────────────────────────────────────────────
+    if (body.action === 'restart') {
+      const chipId = body.id as string;
+      if (!chipId) {
+        return NextResponse.json({ error: 'ID é obrigatório' }, { status: 400 });
+      }
+
+      const chip = await getChip(chipId);
+      if (!chip) {
+        return NextResponse.json({ error: 'Chip não encontrado' }, { status: 404 });
+      }
+      if (!chip.instanceName) {
+        return NextResponse.json({ error: 'Chip sem instância configurada' }, { status: 400 });
+      }
+
+      const config = await loadConfig();
+      if (!config) {
+        return NextResponse.json({ error: 'Configuração ausente' }, { status: 404 });
+      }
+
+      try {
+        await restartInstance(config.evolutionApiUrl, config.evolutionApiKey, chip.instanceName);
+        await sleep(5000);
+        const newState = await getConnectionState(config.evolutionApiUrl, config.evolutionApiKey, chip.instanceName);
+
+        const healthStatus = newState === 'connected' ? 'healthy' : 'disconnected';
+        await updateChipHealth(chipId, {
+          healthStatus,
+          errorCount: newState === 'connected' ? 0 : (chip.errorCount ?? 0) + 1,
+          lastHealthCheck: new Date(),
+        });
+        // Also update legacy status field
+        await updateChip(chipId, { status: newState === 'connected' ? 'connected' : 'disconnected' });
+
+        return NextResponse.json({ success: true, healthStatus, connectionState: newState });
+      } catch (restartError) {
+        console.error('Restart error:', restartError);
+        await updateChipHealth(chipId, {
+          healthStatus: 'disconnected',
+          errorCount: (chip.errorCount ?? 0) + 1,
+          lastHealthCheck: new Date(),
+        });
+        return NextResponse.json({ error: 'Erro ao reiniciar instância', details: String(restartError) }, { status: 500 });
+      }
+    }
+
+    // ─── Standard update ───────────────────────────────────────────────────
     await updateChip(body.id, body.updates);
     return NextResponse.json({ success: true });
   } catch (error) {

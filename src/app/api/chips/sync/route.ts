@@ -1,53 +1,114 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/db-config';
-import { loadChips, updateChip } from '@/lib/db-chips';
+import { loadChips, updateChip, updateChipHealth } from '@/lib/db-chips';
 import { requirePermission } from '@/lib/api-auth';
-import { fetchInstances } from '@/lib/evolution';
+import { getConnectionState, restartInstance } from '@/lib/evolution';
+
+const WEBHOOK_STALE_MS = 2 * 60 * 1000; // 2 minutes
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /**
  * POST /api/chips/sync
- * Fetches all instances from Evolution API and updates each chip's
- * connectionStatus based on its instanceName field.
+ *
+ * Runs a health check on all chips:
+ * - Polls getConnectionState for each chip with an instanceName
+ * - Checks lastWebhookEvent staleness
+ * - Attempts restart for connecting/disconnected chips
+ * - Updates healthStatus + legacy status in DB
+ * - Returns a summary of health states
  */
 export async function POST(request: NextRequest) {
   const auth = await requirePermission(request, 'operations.manage', 'Seu operador não pode sincronizar chips');
   if (auth.response) return auth.response;
+
   const config = await loadConfig();
   if (!config) return NextResponse.json({ error: 'Configuração ausente' }, { status: 404 });
 
+  const { evolutionApiUrl, evolutionApiKey } = config;
+  if (!evolutionApiUrl || !evolutionApiKey) {
+    return NextResponse.json({ error: 'Evolution API não configurada' }, { status: 400 });
+  }
+
   try {
-    const [chips, instances] = await Promise.all([
-      loadChips(),
-      fetchInstances(config.evolutionApiUrl, config.evolutionApiKey),
-    ]);
+    const chips = await loadChips();
+    const enabled = chips.filter((c) => c.enabled && c.instanceName);
+    const now = new Date();
 
-    // Build a map: instanceName (lowercase) → status
-    const statusMap = new Map(
-      instances.map((inst) => [
-        inst.name.toLowerCase(),
-        inst.connectionStatus === 'open' ? 'connected' : 'disconnected',
-      ]),
-    );
+    let healthy = 0;
+    let degraded = 0;
+    let disconnected = 0;
+    const results: Array<{ id: string; name: string; healthStatus: string; changed: boolean }> = [];
 
-    const updates = await Promise.all(
-      chips.map(async (chip) => {
-        if (!chip.instanceName) return { id: chip.id, status: chip.status, changed: false };
+    for (const chip of enabled) {
+      const instanceName = chip.instanceName!;
 
-        const evStatus = statusMap.get(chip.instanceName.toLowerCase()) ?? 'disconnected';
-        const newStatus = evStatus as 'connected' | 'disconnected';
+      try {
+        let state = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
 
-        if (chip.status !== newStatus) {
-          await updateChip(chip.id, { status: newStatus });
-          return { id: chip.id, name: chip.name, status: newStatus, changed: true };
+        // Attempt restart for non-healthy states
+        if (state !== 'connected') {
+          try {
+            await restartInstance(evolutionApiUrl, evolutionApiKey, instanceName);
+            await sleep(3000);
+            state = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+          } catch { /* restart failed, continue with current state */ }
         }
-        return { id: chip.id, name: chip.name, status: chip.status, changed: false };
-      }),
-    );
+
+        const legacyStatus: 'connected' | 'disconnected' = state === 'connected' ? 'connected' : 'disconnected';
+        await updateChip(chip.id, { status: legacyStatus });
+
+        let healthStatus: string;
+        if (state === 'connected') {
+          const isWebhookStale =
+            chip.lastWebhookEvent
+              ? now.getTime() - new Date(chip.lastWebhookEvent).getTime() > WEBHOOK_STALE_MS
+              : true;
+
+          healthStatus = isWebhookStale ? 'degraded' : 'healthy';
+          if (healthStatus === 'healthy') {
+            healthy++;
+          } else {
+            degraded++;
+          }
+        } else {
+          healthStatus = 'disconnected';
+          disconnected++;
+        }
+
+        await updateChipHealth(chip.id, {
+          healthStatus,
+          errorCount: state === 'connected' ? 0 : (chip.errorCount ?? 0) + 1,
+          lastHealthCheck: now,
+        });
+
+        results.push({
+          id: chip.id,
+          name: chip.name,
+          healthStatus,
+          changed: chip.healthStatus !== healthStatus,
+        });
+      } catch (err) {
+        console.error(`[sync] Error for chip ${instanceName}:`, err);
+        await updateChipHealth(chip.id, {
+          healthStatus: 'disconnected',
+          errorCount: (chip.errorCount ?? 0) + 1,
+          lastHealthCheck: now,
+        });
+        disconnected++;
+        results.push({ id: chip.id, name: chip.name, healthStatus: 'disconnected', changed: true });
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      updated: updates.filter((u) => u.changed).length,
-      chips: updates,
+      synced: enabled.length,
+      healthy,
+      degraded,
+      disconnected,
+      chips: results,
     });
   } catch (error) {
     console.error('Sync error:', error);
