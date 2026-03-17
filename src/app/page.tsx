@@ -20,6 +20,12 @@ import { useCountUp } from '@/lib/use-count-up';
 import { cn } from '@/lib/utils';
 import type { Campaign, Segment } from '@/db/schema';
 import ChatQueuePanel from '@/components/ChatQueuePanel';
+import { ChipHealthGrid } from '@/components/chip-health-grid';
+import { CampaignProgressBars } from '@/components/campaign-progress-bars';
+import { AlertsPanel, type AlertData } from '@/components/alerts-panel';
+import { GroupCapacityGrid } from '@/components/group-capacity-grid';
+import { ConversionKPIs } from '@/components/conversion-kpis';
+import { MessageFeed } from '@/components/message-feed';
 import {
   Send,
   MessageCircle,
@@ -36,6 +42,7 @@ import {
   CheckCircle2,
   ArrowRight,
   Smartphone,
+  Activity,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -322,6 +329,50 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [warmingAll, setWarmingAll] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  
+  // Operations dashboard state
+  const [activeTab, setActiveTab] = useState<'overview' | 'operations'>('overview');
+  const [opsData, setOpsData] = useState<{
+    chips: Array<{
+      id: string;
+      name: string;
+      phone: string;
+      healthStatus: string;
+      messagesSentToday: number;
+      dailyLimit: number;
+      lastWebhookEvent: Date | null;
+      lastHealthCheck: Date | null;
+    }>;
+    campaigns: Array<{
+      id: string;
+      name: string;
+      status: string;
+      totalSent: number;
+      totalDelivered: number;
+      totalRead: number;
+      totalFailed: number;
+      queued: number;
+    }>;
+    alerts: AlertData[];
+  } | null>(null);
+  const [kpiData, setKpiData] = useState<{
+    totalSent: number;
+    deliveredRate: number;
+    readRate: number;
+    replyRate: number;
+    groupJoinRate: number;
+    trends?: { delivered: number; read: number; reply: number; groupJoin: number };
+  } | null>(null);
+  const [messagesData, setMessagesData] = useState<Array<{
+    id: string;
+    direction: 'inbound' | 'outbound';
+    chipName: string;
+    leadName: string;
+    leadPhone: string;
+    preview: string;
+    status: string;
+    createdAt: Date;
+  }>>([]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -361,6 +412,38 @@ export default function DashboardPage() {
   }, [router]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+  
+  // Fetch operations data
+  const fetchOperations = useCallback(async () => {
+    try {
+      const [opsRes, kpisRes, msgsRes] = await Promise.all([
+        fetch('/api/dashboard/operations'),
+        fetch('/api/dashboard/kpis'),
+        fetch('/api/dashboard/messages'),
+      ]);
+      
+      if (opsRes.ok) {
+        const opsData = await opsRes.json();
+        setOpsData(opsData);
+      }
+      if (kpisRes.ok) {
+        const kpiData = await kpisRes.json();
+        setKpiData(kpiData);
+      }
+      if (msgsRes.ok) {
+        const msgsData = await msgsRes.json();
+        setMessagesData(msgsData.messages || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch operations data:', error);
+    }
+  }, []);
+  
+  useEffect(() => {
+    if (activeTab === 'operations') {
+      fetchOperations();
+    }
+  }, [activeTab, fetchOperations]);
 
   const handleWarmAll = async () => {
     setWarmingAll(true);
@@ -416,21 +499,131 @@ export default function DashboardPage() {
               Visão geral das operações de campanha WhatsApp
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchAll} className="gap-1.5">
-            <RefreshCw className="h-3.5 w-3.5" />
-            Atualizar
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={fetchAll} className="gap-1.5">
+              <RefreshCw className="h-3.5 w-3.5" />
+              Atualizar
+            </Button>
+          </div>
+        </div>
+        
+        {/* ── Tab Switcher ── */}
+        <div className="flex gap-2">
+          <Button
+            variant={activeTab === 'overview' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveTab('overview')}
+          >
+            Visão Geral
+          </Button>
+          <Button
+            variant={activeTab === 'operations' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveTab('operations')}
+            className="gap-1.5"
+          >
+            <Activity className="h-3.5 w-3.5" />
+            Operações
           </Button>
         </div>
-
-        {/* ── Onboarding wizard ── */}
-        {showOnboarding && (
-          <OnboardingWizard
-            voterCount={systemStatus.voters}
-            segmentCount={systemStatus.segments}
-            campaignCount={campaigns.length}
-            onDismiss={dismissOnboarding}
-          />
+        
+        {/* ── Operations Tab ── */}
+        {activeTab === 'operations' && (
+          <div className="space-y-6">
+            {/* Alerts */}
+            {opsData?.alerts && opsData.alerts.length > 0 && (
+              <AlertsPanel alerts={opsData.alerts} />
+            )}
+            
+            {/* Conversion KPIs */}
+            {kpiData && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">KPIs de Conversão</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ConversionKPIs data={kpiData} />
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Two columns: Chips + Campaigns | Groups + Messages */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left: Chips + Campaigns */}
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Smartphone className="h-4 w-4" />
+                      Chips
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ChipHealthGrid chips={opsData?.chips || []} loading={!opsData} />
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Send className="h-4 w-4" />
+                      Campanhas Ativas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CampaignProgressBars campaigns={opsData?.campaigns || []} loading={!opsData} />
+                  </CardContent>
+                </Card>
+              </div>
+              
+              {/* Right: Groups + Messages */}
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Grupos
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <GroupCapacityGrid 
+                      groups={[]} 
+                      loading={false}
+                    />
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Sincronize grupos em /grupos para visualizar
+                    </p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4" />
+                      Mensagens Recentes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0 px-4 pb-4">
+                    <MessageFeed messages={messagesData} loading={messagesData.length === 0} />
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
         )}
+        
+        {/* ── Overview Tab (existing content) ── */}
+        {activeTab === 'overview' && (
+          <>
+            {/* ── Onboarding wizard ── */}
+            {showOnboarding && (
+              <OnboardingWizard
+                voterCount={systemStatus.voters}
+                segmentCount={systemStatus.segments}
+                campaignCount={campaigns.length}
+                onDismiss={dismissOnboarding}
+              />
+            )}
 
         {/* ── Two-column layout: main + right panel ── */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
@@ -617,6 +810,8 @@ export default function DashboardPage() {
             <ChatQueuePanel />
           </div>
         </div>
+          </>
+        )}
       </div>
     </SidebarLayout>
   );
