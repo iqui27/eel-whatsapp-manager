@@ -2,34 +2,34 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 13
-current_phase_name: zero-pendency release closure
-current_plan: 5
-status: completed
-stopped_at: Phase 13 complete; production parity restored and live zero-pendency verification passed on zap.iqui27.app
-last_updated: "2026-03-09T20:05:00.000Z"
-last_activity: 2026-03-09
+current_phase: 14
+current_phase_name: chip-health-reliability
+current_plan: 2
+status: checkpoint
+stopped_at: "Phase 14 Plans 1-2 complete — awaiting human-verify checkpoint for chip health monitoring UI"
+last_updated: "2026-03-17T17:50:00.000Z"
+last_activity: 2026-03-17
 progress:
-  total_phases: 13
+  total_phases: 19
   completed_phases: 13
-  total_plans: 39
-  completed_plans: 39
-  percent: 100
+  total_plans: 41
+  completed_plans: 41
+  percent: 68
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 13
-**Current Phase Name:** zero-pendency release closure
-**Current Plan:** 5
-**Total Phases:** 13
-**Total Plans in Phase:** 5
-**Status:** Complete
-**Progress:** [██████████] 100%
-**Last Activity:** 2026-03-09
-**Last Activity Description:** Deployed the final Phase 13 build to production, completed live UAT across shell/authz/CRM/mobile/reports, and closed the milestone with a zero-pendency verdict
-**Stopped At:** Phase 13 complete; production parity restored and live zero-pendency verification passed on zap.iqui27.app
+**Current Phase:** 14
+**Current Phase Name:** chip-health-reliability
+**Current Plan:** 2
+**Total Phases:** 19
+**Total Plans in Phase:** 2
+**Status:** Checkpoint — awaiting human verification
+**Progress:** [██████░░░░] 68%
+**Last Activity:** 2026-03-17
+**Last Activity Description:** Phase 14 plans 01+02 complete — Evolution API v2 wrapper, 7-state chip health schema, health cron, webhook hardening, rebuilt chips monitoring UI
+**Stopped At:** Phase 14 Plans 1-2 complete — awaiting human-verify checkpoint for chip health monitoring UI
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -65,9 +65,13 @@ progress:
 - Plan 13-04 complete: reports now support CSV/PDF export, persisted schedules, dispatch history, and scheduled delivery flow
 - Plan 13-05 complete: production was redeployed to the intended head and live UAT passed across protected pages, authz, CRM persistence, and scheduled report dispatch
 
-Progress: [██████████] 100%
+**Phase 14 (Chip Health Reliability) — IN PROGRESS** 🔄
+- Plan 14-01 complete: Evolution API v2 full wrapper (13+ functions), 7-state chip health schema, health cron with auto-restart, webhook hardened with statusReason + lastWebhookEvent tracking
+- Plan 14-02 complete (awaiting verify): chips API returns full health data + restart action; chips page rebuilt as health monitoring dashboard with colored indicators, progress bars, timestamps
 
-Last session: 2026-03-09T20:05:00.000Z
+Progress: [██████░░░░] 68%
+
+Last session: 2026-03-17T17:50:00.000Z
 
 ## Project History
 
@@ -137,6 +141,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Wave 3: Plan 13-04 — report export/scheduling automation complete ✅
 - Wave 4: Plan 13-05 — production deploy, cron hardening, and zero-pendency live sign-off complete ✅
 
+**Phase 14 — Chip Health Reliability — IN PROGRESS** 🔄
+- Plan 14-01: Evolution API v2 full wrapper (13+ exports), 7-state health schema fields, chip-health cron (auto-restart + quarantine), webhook hardened with statusReason codes + lastWebhookEvent ✅
+- Plan 14-02: Chips API returns all health data + restart action; rebuilt chips page as health monitoring dashboard (card grid, progress bars, timestamps, 7-state indicators) — awaiting verify ⏳
+
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
 - [x] Database: Supabase PostgreSQL (already in use)
@@ -200,6 +208,10 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - [Phase 12-campaign-personalization-completion]: Manual sends use the actual execution date for `{data}`, while cron-triggered scheduled sends use the campaign scheduled date and pause safely on pre-send failure.
 - [Phase 13-zero-pendency-release-closure]: The remaining work should be closed as one final milestone phase, not left as disconnected deferred backlog notes.
 - [Phase 13-zero-pendency-release-closure]: Final phase completion requires live deploy/UAT parity, not only local code completion.
+- [Phase 14-chip-health-reliability]: healthStatus added as separate text field (not enum) to avoid Postgres ALTER TYPE migration complexity on existing enum.
+- [Phase 14-chip-health-reliability]: sendText now returns SendTextResponse with message key — breaking change that gives Phase 17 delivery tracking its foundation.
+- [Phase 14-chip-health-reliability]: Restart action added to PUT /api/chips with action='restart' param to avoid a separate endpoint.
+- [Phase 14-chip-health-reliability]: Webhook updates lastWebhookEvent on EVERY event type to enable accurate health staleness detection.
 
 ## Accumulated Context
 
@@ -273,6 +285,8 @@ src/components/
 | Phase 12-campaign-personalization-completion P01 | 4 min | 2 tasks | 6 files |
 | Phase 12-campaign-personalization-completion P02 | 12 min | 2 tasks | 6 files |
 | Phase 12-campaign-personalization-completion P03 | 2 min | 2 tasks | 2 files |
+| 14-chip-health-reliability P01 | 18 min | 2/2 | 6 files |
+| 14-chip-health-reliability P02 | 15 min | 2/2 | 3 files |
 
 ## Next Actions
-Phase 13 is complete. The next correct step is milestone wrap-up, branch merge, and release housekeeping rather than new gap work inside this milestone.
+Phase 14 Plans 01+02 complete. Awaiting human verification of chip health monitoring UI at /chips. After verification: continue with Phase 15 (Mass Messaging Engine).
