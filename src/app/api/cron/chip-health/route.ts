@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/db-config';
 import { loadChips, updateChipHealth } from '@/lib/db-chips';
 import { getConnectionState, restartInstance } from '@/lib/evolution';
+import { reassignMessagesFromChip } from '@/lib/db-message-queue';
 import { isLocalInternalRequest, readCronToken, resolveServerEnv } from '@/lib/server-env';
 
 const WEBHOOK_STALE_MS = 2 * 60 * 1000; // 2 minutes
@@ -143,6 +144,12 @@ export async function GET(request: NextRequest) {
         if (newStatus === 'quarantined') {
           quarantined++;
           console.warn(`[chip-health] Chip ${instanceName} quarantined after ${newErrorCount} failed restarts`);
+          
+          // Reassign pending messages from this chip back to the queue
+          const reassigned = await reassignMessagesFromChip(chip.id);
+          if (reassigned > 0) {
+            console.log(`[chip-health] Reassigned ${reassigned} messages from ${instanceName} to queue`);
+          }
         } else {
           disconnected++;
         }
