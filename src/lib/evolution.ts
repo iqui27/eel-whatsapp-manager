@@ -124,6 +124,9 @@ export async function restartInstance(
       headers: { apikey: apiKey },
     },
   );
+  if (res.status === 404) {
+    throw new Error(`Instância "${instanceName}" não encontrada na Evolution API. Verifique se o nome está correto ou crie a instância primeiro.`);
+  }
   await throwIfNotOk(res, 'restartInstance');
 }
 

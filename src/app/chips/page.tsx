@@ -48,17 +48,60 @@ interface Chip {
 
 const HEALTH_CONFIG: Record<ChipHealthStatus, {
   label: string;
+  description: string;
   dotColor: string;
   badgeClass: string;
   canRestart: boolean;
 }> = {
-  healthy:      { label: 'Saudável',    dotColor: 'bg-green-500',  badgeClass: 'bg-green-50 text-green-700 border-green-200',    canRestart: false },
-  degraded:     { label: 'Degradado',   dotColor: 'bg-yellow-500', badgeClass: 'bg-yellow-50 text-yellow-700 border-yellow-200',  canRestart: true  },
-  cooldown:     { label: 'Descanso',    dotColor: 'bg-orange-500', badgeClass: 'bg-orange-50 text-orange-700 border-orange-200',  canRestart: false },
-  quarantined:  { label: 'Quarentena',  dotColor: 'bg-red-500',    badgeClass: 'bg-red-50 text-red-700 border-red-200',          canRestart: true  },
-  banned:       { label: 'Banido',      dotColor: 'bg-red-900',    badgeClass: 'bg-red-100 text-red-900 border-red-300',         canRestart: false },
-  warming_up:   { label: 'Aquecendo',   dotColor: 'bg-blue-500',   badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',       canRestart: false },
-  disconnected: { label: 'Desconect.',  dotColor: 'bg-slate-400',  badgeClass: 'bg-slate-50 text-slate-600 border-slate-200',    canRestart: true  },
+  healthy:      { 
+    label: 'Saudável', 
+    description: 'Conectado ao WhatsApp e recebendo eventos normalmente',
+    dotColor: 'bg-green-500',  
+    badgeClass: 'bg-green-50 text-green-700 border-green-200',    
+    canRestart: false 
+  },
+  degraded:     { 
+    label: 'Degradado', 
+    description: 'Conectado mas sem eventos recentes — webhook pode estar com problema',
+    dotColor: 'bg-yellow-500', 
+    badgeClass: 'bg-yellow-50 text-yellow-700 border-yellow-200',  
+    canRestart: true  
+  },
+  cooldown:     { 
+    label: 'Descanso', 
+    description: 'Em pausa preventiva para evitar banimento',
+    dotColor: 'bg-orange-500', 
+    badgeClass: 'bg-orange-50 text-orange-700 border-orange-200',  
+    canRestart: false 
+  },
+  quarantined:  { 
+    label: 'Quarentena', 
+    description: 'Múltiplas falhas consecutivas — verifique manualmente',
+    dotColor: 'bg-red-500',    
+    badgeClass: 'bg-red-50 text-red-700 border-red-200',          
+    canRestart: true  
+  },
+  banned:       { 
+    label: 'Banido', 
+    description: 'Número bloqueado pelo WhatsApp — não pode ser usado',
+    dotColor: 'bg-red-900',    
+    badgeClass: 'bg-red-100 text-red-900 border-red-300',         
+    canRestart: false 
+  },
+  warming_up:   { 
+    label: 'Aquecendo', 
+    description: 'Número novo em fase de aquecimento gradual',
+    dotColor: 'bg-blue-500',   
+    badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',       
+    canRestart: false 
+  },
+  disconnected: { 
+    label: 'Desconectado', 
+    description: 'Sem conexão com WhatsApp — escanear QR code pode ser necessário',
+    dotColor: 'bg-slate-400',  
+    badgeClass: 'bg-slate-50 text-slate-600 border-slate-200',    
+    canRestart: true  
+  },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -90,10 +133,13 @@ function progressColor(pct: number): string {
 function HealthBadge({ status }: { status: ChipHealthStatus }) {
   const cfg = HEALTH_CONFIG[status];
   return (
-    <span className={cn(
-      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
-      cfg.badgeClass,
-    )}>
+    <span 
+      title={cfg.description}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium cursor-help',
+        cfg.badgeClass,
+      )}
+    >
       <span className={cn('h-1.5 w-1.5 rounded-full', cfg.dotColor)} />
       {cfg.label}
     </span>
@@ -260,10 +306,12 @@ export default function ChipsPage() {
         toast.success(`Chip ${chip.name} reiniciado — ${data.healthStatus === 'healthy' ? 'saudável' : 'verificando...'}`);
         fetchChips(true);
       } else {
-        toast.error(data.error || 'Erro ao reiniciar chip');
+        // Show detailed error message
+        const errorMsg = data.details || data.error || 'Erro ao reiniciar chip';
+        toast.error(errorMsg, { duration: 6000 });
       }
-    } catch {
-      toast.error('Erro ao reiniciar chip');
+    } catch (err) {
+      toast.error(`Erro ao reiniciar chip: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     } finally {
       setRestartingId(null);
     }
@@ -589,6 +637,13 @@ export default function ChipsPage() {
                   {chip.instanceName && (
                     <p className="text-xs text-muted-foreground font-mono truncate">
                       {chip.instanceName}
+                    </p>
+                  )}
+
+                  {/* Status explanation for non-healthy chips */}
+                  {chip.healthStatus !== 'healthy' && (
+                    <p className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1.5">
+                      {health.description}
                     </p>
                   )}
 
