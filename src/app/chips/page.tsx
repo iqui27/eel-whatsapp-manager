@@ -8,7 +8,7 @@ import {
   RotateCcw, AlertTriangle, Wifi, WifiOff, Clock, ChevronDown,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import { TableSkeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import SidebarLayout from '@/components/SidebarLayout';
 import { EmptyState } from '@/components/empty-state';
 import { toast } from 'sonner';
@@ -486,7 +486,41 @@ export default function ChipsPage() {
 
         {/* Chips grid */}
         {loading ? (
-          <TableSkeleton rows={3} cols={4} />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <Skeleton className="h-9 w-9 rounded-full" />
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-3.5 w-28" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                </div>
+                <Skeleton className="h-3 w-32" />
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-1.5 w-full rounded-full" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-1.5 w-full rounded-full" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
+                <div className="flex items-center gap-2 pt-1 border-t border-border">
+                  <Skeleton className="h-5 w-9 rounded-full" />
+                  <Skeleton className="h-3 w-12" />
+                  <div className="ml-auto flex gap-1.5">
+                    <Skeleton className="h-7 w-7 rounded-md" />
+                    <Skeleton className="h-7 w-7 rounded-md" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : filtered.length === 0 ? (
           <EmptyState
             illustration="smartphone"
