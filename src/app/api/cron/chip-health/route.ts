@@ -5,7 +5,7 @@ import { getConnectionState, restartInstance } from '@/lib/evolution';
 import { reassignMessagesFromChip } from '@/lib/db-message-queue';
 import { isLocalInternalRequest, readCronToken, resolveServerEnv } from '@/lib/server-env';
 
-const WEBHOOK_STALE_MS = 2 * 60 * 1000; // 2 minutes
+const WEBHOOK_STALE_MS = 5 * 60 * 1000; // 5 minutes - increased from 2min for reliability
 const RESTART_WAIT_MS = 5000;
 
 function sleep(ms: number) {

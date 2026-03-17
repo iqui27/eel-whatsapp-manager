@@ -29,6 +29,8 @@ function getStatusIcon(status: string) {
       return <Check className="h-3 w-3 text-blue-500" />;
     case 'failed':
       return <X className="h-3 w-3 text-red-500" />;
+    case 'received':
+      return <ArrowDownLeft className="h-3 w-3 text-green-600" />;
     default:
       return <Clock className="h-3 w-3 text-gray-400" />;
   }

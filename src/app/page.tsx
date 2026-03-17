@@ -373,6 +373,15 @@ export default function DashboardPage() {
     status: string;
     createdAt: Date;
   }>>([]);
+  const [groupsData, setGroupsData] = useState<Array<{
+    id: string;
+    name: string;
+    currentSize: number;
+    maxSize: number;
+    status: string;
+    inviteUrl: string | null;
+    chipInstanceName: string | null;
+  }>>([]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -416,10 +425,11 @@ export default function DashboardPage() {
   // Fetch operations data
   const fetchOperations = useCallback(async () => {
     try {
-      const [opsRes, kpisRes, msgsRes] = await Promise.all([
+      const [opsRes, kpisRes, msgsRes, groupsRes] = await Promise.all([
         fetch('/api/dashboard/operations'),
         fetch('/api/dashboard/kpis'),
         fetch('/api/dashboard/messages'),
+        fetch('/api/dashboard/groups'),
       ]);
       
       if (opsRes.ok) {
@@ -434,14 +444,21 @@ export default function DashboardPage() {
         const msgsData = await msgsRes.json();
         setMessagesData(msgsData.messages || []);
       }
+      if (groupsRes.ok) {
+        const groupsData = await groupsRes.json();
+        setGroupsData(groupsData.groups || []);
+      }
     } catch (error) {
       console.error('Failed to fetch operations data:', error);
     }
   }, []);
   
+  // Auto-refresh operations data every 10 seconds when on operations tab
   useEffect(() => {
     if (activeTab === 'operations') {
       fetchOperations();
+      const interval = setInterval(fetchOperations, 10000);
+      return () => clearInterval(interval);
     }
   }, [activeTab, fetchOperations]);
 
@@ -587,12 +604,9 @@ export default function DashboardPage() {
                   </CardHeader>
                   <CardContent>
                     <GroupCapacityGrid 
-                      groups={[]} 
-                      loading={false}
+                      groups={groupsData} 
+                      loading={groupsData.length === 0 && activeTab === 'operations'}
                     />
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Sincronize grupos em /grupos para visualizar
-                    </p>
                   </CardContent>
                 </Card>
                 

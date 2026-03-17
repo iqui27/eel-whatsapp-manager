@@ -7,7 +7,7 @@ import { db } from '@/db';
 import { whatsappGroups, type WhatsappGroup, type NewWhatsappGroup, chips, campaigns } from '@/db/schema';
 import { eq, and, inArray, desc, lte, gte, isNull, sql } from 'drizzle-orm';
 import type { Chip } from '@/db/schema';
-import { createGroup, getInviteCode, fetchGroupParticipants, type InviteCodeResponse } from '@/lib/evolution';
+import { createGroup, getInviteCode, fetchGroupParticipants, updateParticipant, type InviteCodeResponse } from '@/lib/evolution';
 
 // Re-export types for consumers
 export type { WhatsappGroup, NewWhatsappGroup };
@@ -268,4 +268,117 @@ export async function getGroupStats(): Promise<{
     totalMembers: groups.reduce((sum, g) => sum + g.currentSize, 0),
     totalCapacity: groups.reduce((sum, g) => sum + g.maxSize, 0),
   };
+}
+
+// ─── Segment-Group Mapping ─────────────────────────────────────────────────────
+
+/** Get the best available group for a segment tag */
+export async function getGroupForSegment(
+  segmentTag: string
+): Promise<WhatsappGroup | null> {
+  // Find active groups for this segment that have capacity
+  const groups = await db.select().from(whatsappGroups).where(
+    and(
+      eq(whatsappGroups.segmentTag, segmentTag),
+      eq(whatsappGroups.status, 'active'),
+      sql`${whatsappGroups.currentSize} < ${whatsappGroups.maxSize}`
+    )
+  ).orderBy(whatsappGroups.currentSize); // Get least full first
+  
+  return groups[0] ?? null;
+}
+
+/** Get or create a group for a segment */
+export async function getOrCreateGroupForSegment(
+  segmentTag: string,
+  segmentName: string,
+  chip: Chip,
+  evolutionConfig: EvolutionConfig,
+  adminPhones?: string[]
+): Promise<{ group: WhatsappGroup; invite: InviteCodeResponse } | null> {
+  // Try to get existing group
+  const existing = await getGroupForSegment(segmentTag);
+  
+  if (existing && existing.inviteUrl) {
+    return { 
+      group: existing, 
+      invite: { 
+        inviteUrl: existing.inviteUrl, 
+        inviteCode: existing.inviteCode || '' 
+      } 
+    };
+  }
+  
+  // Need to create new group
+  try {
+    const groupName = segmentName || `Segmento ${segmentTag}`;
+    const instanceName = chip.instanceName || chip.name;
+    
+    // Include admins in participant list if provided
+    const participants = adminPhones && adminPhones.length > 0 
+      ? adminPhones 
+      : undefined;
+    
+    const created = await createGroup(
+      evolutionConfig.apiUrl,
+      evolutionConfig.apiKey,
+      instanceName,
+      groupName,
+      `Grupo para leads do segmento: ${segmentTag}`,
+      participants
+    );
+    
+    if (!created.id) {
+      console.error('[getOrCreateGroupForSegment] No groupJid returned');
+      return null;
+    }
+    
+    // Get invite code
+    const invite = await getInviteCode(
+      evolutionConfig.apiUrl,
+      evolutionConfig.apiKey,
+      instanceName,
+      created.id
+    );
+    
+    // Promote admins if they were added as participants
+    if (adminPhones && adminPhones.length > 0) {
+      try {
+        await updateParticipant(
+          evolutionConfig.apiUrl,
+          evolutionConfig.apiKey,
+          instanceName,
+          created.id,
+          'promote',
+          adminPhones
+        );
+        console.log('[getOrCreateGroupForSegment] Promoted admins:', adminPhones);
+      } catch (promoteErr) {
+        console.warn('[getOrCreateGroupForSegment] Failed to promote admins:', promoteErr);
+      }
+    }
+    
+    // Store in database
+    const newGroup = await createGroupRecord({
+      groupJid: created.id,
+      name: groupName,
+      description: `Grupo para leads do segmento: ${segmentTag}`,
+      inviteUrl: invite.inviteUrl,
+      inviteCode: invite.inviteCode,
+      segmentTag,
+      chipId: chip.id,
+      chipInstanceName: instanceName,
+      currentSize: participants?.length || 0,
+      maxSize: 1024,
+      status: 'active',
+      admins: adminPhones || [],
+    });
+    
+    console.log('[getOrCreateGroupForSegment] Created group:', groupName, '→', created.id);
+    
+    return { group: newGroup, invite };
+  } catch (error) {
+    console.error('[getOrCreateGroupForSegment] Error:', error);
+    return null;
+  }
 }
