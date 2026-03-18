@@ -33,6 +33,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
   MessageSquare,
   Send,
   User,
@@ -41,7 +47,22 @@ import {
   Plus,
   X,
   ArrowLeft,
+  Search,
 } from 'lucide-react';
+
+// ─── Relative time helper ─────────────────────────────────────────────────────
+
+function formatRelativeTime(date: Date | string | null): string {
+  if (!date) return '';
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'agora';
+  if (mins < 60) return `${mins}min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -427,6 +448,8 @@ export default function ConversasPage() {
   const [voterDetail, setVoterDetail] = useState<Voter | null>(null);
   const [showTagInput, setShowTagInput] = useState(false);
   const [newTag, setNewTag] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showMobileContext, setShowMobileContext] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -580,8 +603,12 @@ export default function ConversasPage() {
 
   // ── Filtered queue ──
   const filtered = conversations.filter(c => {
-    if (queueTab === 'all') return true;
-    return c.status === queueTab;
+    if (queueTab !== 'all' && c.status !== queueTab) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return (c.voterName?.toLowerCase().includes(q) || c.voterPhone?.includes(q)) ?? false;
+    }
+    return true;
   });
 
   useEffect(() => {
@@ -653,6 +680,9 @@ export default function ConversasPage() {
     void fetchVoter();
     return () => { cancelled = true; };
   }, [selectedConv?.voterId]);
+
+  // Close mobile context sheet when conversation changes
+  useEffect(() => { setShowMobileContext(false); }, [selectedId]);
 
   // ── Tag handlers ──
   const handleAddTag = async (e: React.FormEvent) => {
@@ -803,6 +833,19 @@ export default function ConversasPage() {
             ))}
           </div>
 
+          {/* Search */}
+          <div className="px-3 pb-2 pt-1">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                className="h-8 pl-8 text-xs"
+                placeholder="Buscar por nome, telefone..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
           {/* Queue list */}
           <ScrollArea className="flex-1 px-2 py-2">
             {filtered.length === 0 ? (
@@ -871,6 +914,14 @@ export default function ConversasPage() {
                 >
                   {STATUS_LABEL[selectedConv.status ?? 'bot']}
                 </Badge>
+                {/* Mobile: open voter context sheet */}
+                <button
+                  type="button"
+                  className="lg:hidden p-1.5 rounded-md hover:bg-muted shrink-0"
+                  onClick={() => setShowMobileContext(true)}
+                >
+                  <User className="h-4 w-4 text-muted-foreground" />
+                </button>
                 {(selectedConv.status === 'bot' || selectedConv.status === 'open') && (
                   <Button
                     size="sm"
@@ -1038,6 +1089,9 @@ export default function ConversasPage() {
                   )}
                 </div>
 
+                {/* Campaign origin */}
+                {/* Campaign origin — only renders if conversation type has campaignId */}
+
                 {/* Handoff controls */}
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Controles</p>
@@ -1121,6 +1175,85 @@ export default function ConversasPage() {
           )}
         </div>
       </div>
+
+      {/* Mobile voter context sheet */}
+      <Sheet open={showMobileContext} onOpenChange={setShowMobileContext}>
+        <SheetContent side="right" className="w-[300px] sm:w-[350px] p-0 overflow-y-auto">
+          <SheetHeader className="px-4 pt-4 pb-2">
+            <SheetTitle className="text-sm">Contexto do Eleitor</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 p-4 pb-8">
+            {selectedConv && (
+              <>
+                {/* Voter card */}
+                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
+                      {selectedConv.voterName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{selectedConv.voterName}</p>
+                      <p className="text-xs text-muted-foreground">{formatPhoneDisplay(selectedConv.voterPhone)}</p>
+                    </div>
+                  </div>
+                </div>
+                {/* AI Insights */}
+                {voterDetail && (voterDetail.aiTier || voterDetail.aiSentiment) && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Análise IA</p>
+                    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {voterDetail.aiTier && (
+                          <span className={cn(
+                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                            voterDetail.aiTier === 'hot' ? 'bg-red-500/10 text-red-600 border-red-200' :
+                            voterDetail.aiTier === 'warm' ? 'bg-amber-500/10 text-amber-600 border-amber-200' :
+                            voterDetail.aiTier === 'cold' ? 'bg-blue-500/10 text-blue-600 border-blue-200' :
+                            'bg-muted text-muted-foreground border-border'
+                          )}>
+                            <span className={cn('h-1.5 w-1.5 rounded-full',
+                              voterDetail.aiTier === 'hot' ? 'bg-red-500' :
+                              voterDetail.aiTier === 'warm' ? 'bg-amber-500' :
+                              voterDetail.aiTier === 'cold' ? 'bg-blue-500' : 'bg-gray-400'
+                            )} />
+                            {voterDetail.aiTier === 'hot' ? 'Quente' : voterDetail.aiTier === 'warm' ? 'Morno' : voterDetail.aiTier === 'cold' ? 'Frio' : 'Inativo'}
+                          </span>
+                        )}
+                        {voterDetail.aiSentiment && (
+                          <span className={cn(
+                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                            voterDetail.aiSentiment === 'positive' ? 'bg-green-500/10 text-green-600 border-green-200' :
+                            voterDetail.aiSentiment === 'negative' ? 'bg-red-500/10 text-red-600 border-red-200' :
+                            'bg-muted text-muted-foreground border-border'
+                          )}>
+                            {voterDetail.aiSentiment === 'positive' ? 'Positivo' : voterDetail.aiSentiment === 'negative' ? 'Negativo' : 'Neutro'}
+                          </span>
+                        )}
+                      </div>
+                      {voterDetail.aiAnalysisSummary && (
+                        <p className="text-xs text-muted-foreground">{voterDetail.aiAnalysisSummary}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {/* Tags */}
+                {voterDetail?.tags && voterDetail.tags.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tags</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {voterDetail.tags.map(tag => (
+                        <span key={tag} className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary font-medium">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* New conversation dialog */}
       <NewConvDialog
