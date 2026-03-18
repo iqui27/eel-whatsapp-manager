@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: "Milestone 3 — Professional UI/UX Overhaul"
-current_phase: 25
-current_phase_name: conversas-overhaul
+current_phase: 26
+current_phase_name: campanhas-segmentacao
 current_plan: 0
 status: in_progress
-stopped_at: "Phase 24 complete — operations components accents, MessageFeed auto-refresh, flex stacked bar, contextual quick actions"
-last_updated: "2026-03-19T00:30:00.000Z"
+stopped_at: "Phase 25 complete — conversas silent catch fixed, SSE hardened, AI voter panel, search, mobile Sheet"
+last_updated: "2026-03-19T02:00:00.000Z"
 last_activity: 2026-03-18
 progress:
   total_phases: 30
-  completed_phases: 24
+  completed_phases: 25
   total_plans: 86
-  completed_plans: 73
-  percent: 85
+  completed_plans: 76
+  percent: 88
 ---
 
 # EEL Eleicao — Project State
@@ -208,6 +208,11 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 **Phase 24 (Operations Unification) — COMPLETE** ✅
 - Plan 24-01: ChipHealthGrid/MessageFeed/SystemStatusCard accents, flex widths, auto-refresh, stacked bar CSS ✅
 - Plan 24-02: QuickActionsPanel contextual counts, HelpPanel FAQ accents + real email, operations page accent fixes ✅
+
+**Phase 25 (Conversas Overhaul) — COMPLETE** ✅
+- Plan 25-01: Silent catch → toast+retry, SSE status dots, MAX_RECONNECT 5→8, heartbeat 45s, online/offline listeners, forceReconnect ✅
+- Plan 25-02: AI tier/sentiment badges, analysis summary, recommended action, inline tag editing in voter panel ✅
+- Plan 25-03: Client-side search in queue, mobile voter context Sheet via User button, shadcn Sheet installed ✅
 
 Progress: [████████░░] 83% (Milestone 3 in progress)
 
@@ -418,6 +423,9 @@ src/components/
 | 23-critical-layout P02 | 10 min | 2/2 | 2 files |
 | 24-operations-unification P01 | 12 min | 2/2 | 3 files |
 | 24-operations-unification P02 | 15 min | 2/2 | 3 files |
+| 25-conversas-overhaul P01 | 18 min | 2/2 | 2 files |
+| 25-conversas-overhaul P02 | 15 min | 1/1 | 1 file |
+| 25-conversas-overhaul P03 | 20 min | 2/2 | 2 files |
 
 ## Next Actions
 
