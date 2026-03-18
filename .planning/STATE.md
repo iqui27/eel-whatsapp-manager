@@ -6,14 +6,14 @@ current_phase: 22
 current_phase_name: ui-polish
 current_plan: 3
 status: complete
-stopped_at: "Phase 22 complete — UI Polish: navigation fixes, dashboard layout, Operacoes improvements"
-last_updated: "2026-03-18T17:30:00.000Z"
+stopped_at: "Phase 22 complete — UI Polish: all 8 plans executed across Waves 1-3"
+last_updated: "2026-03-18T20:00:00.000Z"
 last_activity: 2026-03-18
 progress:
   total_phases: 22
   completed_phases: 22
-  total_plans: 64
-  completed_plans: 64
+  total_plans: 69
+  completed_plans: 69
   percent: 100
 ---
 
@@ -183,6 +183,11 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Plan 22-01: Navigation Fix - dashboard ops tab removal, mobile nav indices, SidebarLayout wrappers, Link conversion ✅
 - Plan 22-02: Dashboard Layout - right column widened to 320px, per-endpoint error toasts ✅
 - Plan 22-03: Operacoes Polish - text truncation fixed, loading vs empty state bug, voter count populated ✅
+- Plan 22-04: Campanhas + Segmentacao - toast.error on load, AlertDialog replace window.confirm, shadcn Select ✅
+- Plan 22-05: Conversas - right panel 320px, no-emoji priorities, shadcn Dialog, mobile responsive ✅
+- Plan 22-06: CRM - silent catch fixed, invalid AlertDialog props corrected, tags overflow fixed ✅
+- Plan 22-07: Relatorios + Compliance + Admin - comprehensive toasts + AlertDialogs for all destructive actions ✅
+- Plan 22-08: Topbar date display, session dot indicator, chip-health-grid no-emoji commit ✅
 
 Progress: [██████████] 100%
 
@@ -388,6 +393,11 @@ src/components/
 | 22-ui-polish P01 | 12 min | 3/3 | 6 files |
 | 22-ui-polish P02 | 5 min | 1/1 | 1 file |
 | 22-ui-polish P03 | 10 min | 2/2 | 3 files |
+| 22-ui-polish P04 | 15 min | 2/2 | 2 files |
+| 22-ui-polish P05 | 20 min | 2/2 | 1 file |
+| 22-ui-polish P06 | 8 min | 1/1 | 1 file |
+| 22-ui-polish P07 | 20 min | 2/2 | 3 files |
+| 22-ui-polish P08 | 10 min | 2/2 | 2 files |
 
 ## Next Actions
 
