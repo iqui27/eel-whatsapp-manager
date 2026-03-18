@@ -73,13 +73,13 @@ interface SessionResponse {
 // Primary electoral navigation (8 items)
 const electoralNavItems = [
   { id: 'dashboard'   as PageId, label: 'Dashboard',    href: '/',             icon: LayoutDashboard },
-  { id: 'operacoes'   as PageId, label: 'Operacoes',    href: '/operacoes',    icon: Activity },
+  { id: 'operacoes'   as PageId, label: 'Operações',    href: '/operacoes',    icon: Activity },
   { id: 'campanhas'   as PageId, label: 'Campanhas',    href: '/campanhas',    icon: Send },
-  { id: 'segmentacao' as PageId, label: 'Segmentacao',  href: '/segmentacao',  icon: Target },
+  { id: 'segmentacao' as PageId, label: 'Segmentação',  href: '/segmentacao',  icon: Target },
   { id: 'conversas'   as PageId, label: 'Conversas',    href: '/conversas',    icon: MessageCircle },
   { id: 'crm'         as PageId, label: 'CRM',          href: '/crm',          icon: UserCheck },
   { id: 'compliance'  as PageId, label: 'Compliance',   href: '/compliance',   icon: ShieldCheck },
-  { id: 'relatorios'  as PageId, label: 'Relatorios',   href: '/relatorios',   icon: BarChart3 },
+  { id: 'relatorios'  as PageId, label: 'Relatórios',   href: '/relatorios',   icon: BarChart3 },
 ];
 
 // Legacy operational navigation
