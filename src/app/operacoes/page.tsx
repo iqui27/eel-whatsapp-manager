@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,19 +97,26 @@ export default function OperacoesPage() {
   }>>([]);
 
   const [notifications, setNotifications] = useState<StoredNotification[]>([]);
+  const [voterTotal, setVoterTotal] = useState(0);
 
   // Fetch operations data
   const fetchOperations = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setIsRefreshing(true);
     
     try {
-      const [opsRes, kpisRes, msgsRes, groupsRes] = await Promise.all([
+      const [opsRes, kpisRes, msgsRes, groupsRes, voterRes] = await Promise.all([
         fetch('/api/dashboard/operations'),
         fetch('/api/dashboard/kpis'),
         fetch('/api/dashboard/messages'),
         fetch('/api/dashboard/groups'),
+        fetch('/api/voters?limit=1'),
       ]);
       
+      if (!opsRes.ok && showRefreshing) toast.error('Erro ao carregar operacoes');
+      if (!kpisRes.ok && showRefreshing) toast.error('Erro ao carregar KPIs');
+      if (!msgsRes.ok && showRefreshing) toast.error('Erro ao carregar mensagens');
+      if (!groupsRes.ok && showRefreshing) toast.error('Erro ao carregar grupos');
+
       if (opsRes.ok) {
         const data = await opsRes.json();
         setOpsData(data);
@@ -124,6 +132,10 @@ export default function OperacoesPage() {
       if (groupsRes.ok) {
         const data = await groupsRes.json();
         setGroupsData(data.groups || []);
+      }
+      if (voterRes.ok) {
+        const voterData = await voterRes.json();
+        setVoterTotal(typeof voterData?.total === 'number' ? voterData.total : 0);
       }
       
       // Fetch notifications
@@ -211,7 +223,7 @@ export default function OperacoesPage() {
       failed: systemStatus.campaigns.failed,
     },
     voters: {
-      total: 0, // Will be populated from API if available
+      total: voterTotal,
     },
     queue: {
       pending: opsData?.campaigns?.reduce((sum, c) => sum + c.queued, 0) || 0,
@@ -388,7 +400,7 @@ export default function OperacoesPage() {
                 <CardContent>
                   <GroupCapacityGrid 
                     groups={groupsData} 
-                    loading={groupsData.length === 0}
+                    loading={isLoading}
                   />
                 </CardContent>
               </Card>
@@ -403,7 +415,7 @@ export default function OperacoesPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 px-4 pb-4">
-                  <MessageFeed messages={messagesData} loading={messagesData.length === 0} />
+                  <MessageFeed messages={messagesData} loading={isLoading} />
                 </CardContent>
               </Card>
             </div>
