@@ -44,11 +44,6 @@ function formatTime(date: Date): string {
   });
 }
 
-function truncate(text: string, maxLen: number): string {
-  if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen - 3) + '...';
-}
-
 export function MessageFeed({ 
   messages: initialMessages, 
   loading,
@@ -62,8 +57,21 @@ export function MessageFeed({
     setMessages(initialMessages);
   }, [initialMessages]);
 
-  // Note: Auto-refresh would need to fetch from API
-  // For now, we just update the local state when props change
+  // Real auto-refresh: poll /api/operations/messages when enabled and not paused
+  useEffect(() => {
+    if (!autoRefresh || isPaused) return;
+    const fetchMessages = async () => {
+      try {
+        const res = await fetch('/api/operations/messages');
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(data);
+        }
+      } catch { /* silent — non-critical refresh */ }
+    };
+    const interval = setInterval(fetchMessages, refreshInterval);
+    return () => clearInterval(interval);
+  }, [autoRefresh, isPaused, refreshInterval]);
 
   if (loading) {
     return (
@@ -104,18 +112,18 @@ export function MessageFeed({
           </div>
           
           {/* Chip */}
-          <div className="shrink-0 text-xs text-muted-foreground w-16 truncate">
+          <div className="shrink-0 text-xs text-muted-foreground min-w-[3rem] max-w-[5rem] truncate">
             {msg.chipName}
           </div>
           
           {/* Lead */}
-          <div className="shrink-0 font-medium w-24 truncate">
+          <div className="shrink-0 font-medium min-w-[4rem] max-w-[7rem] truncate">
             {msg.leadName || msg.leadPhone}
           </div>
           
           {/* Preview */}
           <div className="flex-1 text-xs text-muted-foreground truncate">
-            {truncate(msg.preview, 40)}
+            {msg.preview}
           </div>
           
           {/* Status */}

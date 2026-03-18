@@ -27,7 +27,7 @@ function getStatusConfig(status: string): { dotColor: string; label: string; row
   switch (status) {
     case 'healthy':
     case 'connected':
-      return { dotColor: 'bg-green-500', label: 'Saudavel', rowBg: 'bg-green-50/60 dark:bg-green-950/10' };
+      return { dotColor: 'bg-green-500', label: 'Saudável', rowBg: 'bg-green-50/60 dark:bg-green-950/10' };
     case 'degraded':
       return { dotColor: 'bg-yellow-500', label: 'Degradado', rowBg: 'bg-yellow-50/60 dark:bg-yellow-950/10' };
     case 'cooldown':
@@ -43,7 +43,7 @@ function getStatusConfig(status: string): { dotColor: string; label: string; row
       return { dotColor: 'bg-gray-400', label: 'Desconectado', rowBg: 'bg-gray-50/60 dark:bg-gray-950/10' };
     case 'stale':
     case 'warning':
-      return { dotColor: 'bg-yellow-500', label: 'Atencao', rowBg: 'bg-yellow-50/60 dark:bg-yellow-950/10' };
+      return { dotColor: 'bg-yellow-500', label: 'Atenção', rowBg: 'bg-yellow-50/60 dark:bg-yellow-950/10' };
     case 'error':
       return { dotColor: 'bg-red-500', label: 'Erro', rowBg: 'bg-red-50/60 dark:bg-red-950/10' };
     default:
@@ -58,10 +58,10 @@ function formatTime(date: Date | null): string {
   const minutes = Math.floor(diff / 60000);
   
   if (minutes < 1) return 'Agora';
-  if (minutes < 60) return `${minutes}m atras`;
+  if (minutes < 60) return `${minutes}m atrás`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h atras`;
-  return `${Math.floor(hours / 24)}d atras`;
+  if (hours < 24) return `${hours}h atrás`;
+  return `${Math.floor(hours / 24)}d atrás`;
 }
 
 export function ChipHealthGrid({ chips, onRestart, loading }: ChipHealthGridProps) {

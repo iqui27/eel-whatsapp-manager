@@ -105,9 +105,9 @@ function getHealthIcon(health: HealthLevel) {
 function getHealthLabel(health: HealthLevel): string {
   switch (health) {
     case 'healthy':
-      return 'Sistema Saudavel';
+      return 'Sistema Saudável';
     case 'warning':
-      return 'Atencao Necessaria';
+      return 'Atenção Necessária';
     case 'error':
       return 'Problemas Detectados';
     default:
@@ -147,16 +147,26 @@ function TrafficLightIndicator({ status }: { status: SystemStatus['chips'] }) {
         <span className="text-sm text-muted-foreground">{status.error + status.offline}</span>
       </div>
       
-      {/* Progress bar */}
-      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-green-500"
-          style={{ width: `${(status.healthy / total) * 100}%` }}
-        />
-        <div 
-          className="h-full bg-yellow-500 float-left"
-          style={{ width: `${(status.warning / total) * 100}%`, marginLeft: `-${((status.healthy + status.warning) / total) * 100}%` }}
-        />
+      {/* Stacked progress bar */}
+      <div className="flex-1 h-2 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex">
+        {status.healthy > 0 && (
+          <div
+            className="h-full bg-green-500"
+            style={{ width: `${(status.healthy / total) * 100}%` }}
+          />
+        )}
+        {status.warning > 0 && (
+          <div
+            className="h-full bg-yellow-500"
+            style={{ width: `${(status.warning / total) * 100}%` }}
+          />
+        )}
+        {(status.error + status.offline) > 0 && (
+          <div
+            className="h-full bg-red-500"
+            style={{ width: `${((status.error + status.offline) / total) * 100}%` }}
+          />
+        )}
       </div>
     </div>
   );
@@ -183,8 +193,8 @@ export function SystemStatusCard({
     const diffSec = Math.floor(diffMs / 1000);
     
     if (diffSec < 10) return 'Agora';
-    if (diffSec < 60) return `${diffSec}s atras`;
-    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m atras`;
+    if (diffSec < 60) return `${diffSec}s atrás`;
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m atrás`;
     return new Date(date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
