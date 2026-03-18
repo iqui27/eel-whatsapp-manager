@@ -97,8 +97,11 @@ export function Topbar({
   const effectiveAlertStyle = alertToneStyles[effectiveAlertTone];
   const EffectiveAlertIcon = effectiveAlertStyle.icon;
 
-  // Format current date in Portuguese
-  const todayLabel = new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
+  // Format current date in Portuguese — computed client-side only to avoid hydration mismatch
+  const [todayLabel, setTodayLabel] = useState('');
+  useEffect(() => {
+    setTodayLabel(new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' }));
+  }, []);
 
   const openCommandPalette = () => {
     if (typeof window === 'undefined') return;
@@ -149,12 +152,27 @@ export function Topbar({
         </button>
       </div>
 
-      {/* Section 2 — Current date (hidden on small/medium screens) */}
-      <div className="hidden xl:flex h-[42px] w-auto min-w-fit items-center gap-2 rounded-lg border border-border bg-transparent px-3 text-sm text-foreground shrink-0">
+      {/* Section 2 — Date picker (hidden on small/medium screens) */}
+      <div className="hidden xl:flex h-[42px] w-auto min-w-fit items-center gap-2 rounded-lg border border-border bg-transparent px-3 text-sm text-foreground shrink-0 group">
         <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-        <span className="truncate text-muted-foreground capitalize">
-          <span className="hidden lg:inline">{todayLabel}</span>
-        </span>
+        <label className="relative cursor-pointer hidden lg:inline">
+          <span className="text-muted-foreground capitalize select-none pointer-events-none">
+            {todayLabel || '—'}
+          </span>
+          <input
+            type="date"
+            className="absolute inset-0 opacity-0 w-full cursor-pointer"
+            defaultValue={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              const d = new Date(e.target.value + 'T12:00:00');
+              setTodayLabel(d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' }));
+              // Emit custom event so pages can react to date changes
+              window.dispatchEvent(new CustomEvent('topbar:datechange', { detail: { date: e.target.value } }));
+            }}
+            title="Filtrar por data"
+          />
+        </label>
       </div>
 
       {/* Section 3 — Operational status (icon always, text only on lg+) */}

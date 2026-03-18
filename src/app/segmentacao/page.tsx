@@ -398,10 +398,11 @@ export default function SegmentacaoPage() {
   const [segmentBeingEdited, setSegmentBeingEdited] = useState<SavedSegment | null>(null);
   const [segmentToDelete, setSegmentToDelete] = useState<SavedSegment | null>(null);
   const [isLoadingSegments, setIsLoadingSegments] = useState(true);
-  const [showGuide, setShowGuide] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return !localStorage.getItem('segmentacao-guide-dismissed');
-  });
+  const [showGuide, setShowGuide] = useState(false);
+
+  useEffect(() => {
+    setShowGuide(!localStorage.getItem('segmentacao-guide-dismissed'));
+  }, []);
   const [campaigns, setCampaigns] = useState<Array<{ id: string; segmentId: string | null; updatedAt: string | null }>>([]);
   const filterBuilderRef = useRef<HTMLDivElement>(null);
 

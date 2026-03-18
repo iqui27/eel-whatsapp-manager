@@ -77,10 +77,11 @@ export default function CampanhasPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
-  const [showGuide, setShowGuide] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return !localStorage.getItem('campanhas-guide-dismissed');
-  });
+  const [showGuide, setShowGuide] = useState(false);
+
+  useEffect(() => {
+    setShowGuide(!localStorage.getItem('campanhas-guide-dismissed'));
+  }, []);
 
   const loadCampaigns = useCallback(async () => {
     try {

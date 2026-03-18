@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { normalizePhone } from '@/lib/phone';
+import { formatPhoneForWhatsApp, normalizePhone } from '@/lib/phone';
 import { addMessage, getConversation, getMessages } from '@/lib/db-conversations';
 import { loadChips } from '@/lib/db-chips';
 import { loadConfig } from '@/lib/db-config';
@@ -75,18 +75,20 @@ export async function POST(
         return NextResponse.json({ error: 'Nenhum chip conectado disponível para envio' }, { status: 500 });
       }
 
-      // Normalize phone to E.164 format (55XXXXXXXXXXX)
+      // Normalize phone to E.164 format (55XXXXXXXXXXX) then to WA JID format
       const normalizedPhone = normalizePhone(conversation.voterPhone);
       if (!normalizedPhone || normalizedPhone.length < 12) {
         return NextResponse.json({ error: 'Telefone do eleitor inválido para envio' }, { status: 400 });
       }
+      // Evolution API v2 requires the number as JID: 55XXXXXXXXXXX@s.whatsapp.net
+      const waNumber = formatPhoneForWhatsApp(conversation.voterPhone);
 
       try {
         await sendText(
           config.evolutionApiUrl,
           config.evolutionApiKey,
           instanceName,
-          normalizedPhone,
+          waNumber,
           body.content,
         );
       } catch (err) {
