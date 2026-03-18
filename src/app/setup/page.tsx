@@ -120,10 +120,10 @@ export default function SetupPage() {
 
   if (setupStatus === 'checking') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0B1220] px-6">
-        <div className="w-full max-w-md rounded-2xl border border-[#1F2937] bg-[#111827] p-8 text-center">
-          <div className="text-[28px] font-bold text-white">EEL Setup</div>
-          <p className="mt-3 text-[14px] text-[#A1A1AA]">
+      <div className="min-h-screen flex items-center justify-center bg-background px-6">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center">
+          <div className="text-2xl font-bold text-foreground">EEL Setup</div>
+          <p className="mt-3 text-sm text-muted-foreground">
             Verificando se este ambiente ainda precisa de configuração inicial.
           </p>
         </div>
@@ -133,31 +133,31 @@ export default function SetupPage() {
 
   if (setupStatus === 'configured') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0B1220] px-6">
-        <div className="w-full max-w-lg rounded-2xl border border-[#1F2937] bg-[#111827] p-8">
-          <div className="text-[28px] font-bold text-white">Ambiente já configurado</div>
-          <p className="mt-3 text-[14px] leading-relaxed text-[#A1A1AA]">
-            O setup inicial foi concluído neste ambiente. A rota <span className="text-white">/setup</span> não
+      <div className="min-h-screen flex items-center justify-center bg-background px-6">
+        <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-8">
+          <div className="text-2xl font-bold text-foreground">Ambiente já configurado</div>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            O setup inicial foi concluído neste ambiente. A rota <span className="text-foreground">/setup</span> não
             aceita reconfiguração para evitar sobrescrever a operação em andamento.
           </p>
           {configuredInstanceName && (
-            <div className="mt-5 rounded-xl border border-[#1F2937] bg-[#0F172A] px-4 py-3">
-              <div className="text-[12px] uppercase tracking-wide text-[#71717A]">Instância configurada</div>
-              <div className="mt-1 text-[14px] font-medium text-white">{configuredInstanceName}</div>
+            <div className="mt-5 rounded-xl border border-border bg-muted/50 px-4 py-3">
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Instância configurada</div>
+              <div className="mt-1 text-sm font-medium text-foreground">{configuredInstanceName}</div>
             </div>
           )}
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={() => router.push('/login')}
-              className="flex-1 h-11 rounded-lg bg-[#3B82F6] text-white text-[14px] font-medium border-none cursor-pointer hover:bg-[#2563EB] transition-colors"
+              className="flex-1 h-11 rounded-lg bg-primary text-foreground text-sm font-medium border-none cursor-pointer hover:bg-primary/90 transition-colors"
             >
               Ir para login
             </button>
             <button
               type="button"
               onClick={() => void checkSetupStatus()}
-              className="flex-1 h-11 rounded-lg border border-[#374151] bg-transparent text-[#A1A1AA] text-[14px] cursor-pointer hover:border-[#4B5563]"
+              className="flex-1 h-11 rounded-lg border border-input bg-transparent text-muted-foreground text-sm cursor-pointer hover:border-input"
             >
               Reverificar
             </button>
@@ -169,16 +169,16 @@ export default function SetupPage() {
 
   if (setupStatus === 'error') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0B1220] px-6">
-        <div className="w-full max-w-md rounded-2xl border border-[#1F2937] bg-[#111827] p-8 text-center">
-          <div className="text-[28px] font-bold text-white">Falha ao verificar setup</div>
-          <p className="mt-3 text-[14px] leading-relaxed text-[#A1A1AA]">
+      <div className="min-h-screen flex items-center justify-center bg-background px-6">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center">
+          <div className="text-2xl font-bold text-foreground">Falha ao verificar setup</div>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
             {error || 'Não foi possível confirmar se o ambiente já está configurado.'}
           </p>
           <button
             type="button"
             onClick={() => void checkSetupStatus()}
-            className="mt-6 h-11 w-full rounded-lg bg-[#3B82F6] text-white text-[14px] font-medium border-none cursor-pointer hover:bg-[#2563EB] transition-colors"
+            className="mt-6 h-11 w-full rounded-lg bg-primary text-foreground text-sm font-medium border-none cursor-pointer hover:bg-primary/90 transition-colors"
           >
             Tentar novamente
           </button>
@@ -188,14 +188,14 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-[#0B1220]">
+    <div className="min-h-screen flex bg-background">
       {/* Left panel */}
       <div className="hidden lg:flex w-1/2 flex-col justify-center px-16 gap-6">
         <div>
-          <div className="text-[48px] font-bold text-white leading-none">EEL</div>
-          <div className="text-[18px] text-[#A1A1AA] mt-1">WhatsApp Manager</div>
+          <div className="text-[48px] font-bold text-foreground leading-none">EEL</div>
+          <div className="text-lg text-muted-foreground mt-1">WhatsApp Manager</div>
         </div>
-        <p className="text-[14px] text-[#52525B] max-w-xs leading-relaxed">
+        <p className="text-sm text-muted-foreground/60 max-w-xs leading-relaxed">
           Configure o sistema em 3 passos simples para começar a gerenciar seus chips WhatsApp.
         </p>
         {/* Step progress */}
@@ -203,19 +203,19 @@ export default function SetupPage() {
           {STEPS.map((s) => (
             <div key={s.id} className="flex items-center gap-3">
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 border ${
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 border ${
                   s.id < step
-                    ? 'bg-[#22C55E] border-[#22C55E] text-white'
+                    ? 'bg-green-600 border-green-600 text-foreground'
                     : s.id === step
-                    ? 'border-[#3B82F6] text-[#3B82F6]'
-                    : 'border-[#374151] text-[#4B5563]'
+                    ? 'border-primary text-primary'
+                    : 'border-input text-muted-foreground/50'
                 }`}
               >
                 {s.id < step ? '✓' : s.id}
               </div>
               <span
-                className={`text-[13px] ${
-                  s.id === step ? 'text-white font-medium' : s.id < step ? 'text-[#71717A]' : 'text-[#374151]'
+                className={`text-xs ${
+                  s.id === step ? 'text-foreground font-medium' : s.id < step ? 'text-muted-foreground/70' : 'text-muted-foreground/30'
                 }`}
               >
                 {s.label}
@@ -227,58 +227,58 @@ export default function SetupPage() {
 
       {/* Right panel */}
       <div className="flex flex-1 items-center justify-center px-8">
-        <div className="w-full max-w-md bg-[#111827] border border-[#1F2937] rounded-2xl p-8 flex flex-col gap-6">
+        <div className="w-full max-w-md bg-card border border-border rounded-2xl p-8 flex flex-col gap-6">
           {/* Mobile brand */}
           <div className="lg:hidden text-center">
-            <div className="text-[28px] font-bold text-white">EEL Setup</div>
+            <div className="text-2xl font-bold text-foreground">EEL Setup</div>
           </div>
 
           {/* Step header */}
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[12px] text-[#3B82F6] font-medium">PASSO {step} DE 3</span>
+              <span className="text-[11px] text-primary font-medium">PASSO {step} DE 3</span>
             </div>
-            <h1 className="text-[22px] font-semibold text-white">{currentStep.title}</h1>
-            <p className="text-[14px] text-[#71717A] mt-1">{currentStep.description}</p>
+            <h1 className="text-xl font-semibold text-foreground">{currentStep.title}</h1>
+            <p className="text-sm text-muted-foreground/70 mt-1">{currentStep.description}</p>
           </div>
 
           {/* Step 1: API */}
           {step === 1 && (
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] text-[#A1A1AA] font-medium">Nome da Instância</label>
+                <label className="text-xs text-muted-foreground font-medium">Nome da Instância</label>
                 <input
                   type="text"
                   value={formData.instanceName}
                   onChange={(e) => handleChange('instanceName', e.target.value)}
                   placeholder="eel-instance"
-                  className="h-11 rounded-lg border border-[#374151] bg-[#1F2937] text-white text-[14px] px-3 outline-none focus:border-[#3B82F6] placeholder:text-[#4B5563]"
+                  className="h-11 rounded-lg border border-input bg-muted text-foreground text-sm px-3 outline-none focus:border-primary placeholder:text-muted-foreground/50"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] text-[#A1A1AA] font-medium">URL da Evolution API</label>
+                <label className="text-xs text-muted-foreground font-medium">URL da Evolution API</label>
                 <input
                   type="url"
                   value={formData.evolutionApiUrl}
                   onChange={(e) => handleChange('evolutionApiUrl', e.target.value)}
                   placeholder="https://evolution-api.seu-servidor.com"
-                  className="h-11 rounded-lg border border-[#374151] bg-[#1F2937] text-white text-[14px] px-3 outline-none focus:border-[#3B82F6] placeholder:text-[#4B5563]"
+                  className="h-11 rounded-lg border border-input bg-muted text-foreground text-sm px-3 outline-none focus:border-primary placeholder:text-muted-foreground/50"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] text-[#A1A1AA] font-medium">API Key</label>
-                <div className="flex h-11 items-center border border-[#374151] bg-[#1F2937] rounded-lg px-3 gap-2 focus-within:border-[#3B82F6]">
+                <label className="text-xs text-muted-foreground font-medium">API Key</label>
+                <div className="flex h-11 items-center border border-input bg-muted rounded-lg px-3 gap-2 focus-within:border-primary">
                   <input
                     type={showApiKey ? 'text' : 'password'}
                     value={formData.evolutionApiKey}
                     onChange={(e) => handleChange('evolutionApiKey', e.target.value)}
                     placeholder="Sua API key"
-                    className="flex-1 border-none outline-none text-[14px] text-white bg-transparent placeholder:text-[#4B5563]"
+                    className="flex-1 border-none outline-none text-sm text-foreground bg-transparent placeholder:text-muted-foreground/50"
                   />
                   <button
                     type="button"
                     onClick={() => setShowApiKey(!showApiKey)}
-                    className="text-[12px] text-[#3B82F6] border-none bg-transparent cursor-pointer shrink-0"
+                    className="text-[11px] text-primary border-none bg-transparent cursor-pointer shrink-0"
                   >
                     {showApiKey ? 'Ocultar' : 'Mostrar'}
                   </button>
@@ -291,23 +291,23 @@ export default function SetupPage() {
           {step === 2 && (
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] text-[#A1A1AA] font-medium">Senha de Acesso</label>
+                <label className="text-xs text-muted-foreground font-medium">Senha de Acesso</label>
                 <input
                   type="password"
                   value={formData.authPassword}
                   onChange={(e) => handleChange('authPassword', e.target.value)}
                   placeholder="Mínimo 4 caracteres"
-                  className="h-11 rounded-lg border border-[#374151] bg-[#1F2937] text-white text-[14px] px-3 outline-none focus:border-[#3B82F6] placeholder:text-[#4B5563]"
+                  className="h-11 rounded-lg border border-input bg-muted text-foreground text-sm px-3 outline-none focus:border-primary placeholder:text-muted-foreground/50"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] text-[#A1A1AA] font-medium">Confirmar Senha</label>
+                <label className="text-xs text-muted-foreground font-medium">Confirmar Senha</label>
                 <input
                   type="password"
                   value={formData.confirmPassword}
                   onChange={(e) => handleChange('confirmPassword', e.target.value)}
                   placeholder="Repita a senha"
-                  className="h-11 rounded-lg border border-[#374151] bg-[#1F2937] text-white text-[14px] px-3 outline-none focus:border-[#3B82F6] placeholder:text-[#4B5563]"
+                  className="h-11 rounded-lg border border-input bg-muted text-foreground text-sm px-3 outline-none focus:border-primary placeholder:text-muted-foreground/50"
                 />
               </div>
             </div>
@@ -318,14 +318,14 @@ export default function SetupPage() {
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[14px] text-white font-medium">Aquecimento Automático</div>
-                  <div className="text-[12px] text-[#71717A] mt-0.5">Ativar envio automático via cron</div>
+                  <div className="text-sm text-foreground font-medium">Aquecimento Automático</div>
+                  <div className="text-[11px] text-muted-foreground/70 mt-0.5">Ativar envio automático via cron</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleChange('warmingEnabled', !formData.warmingEnabled)}
                   className={`relative w-11 h-6 rounded-full border-none cursor-pointer transition-colors ${
-                    formData.warmingEnabled ? 'bg-[#3B82F6]' : 'bg-[#374151]'
+                    formData.warmingEnabled ? 'bg-primary' : 'bg-muted'
                   }`}
                 >
                   <div
@@ -338,23 +338,23 @@ export default function SetupPage() {
               {formData.warmingEnabled && (
                 <>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[13px] text-[#A1A1AA] font-medium">Intervalo (minutos)</label>
+                    <label className="text-xs text-muted-foreground font-medium">Intervalo (minutos)</label>
                     <input
                       type="number"
                       min={5}
                       max={1440}
                       value={formData.warmingIntervalMinutes}
                       onChange={(e) => handleChange('warmingIntervalMinutes', parseInt(e.target.value) || 60)}
-                      className="h-11 w-32 rounded-lg border border-[#374151] bg-[#1F2937] text-white text-[14px] px-3 outline-none focus:border-[#3B82F6]"
+                      className="h-11 w-32 rounded-lg border border-input bg-muted text-foreground text-sm px-3 outline-none focus:border-primary"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[13px] text-[#A1A1AA] font-medium">Mensagem de Aquecimento</label>
+                    <label className="text-xs text-muted-foreground font-medium">Mensagem de Aquecimento</label>
                     <textarea
                       value={formData.warmingMessage}
                       onChange={(e) => handleChange('warmingMessage', e.target.value)}
                       rows={3}
-                      className="rounded-lg border border-[#374151] bg-[#1F2937] text-white text-[14px] px-3 py-2 outline-none resize-none focus:border-[#3B82F6]"
+                      className="rounded-lg border border-input bg-muted text-foreground text-sm px-3 py-2 outline-none resize-none focus:border-primary"
                     />
                   </div>
                 </>
@@ -363,7 +363,7 @@ export default function SetupPage() {
           )}
 
           {error && (
-            <div className="flex items-center gap-2 text-[13px] text-[#EF4444]">
+            <div className="flex items-center gap-2 text-xs text-destructive">
               <span>⚠️</span> {error}
             </div>
           )}
@@ -374,7 +374,7 @@ export default function SetupPage() {
               <button
                 type="button"
                 onClick={() => { setError(''); setStep(step - 1); }}
-                className="h-11 px-5 rounded-lg border border-[#374151] bg-transparent text-[#A1A1AA] text-[14px] cursor-pointer hover:border-[#4B5563]"
+                className="h-11 px-5 rounded-lg border border-input bg-transparent text-muted-foreground text-sm cursor-pointer hover:border-input"
               >
                 Voltar
               </button>
@@ -383,7 +383,7 @@ export default function SetupPage() {
               <button
                 type="button"
                 onClick={handleNext}
-                className="flex-1 h-11 rounded-lg bg-[#3B82F6] text-white text-[14px] font-medium border-none cursor-pointer hover:bg-[#2563EB] transition-colors"
+                className="flex-1 h-11 rounded-lg bg-primary text-foreground text-sm font-medium border-none cursor-pointer hover:bg-primary/90 transition-colors"
               >
                 Próximo
               </button>
@@ -392,7 +392,7 @@ export default function SetupPage() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={loading}
-                className="flex-1 h-11 rounded-lg bg-[#22C55E] text-white text-[14px] font-medium border-none cursor-pointer disabled:opacity-50 hover:bg-[#16A34A] transition-colors"
+                className="flex-1 h-11 rounded-lg bg-green-600 text-foreground text-sm font-medium border-none cursor-pointer disabled:opacity-50 hover:bg-green-700 transition-colors"
               >
                 {loading ? 'Salvando...' : '✓ Finalizar Configuração'}
               </button>

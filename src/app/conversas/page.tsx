@@ -649,7 +649,7 @@ export default function ConversasPage() {
 
   return (
     <SidebarLayout currentPage="conversas" pageTitle="Conversas">
-      <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex h-[calc(100vh-74px)] pb-16 md:pb-0 overflow-hidden">
 
         {/* ══ LEFT: Queue ══ */}
         <div className={cn('flex w-full lg:w-[300px] shrink-0 flex-col border-r border-border', mobileShowChat && 'hidden lg:flex')}>
