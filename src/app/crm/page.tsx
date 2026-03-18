@@ -128,7 +128,9 @@ export default function CrmPage() {
       setVoters(result.data);
       setTotalVoters(result.total);
       setCurrentPage(result.page);
-    } catch { /* silent */ } finally {
+    } catch {
+      toast.error('Erro ao carregar eleitores');
+    } finally {
       setIsLoading(false);
     }
   }, [router]);
@@ -341,18 +343,21 @@ export default function CrmPage() {
                     <TableCell>
                       <EngagementBar score={voter.engagementScore} />
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 flex-wrap max-w-[140px]">
-                        {(voter.tags ?? []).slice(0, 2).map(tag => (
-                          <span key={tag} className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary font-medium">
-                            {tag}
-                          </span>
-                        ))}
-                        {(voter.tags ?? []).length > 2 && (
-                          <span className="text-[10px] text-muted-foreground">+{(voter.tags ?? []).length - 2}</span>
-                        )}
-                      </div>
-                    </TableCell>
+                     <TableCell>
+                       <div
+                         className="flex items-center gap-1 flex-wrap max-w-[200px]"
+                         title={(voter.tags ?? []).join(', ') || undefined}
+                       >
+                         {(voter.tags ?? []).slice(0, 2).map(tag => (
+                           <span key={tag} className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary font-medium">
+                             {tag}
+                           </span>
+                         ))}
+                         {(voter.tags ?? []).length > 2 && (
+                           <span className="text-[10px] text-muted-foreground">+{(voter.tags ?? []).length - 2}</span>
+                         )}
+                       </div>
+                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {voter.lastContacted
                         ? new Date(voter.lastContacted).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
@@ -523,7 +528,7 @@ export default function CrmPage() {
       </Dialog>
 
       <AlertDialog open={Boolean(voterToDelete)} onOpenChange={(open) => { if (!open && !isDeleting) setVoterToDelete(null); }}>
-        <AlertDialogContent size="sm">
+        <AlertDialogContent className="sm:max-w-[425px]">
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir eleitor</AlertDialogTitle>
             <AlertDialogDescription>
@@ -534,7 +539,11 @@ export default function CrmPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" disabled={isDeleting} onClick={handleDeleteVoter}>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+              onClick={handleDeleteVoter}
+            >
               {isDeleting ? 'Excluindo...' : 'Excluir'}
             </AlertDialogAction>
           </AlertDialogFooter>
