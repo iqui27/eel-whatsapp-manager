@@ -15,8 +15,6 @@ import {
   BarChart3,
   Lock,
   Smartphone,
-  Users,
-  Layers,
   UsersRound,
   History,
   Settings,
@@ -45,9 +43,9 @@ type PageId =
   | 'relatorios'
   | 'admin'
   | 'chips'
+  | 'grupos'
   | 'contacts'
   | 'clusters'
-  | 'grupos'
   | 'history'
   | 'settings'
   | 'wizard';
@@ -87,8 +85,6 @@ const legacyNavItems = [
   { id: 'admin'    as PageId, label: 'Admin',          href: '/admin',        icon: Lock },
   { id: 'chips'    as PageId, label: 'Chips',          href: '/chips',        icon: Smartphone },
   { id: 'grupos'   as PageId, label: 'Grupos',         href: '/grupos',       icon: UsersRound },
-  { id: 'contacts' as PageId, label: 'Contatos',       href: '/contacts',     icon: Users },
-  { id: 'clusters' as PageId, label: 'Clusters',       href: '/clusters',     icon: Layers },
   { id: 'history'  as PageId, label: 'Historico',      href: '/historico',    icon: History },
   { id: 'settings' as PageId, label: 'Configuracoes',  href: '/settings',     icon: Settings },
 ];
@@ -96,10 +92,10 @@ const legacyNavItems = [
 // Mobile bottom nav: 5 most important electoral items
 const mobileNavItems = [
   electoralNavItems[0], // Dashboard
-  electoralNavItems[1], // Campanhas
-  electoralNavItems[3], // Conversas
-  electoralNavItems[4], // CRM
-  electoralNavItems[6], // Relatorios
+  electoralNavItems[2], // Campanhas
+  electoralNavItems[4], // Conversas
+  electoralNavItems[5], // CRM
+  electoralNavItems[7], // Relatorios
 ];
 
 // ─── Sidebar content (shared between desktop + mobile) ────────────────────
