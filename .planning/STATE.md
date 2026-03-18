@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 21
 current_phase_name: campaign-integration
-current_plan: 1
-status: planned
-stopped_at: "Phase 21 planned — ready to execute Wave 1"
-last_updated: "2026-03-18T03:00:00.000Z"
-last_activity: 2026-03-17
+current_plan: 7
+status: complete
+stopped_at: "Phase 21 complete — Campaign-Group Integration & Setup Wizard fully implemented"
+last_updated: "2026-03-18T04:00:00.000Z"
+last_activity: 2026-03-18
 progress:
   total_phases: 21
-  completed_phases: 20
+  completed_phases: 21
   total_plans: 61
-  completed_plans: 54
-  percent: 89
+  completed_plans: 61
+  percent: 100
 ---
 
 # EEL Eleicao — Project State
@@ -25,11 +25,11 @@ progress:
 **Current Plan:** 7
 **Total Phases:** 21
 **Total Plans in Phase:** 7
-**Status:** Ready to execute
-**Progress:** [██████████] 104%
+**Status:** Complete
+**Progress:** [██████████] 100%
 **Last Activity:** 2026-03-18
-**Last Activity Description:** Phase 21 planned — Campaign-Group Integration & Setup Wizard (7 plans)
-**Stopped At:** Completed 21-07-Message-History-Analytics
+**Last Activity Description:** Phase 21 complete — Campaign-Group Integration, Setup Wizard, Dashboard Enhancement, Message History
+**Stopped At:** Phase 21 complete — all 7 plans executed across 4 waves
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -170,22 +170,22 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 **Phase 20 (Critical Fixes) — COMPLETE** ✅
 - Plan 20-01: Fixed Evolution API connection visualization (5min stale threshold), message feed now includes inbound messages, real-time monitoring with 10s auto-refresh, GroupCapacityGrid with real data, segment-to-group mapping helpers, auto-admin promotion on group creation ✅
 
-**Phase 21 (Campaign-Group Integration) — PLANNED** ⬜
-- Plan 21-01: Schema Enhancement & Segment-Group Mapping (Wave 1) ⬜
-- Plan 21-02: Campaign Queue Integration with Group Links (Wave 2) ⬜
-- Plan 21-03: Automatic Group Overflow (Wave 2) ⬜
-- Plan 21-04: Chip Failover Enhancement (Wave 1) ⬜
-- Plan 21-05: Setup Wizard Implementation (Wave 3) ⬜
-- Plan 21-06: Dashboard Enhancement & Guidance (Wave 3) ⬜
-- Plan 21-07: Message History & Analytics (Wave 4) ⬜
+**Phase 21 (Campaign-Group Integration) — COMPLETE** ✅
+- Plan 21-01: Schema Enhancement - segmentTag field, segment-chip-group mapping, CRUD updates ✅
+- Plan 21-02: Campaign Queue Integration - {link_grupo} resolution, group auto-creation, link caching ✅
+- Plan 21-03: Automatic Group Overflow - 90% detection, overflow creation, cache invalidation ✅
+- Plan 21-04: Chip Failover Enhancement - fallback chain, message reassignment, notifications ✅
+- Plan 21-05: Setup Wizard Implementation - 5-step guided setup, QR code scan, progress persistence ✅
+- Plan 21-06: Dashboard Enhancement - tooltips, status cards, next actions, quick actions, keyboard shortcuts ✅
+- Plan 21-07: Message History & Analytics - search, export, analytics charts, per-campaign/chip logs ✅
 
-Progress: [█████████░] 89%
+Progress: [██████████] 100%
 
-Last session: 2026-03-18T02:00:00.000Z
+Last session: 2026-03-18T04:00:00.000Z
 
 ## 🎉 PROJECT COMPLETE
 
-All 20 phases of the EEL Eleicao project have been successfully completed.
+All 21 phases of the EEL Eleicao project have been successfully completed.
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
