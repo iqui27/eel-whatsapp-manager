@@ -68,6 +68,9 @@ export function Topbar({
     }
   }, [externalNotifications]);
 
+  // Format current date in Portuguese
+  const todayLabel = new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
+
   const openCommandPalette = () => {
     if (typeof window === 'undefined') return;
 
@@ -117,11 +120,11 @@ export function Topbar({
         </button>
       </div>
 
-      {/* Section 2 — Explicitly scoped period contract */}
+      {/* Section 2 — Current date */}
       <div className="flex h-[42px] w-[220px] items-center gap-2 rounded-lg border border-border bg-transparent px-3 text-sm text-foreground shrink-0">
         <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-        <span className="truncate text-muted-foreground">
-          {periodLabel}
+        <span className="truncate text-muted-foreground capitalize">
+          {todayLabel}
         </span>
       </div>
 
@@ -138,12 +141,15 @@ export function Topbar({
 
       {/* Section 4 — Session context */}
       <div className="flex min-w-0 w-[180px] items-center gap-2 shrink-0">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0">
+        <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0">
           <Shield className="h-4 w-4" />
+          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
         </div>
         <div className="min-w-0">
           <p className="truncate text-xs text-muted-foreground">{pageTitle}</p>
-          <p className="truncate text-sm font-medium text-foreground">{sessionLabel}</p>
+          <p className="truncate text-sm font-medium text-foreground">
+            {sessionLabel === 'Sessão ativa' ? 'Operador Ativo' : sessionLabel}
+          </p>
         </div>
       </div>
 
