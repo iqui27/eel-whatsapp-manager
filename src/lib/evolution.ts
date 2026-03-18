@@ -93,6 +93,162 @@ export async function fetchInstances(
   return res.json();
 }
 
+// ─── Instance lifecycle ───────────────────────────────────────────────────────
+
+export interface CreateInstanceOptions {
+  instanceName: string;
+  webhookUrl?: string;      // /api/webhook endpoint of this app
+  rejectCall?: boolean;
+  alwaysOnline?: boolean;
+  readMessages?: boolean;
+}
+
+export interface CreateInstanceResult {
+  instanceName: string;
+  instanceId: string;
+  status: string;
+  apikey?: string;          // auto-generated key returned by Evolution
+}
+
+/**
+ * Create a new Evolution API instance.
+ * Sets up the webhook and recommended settings in one call.
+ */
+export async function createInstance(
+  apiUrl: string,
+  apiKey: string,
+  options: CreateInstanceOptions,
+): Promise<CreateInstanceResult> {
+  const body: Record<string, unknown> = {
+    instanceName: options.instanceName,
+    integration: 'WHATSAPP-BAILEYS',
+    qrcode: false,
+    rejectCall: options.rejectCall ?? true,
+    msgCall: 'Este número não atende chamadas.',
+    alwaysOnline: options.alwaysOnline ?? true,
+    readMessages: options.readMessages ?? false,
+    readStatus: false,
+    syncFullHistory: false,
+    groupsIgnore: false,
+  };
+
+  if (options.webhookUrl) {
+    body.webhook = {
+      url: options.webhookUrl,
+      byEvents: false,
+      base64: false,
+      enabled: true,
+      events: [
+        'MESSAGES_UPSERT',
+        'MESSAGES_UPDATE',
+        'MESSAGES_DELETE',
+        'SEND_MESSAGE',
+        'CONNECTION_UPDATE',
+        'QRCODE_UPDATED',
+        'GROUP_PARTICIPANTS_UPDATE',
+      ],
+    };
+  }
+
+  const res = await fetch(`${baseUrl(apiUrl)}/instance/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: apiKey },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`createInstance failed (${res.status}): ${errBody}`);
+  }
+
+  const data = await res.json();
+  return {
+    instanceName: data?.instance?.instanceName ?? options.instanceName,
+    instanceId: data?.instance?.instanceId ?? '',
+    status: data?.instance?.status ?? 'created',
+    apikey: data?.hash?.apikey,
+  };
+}
+
+/**
+ * Delete an Evolution API instance (disconnects and removes it permanently).
+ */
+export async function deleteInstance(
+  apiUrl: string,
+  apiKey: string,
+  instanceName: string,
+): Promise<void> {
+  const res = await fetch(
+    `${baseUrl(apiUrl)}/instance/delete/${encodeURIComponent(instanceName)}`,
+    { method: 'DELETE', headers: { apikey: apiKey } },
+  );
+  // 404 = already gone — that's fine
+  if (!res.ok && res.status !== 404) {
+    const errBody = await res.text();
+    throw new Error(`deleteInstance failed (${res.status}): ${errBody}`);
+  }
+}
+
+/**
+ * Configure the webhook for an existing instance.
+ * Use this when creating instances that don't yet have a webhook set.
+ */
+export async function setInstanceWebhook(
+  apiUrl: string,
+  apiKey: string,
+  instanceName: string,
+  webhookUrl: string,
+): Promise<void> {
+  const res = await fetch(
+    `${baseUrl(apiUrl)}/webhook/set/${encodeURIComponent(instanceName)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: apiKey },
+      body: JSON.stringify({
+        enabled: true,
+        url: webhookUrl,
+        webhookByEvents: false,
+        webhookBase64: false,
+        events: [
+          'MESSAGES_UPSERT',
+          'MESSAGES_UPDATE',
+          'MESSAGES_DELETE',
+          'SEND_MESSAGE',
+          'CONNECTION_UPDATE',
+          'QRCODE_UPDATED',
+          'GROUP_PARTICIPANTS_UPDATE',
+        ],
+      }),
+    },
+  );
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`setInstanceWebhook failed (${res.status}): ${errBody}`);
+  }
+}
+
+/**
+ * Read the webhook config for an instance.
+ */
+export async function findInstanceWebhook(
+  apiUrl: string,
+  apiKey: string,
+  instanceName: string,
+): Promise<{ url: string; enabled: boolean; events: string[] } | null> {
+  const res = await fetch(
+    `${baseUrl(apiUrl)}/webhook/find/${encodeURIComponent(instanceName)}`,
+    { headers: { apikey: apiKey } },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) return null;
+  const data = await res.json();
+  return {
+    url: data?.url ?? '',
+    enabled: data?.enabled ?? false,
+    events: data?.events ?? [],
+  };
+}
+
 /** Get connection state for a single instance */
 export async function getConnectionState(
   apiUrl: string,

@@ -16,6 +16,8 @@ import {
 import { triggerAnalysis, applyAutoTags } from '@/lib/ai-analysis';
 import { isGeminiConfigured } from '@/lib/gemini';
 import { addCampaignDeliveryEvent } from '@/lib/db-campaigns';
+import { restartInstance } from '@/lib/evolution';
+import { loadConfig } from '@/lib/db-config';
 
 // ─── Dedup cache — prevents storing duplicate webhook deliveries ─────────────
 // Evolution API occasionally fires the same event twice within a few seconds.
@@ -71,19 +73,44 @@ export async function POST(request: NextRequest) {
 
         // Handle statusReason codes for health monitoring
         if (statusReason === 401) {
-          // Logged out — mark disconnected, user must rescan QR
+          // Logged out — must re-scan QR, cannot auto-recover
           await updateChipHealth(chip.id, { healthStatus: 'disconnected' });
-          console.warn('[webhook] Chip', instanceName, 'logged out (statusReason 401)');
-        } else if (statusReason === 408 || statusReason === 515) {
-          // Timeout (408) or restart needed (515) — cron will handle restart
-          // Just update status, don't block webhook response
-          console.warn('[webhook] Chip', instanceName, 'needs restart (statusReason', statusReason, ')');
+          console.warn('[webhook] Chip', instanceName, 'logged out (statusReason 401) — QR re-scan required');
+
+        } else if (statusReason === 403) {
+          // Banned by WhatsApp — permanent, number is unusable
+          await updateChipHealth(chip.id, { healthStatus: 'banned', bannedAt: new Date() });
+          await updateChip(chip.id, { status: 'disconnected', enabled: false });
+          console.error('[webhook] Chip', instanceName, 'BANNED (statusReason 403)');
+
+        } else if (statusReason === 405) {
+          // Already logged in on another device — mark disconnected
+          await updateChipHealth(chip.id, { healthStatus: 'disconnected' });
+          console.warn('[webhook] Chip', instanceName, 'connected on another device (statusReason 405)');
+
+        } else if ([408, 428, 500, 515].includes(statusReason ?? -1)) {
+          // Transient errors — safe to auto-restart
+          console.warn('[webhook] Chip', instanceName, 'transient error (statusReason', statusReason, ') — auto-restarting');
+          await updateChipHealth(chip.id, { healthStatus: 'degraded', errorCount: (chip.errorCount ?? 0) + 1 });
+          try {
+            const config = await loadConfig();
+            if (config?.evolutionApiUrl && config.evolutionApiKey) {
+              // Restart after a short delay to let Evolution settle
+              setTimeout(() => {
+                void restartInstance(config.evolutionApiUrl, config.evolutionApiKey, chip.instanceName ?? instanceName ?? '');
+              }, 3000);
+            }
+          } catch (restartErr) {
+            console.error('[webhook] Auto-restart failed for', instanceName, ':', restartErr);
+          }
+
         } else if (state === 'open') {
-          // Healthy connection established
+          // Healthy connection established (or re-established)
           await updateChipHealth(chip.id, { healthStatus: 'healthy', errorCount: 0 });
+          console.log('[webhook] Chip', instanceName, 'connected and healthy');
         }
 
-        console.log('[webhook] connection.update for', instanceName, '→', newStatus, 'statusReason:', statusReason);
+        console.log('[webhook] connection.update for', instanceName, '→', newStatus, 'statusReason:', statusReason ?? 'none');
       }
     } catch (err) {
       console.error('[webhook] connection.update error:', err);
