@@ -2,34 +2,34 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 20
-current_phase_name: critical-fixes
+current_phase: 21
+current_phase_name: campaign-integration
 current_plan: 1
-status: complete
-stopped_at: "Phase 20 complete — critical fixes resolved"
-last_updated: "2026-03-18T02:00:00.000Z"
+status: planned
+stopped_at: "Phase 21 planned — ready to execute Wave 1"
+last_updated: "2026-03-18T03:00:00.000Z"
 last_activity: 2026-03-17
 progress:
-  total_phases: 20
+  total_phases: 21
   completed_phases: 20
-  total_plans: 54
+  total_plans: 61
   completed_plans: 54
-  percent: 100
+  percent: 89
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 20
-**Current Phase Name:** critical-fixes
+**Current Phase:** 21
+**Current Phase Name:** campaign-integration
 **Current Plan:** 1
-**Total Phases:** 20
-**Total Plans in Phase:** 1
-**Status:** Complete
-**Progress:** [██████████] 100%
+**Total Phases:** 21
+**Total Plans in Phase:** 7
+**Status:** Planned
+**Progress:** [█████████░] 89%
 **Last Activity:** 2026-03-17
-**Last Activity Description:** Phase 20 complete — fixed Evolution connection visualization, message feed, real-time monitoring, groups display, segment-group mapping
-**Stopped At:** Phase 20 complete — critical fixes resolved
+**Last Activity Description:** Phase 21 planned — Campaign-Group Integration & Setup Wizard (7 plans)
+**Stopped At:** Phase 21 planned — ready to execute Wave 1
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -170,7 +170,16 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 **Phase 20 (Critical Fixes) — COMPLETE** ✅
 - Plan 20-01: Fixed Evolution API connection visualization (5min stale threshold), message feed now includes inbound messages, real-time monitoring with 10s auto-refresh, GroupCapacityGrid with real data, segment-to-group mapping helpers, auto-admin promotion on group creation ✅
 
-Progress: [██████████] 100%
+**Phase 21 (Campaign-Group Integration) — PLANNED** ⬜
+- Plan 21-01: Schema Enhancement & Segment-Group Mapping (Wave 1) ⬜
+- Plan 21-02: Campaign Queue Integration with Group Links (Wave 2) ⬜
+- Plan 21-03: Automatic Group Overflow (Wave 2) ⬜
+- Plan 21-04: Chip Failover Enhancement (Wave 1) ⬜
+- Plan 21-05: Setup Wizard Implementation (Wave 3) ⬜
+- Plan 21-06: Dashboard Enhancement & Guidance (Wave 3) ⬜
+- Plan 21-07: Message History & Analytics (Wave 4) ⬜
+
+Progress: [█████████░] 89%
 
 Last session: 2026-03-18T02:00:00.000Z
 
