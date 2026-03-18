@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -25,7 +25,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -36,7 +44,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import type { Voter } from '@/db/schema';
-import { Users, Upload, Search, Eye, Plus, Trash2 } from 'lucide-react';
+import { Users, Upload, Search, Eye, Plus, Trash2, Download } from 'lucide-react';
 
 // ─── Opt-in status ────────────────────────────────────────────────────────────
 
@@ -103,6 +111,12 @@ export default function CrmPage() {
   const [totalVoters, setTotalVoters] = useState(0);
   const [voterToDelete, setVoterToDelete] = useState<Voter | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [tierFilter, setTierFilter] = useState('all');
+  const [optInFilter, setOptInFilter] = useState('all');
+  const [zoneFilter, setZoneFilter] = useState('all');
+  const [selectedVoterIds, setSelectedVoterIds] = useState<Set<string>>(new Set());
+  const [editingVoterId, setEditingVoterId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Voter>>({});
 
   const load = useCallback(async (q: string, page: number) => {
     setIsLoading(true);
@@ -154,6 +168,57 @@ export default function CrmPage() {
 
   const refreshPage = async (page = currentPage) => {
     await load(debouncedSearch, page);
+  };
+
+  // Client-side filters (applied on top of server-side search)
+  const filteredVoters = useMemo(() => {
+    let result = [...voters];
+    if (tierFilter !== 'all') result = result.filter(v => v.aiTier === tierFilter);
+    if (optInFilter !== 'all') result = result.filter(v => v.optInStatus === optInFilter);
+    if (zoneFilter !== 'all') result = result.filter(v => v.zone === zoneFilter);
+    return result;
+  }, [voters, tierFilter, optInFilter, zoneFilter]);
+
+  const availableZones = useMemo(() => {
+    const zones = new Set<string>();
+    voters.forEach(v => { if (v.zone) zones.add(v.zone); });
+    return Array.from(zones).sort();
+  }, [voters]);
+
+  const handleBulkDelete = async () => {
+    try {
+      const ids = Array.from(selectedVoterIds);
+      const results = await Promise.allSettled(
+        ids.map(id => fetch(`/api/voters?id=${id}`, { method: 'DELETE' }))
+      );
+      const successCount = results.filter(r => r.status === 'fulfilled').length;
+      toast.success(`${successCount} eleitor(es) removido(s)`);
+      setSelectedVoterIds(new Set());
+      void refreshPage();
+    } catch { toast.error('Erro ao excluir eleitores'); }
+  };
+
+  const handleBulkExport = () => {
+    const votersToExport = selectedVoterIds.size > 0
+      ? voters.filter(v => selectedVoterIds.has(v.id))
+      : filteredVoters;
+    const headers = ['Nome','Telefone','CPF','Zona','Seção','Bairro','Tags','Engajamento','Opt-in','Último Contato','Tier IA','Sentimento IA','Resumo IA','Ação IA','Notas CRM','Criado em'];
+    const rows = votersToExport.map(v => [
+      v.name, v.phone, v.cpf ?? '', v.zone ?? '', v.section ?? '', v.neighborhood ?? '',
+      (v.tags ?? []).join('; '), String(v.engagementScore ?? 0), v.optInStatus ?? '',
+      v.lastContacted ? new Date(v.lastContacted).toISOString() : '',
+      v.aiTier ?? '', v.aiSentiment ?? '', v.aiAnalysisSummary ?? '', v.aiRecommendedAction ?? '',
+      v.crmNotes ?? '', v.createdAt ? new Date(v.createdAt).toISOString() : '',
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `eleitores-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${votersToExport.length} eleitor(es) exportado(s)`);
   };
 
   const updateForm = (field: keyof typeof EMPTY_FORM, value: string) => {
@@ -274,16 +339,100 @@ export default function CrmPage() {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome ou telefone..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        {/* Search + Export */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou telefone..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={handleBulkExport}>
+            <Download className="h-3.5 w-3.5" />
+            Exportar CSV
+          </Button>
         </div>
+
+        {/* Filter bar */}
+        <div className="flex flex-wrap gap-2">
+          <Select value={tierFilter} onValueChange={setTierFilter}>
+            <SelectTrigger className="w-[120px] h-8 text-xs">
+              <SelectValue placeholder="Tier IA" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos tiers</SelectItem>
+              <SelectItem value="hot">Quente</SelectItem>
+              <SelectItem value="warm">Morno</SelectItem>
+              <SelectItem value="cold">Frio</SelectItem>
+              <SelectItem value="dead">Inativo</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={optInFilter} onValueChange={setOptInFilter}>
+            <SelectTrigger className="w-[130px] h-8 text-xs">
+              <SelectValue placeholder="Opt-in" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos status</SelectItem>
+              <SelectItem value="active">Ativo</SelectItem>
+              <SelectItem value="pending">Pendente</SelectItem>
+              <SelectItem value="expired">Expirado</SelectItem>
+              <SelectItem value="revoked">Revogado</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={zoneFilter} onValueChange={setZoneFilter}>
+            <SelectTrigger className="w-[120px] h-8 text-xs">
+              <SelectValue placeholder="Zona" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas zonas</SelectItem>
+              {availableZones.map(z => (
+                <SelectItem key={z} value={z}>Zona {z}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(tierFilter !== 'all' || optInFilter !== 'all' || zoneFilter !== 'all') && (
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setTierFilter('all'); setOptInFilter('all'); setZoneFilter('all'); }}>
+              Limpar filtros
+            </Button>
+          )}
+        </div>
+
+        {/* Bulk actions toolbar */}
+        {selectedVoterIds.size > 0 && (
+          <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2">
+            <span className="text-xs font-medium">{selectedVoterIds.size} selecionado(s)</span>
+            <div className="flex items-center gap-1.5 ml-auto">
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleBulkExport}>
+                Exportar CSV
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs text-destructive hover:text-destructive">
+                    Excluir
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir {selectedVoterIds.size} eleitor(es)?</AlertDialogTitle>
+                    <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void handleBulkDelete()}>
+                      Excluir
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedVoterIds(new Set())}>
+                Limpar seleção
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Table */}
         {isLoading ? (
@@ -317,6 +466,18 @@ export default function CrmPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40">
+                  <TableHead className="w-[40px]">
+                    <input
+                      type="checkbox"
+                      className="rounded border-border cursor-pointer"
+                      checked={selectedVoterIds.size > 0 && filteredVoters.every(v => selectedVoterIds.has(v.id))}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedVoterIds(new Set(filteredVoters.map(v => v.id)));
+                        else setSelectedVoterIds(new Set());
+                      }}
+                    />
+                  </TableHead>
+                  <TableHead className="w-[60px]">IA</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Zona</TableHead>
@@ -328,8 +489,47 @@ export default function CrmPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {voters.map(voter => (
-                  <TableRow key={voter.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => router.push(`/crm/${voter.id}`)}>
+                {filteredVoters.map(voter => (
+                  <>
+                  <TableRow
+                    key={voter.id}
+                    className="hover:bg-muted/30 cursor-pointer"
+                    onClick={() => {
+                      if (editingVoterId === voter.id) {
+                        setEditingVoterId(null);
+                      } else {
+                        setEditingVoterId(voter.id);
+                        setEditForm({ name: voter.name, phone: voter.phone, zone: voter.zone ?? '', section: voter.section ?? '', optInStatus: voter.optInStatus ?? 'pending', crmNotes: voter.crmNotes ?? '' });
+                      }
+                    }}
+                  >
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="rounded border-border cursor-pointer"
+                        checked={selectedVoterIds.has(voter.id)}
+                        onChange={() => setSelectedVoterIds(prev => { const next = new Set(prev); if (next.has(voter.id)) next.delete(voter.id); else next.add(voter.id); return next; })}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        {voter.aiTier && (
+                          <span className={cn('h-2 w-2 rounded-full shrink-0',
+                            voter.aiTier === 'hot' ? 'bg-red-500' :
+                            voter.aiTier === 'warm' ? 'bg-amber-500' :
+                            voter.aiTier === 'cold' ? 'bg-blue-500' : 'bg-gray-400'
+                          )} title={`Tier: ${voter.aiTier}`} />
+                        )}
+                        {voter.aiSentiment && (
+                          <span className={cn('text-[10px] font-medium',
+                            voter.aiSentiment === 'positive' ? 'text-green-600' :
+                            voter.aiSentiment === 'negative' ? 'text-red-600' : 'text-muted-foreground'
+                          )}>
+                            {voter.aiSentiment === 'positive' ? '+' : voter.aiSentiment === 'negative' ? '−' : '~'}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium text-sm">{voter.name}</TableCell>
                     <TableCell className="text-sm text-muted-foreground font-mono">{formatPhoneDisplay(voter.phone)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -381,8 +581,74 @@ export default function CrmPage() {
                       </div>
                     </TableCell>
                   </TableRow>
+                  {/* Inline editor */}
+                  {editingVoterId === voter.id && (
+                    <TableRow key={`edit-${voter.id}`}>
+                      <TableCell colSpan={10} className="bg-muted/20 p-4" onClick={e => e.stopPropagation()}>
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-medium text-muted-foreground uppercase">Nome</label>
+                            <Input className="h-8 text-sm" value={editForm.name ?? ''} onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))} />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-medium text-muted-foreground uppercase">Telefone</label>
+                            <Input className="h-8 text-sm" value={editForm.phone ?? ''} onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))} />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-medium text-muted-foreground uppercase">Zona</label>
+                            <Input className="h-8 text-sm" value={editForm.zone ?? ''} onChange={e => setEditForm(prev => ({ ...prev, zone: e.target.value }))} />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-medium text-muted-foreground uppercase">Seção</label>
+                            <Input className="h-8 text-sm" value={editForm.section ?? ''} onChange={e => setEditForm(prev => ({ ...prev, section: e.target.value }))} />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-medium text-muted-foreground uppercase">Opt-in</label>
+                            <Select value={editForm.optInStatus ?? 'pending'} onValueChange={v => setEditForm(prev => ({ ...prev, optInStatus: v as 'active' | 'pending' | 'expired' | 'revoked' }))}>
+                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="active">Ativo</SelectItem>
+                                <SelectItem value="pending">Pendente</SelectItem>
+                                <SelectItem value="expired">Expirado</SelectItem>
+                                <SelectItem value="revoked">Revogado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1 col-span-2 lg:col-span-1">
+                            <label className="text-[10px] font-medium text-muted-foreground uppercase">Notas</label>
+                            <textarea
+                              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm min-h-[60px] focus:outline-none focus:ring-1 focus:ring-ring"
+                              value={editForm.crmNotes ?? ''}
+                              onChange={e => setEditForm(prev => ({ ...prev, crmNotes: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2 mt-3">
+                          <Button variant="outline" size="sm" onClick={() => setEditingVoterId(null)}>Cancelar</Button>
+                          <Button size="sm" onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/voters?id=${voter.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(editForm),
+                              });
+                              if (res.ok) {
+                                toast.success('Eleitor atualizado');
+                                setEditingVoterId(null);
+                                void refreshPage();
+                              } else { toast.error('Erro ao atualizar'); }
+                            } catch { toast.error('Erro ao atualizar eleitor'); }
+                          }}>Salvar</Button>
+                          <Button variant="ghost" size="sm" onClick={() => router.push(`/crm/${voter.id}`)}>
+                            <Eye className="mr-1 h-3.5 w-3.5" /> Ver perfil
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </>
                 ))}
-              </TableBody>
+               </TableBody>
             </Table>
           </div>
         )}
