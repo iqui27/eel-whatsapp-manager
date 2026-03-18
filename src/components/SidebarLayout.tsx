@@ -49,7 +49,8 @@ type PageId =
   | 'clusters'
   | 'grupos'
   | 'history'
-  | 'settings';
+  | 'settings'
+  | 'wizard';
 
 interface SidebarLayoutProps {
   children: ReactNode;
