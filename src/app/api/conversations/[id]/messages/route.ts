@@ -66,20 +66,33 @@ export async function POST(
 
       const chips = await loadChips();
       const connectedChips = chips.filter((chip) => chip.status === 'connected' && chip.instanceName);
-      const boundChip = conversation.chipId
-        ? connectedChips.find((chip) => chip.id === conversation.chipId)
-        : undefined;
-      const fallbackChip = connectedChips[0];
-      const instanceName = boundChip?.instanceName ?? fallbackChip?.instanceName ?? config.instanceName;
-      if (!instanceName) {
-        return NextResponse.json({ error: 'Nenhum chip conectado disponível para envio' }, { status: 500 });
-      }
 
-      // Normalize phone to E.164 format (55XXXXXXXXXXX) then to WA JID format
-      const normalizedPhone = normalizePhone(conversation.voterPhone);
-      if (!normalizedPhone || normalizedPhone.length < 12) {
+      // Normalize voter phone first so we can compare with chip phones
+      const normalizedVoterPhone = normalizePhone(conversation.voterPhone);
+      if (!normalizedVoterPhone || normalizedVoterPhone.length < 12) {
         return NextResponse.json({ error: 'Telefone do eleitor inválido para envio' }, { status: 400 });
       }
+
+      // Select chip: prefer bound chip, but never send from the chip whose number matches the voter
+      const boundChip = conversation.chipId
+        ? connectedChips.find(
+            (chip) => chip.id === conversation.chipId &&
+              normalizePhone(chip.phone) !== normalizedVoterPhone,
+          )
+        : undefined;
+
+      // Fallback: first connected chip that is NOT the voter's own number
+      const fallbackChip = connectedChips.find(
+        (chip) => normalizePhone(chip.phone) !== normalizedVoterPhone,
+      );
+
+      const chosenChip = boundChip ?? fallbackChip;
+      const instanceName = chosenChip?.instanceName ?? config.instanceName;
+
+      if (!instanceName) {
+        return NextResponse.json({ error: 'Nenhum chip disponível — todos os chips conectados pertencem ao número do eleitor' }, { status: 500 });
+      }
+
       // Evolution API v2 requires the number as JID: 55XXXXXXXXXXX@s.whatsapp.net
       const waNumber = formatPhoneForWhatsApp(conversation.voterPhone);
 
@@ -99,7 +112,7 @@ export async function POST(
         if (err instanceof Error) {
           const match = err.message.match(/"exists":\s*false/);
           if (match) {
-            errorMsg = `O número ${normalizedPhone} não possui WhatsApp cadastrado`;
+            errorMsg = `O número ${normalizedVoterPhone} não possui WhatsApp cadastrado`;
           } else if (err.message.includes('(401)')) {
             errorMsg = 'Chip desconectado do WhatsApp. Reconecte na Evolution API.';
           } else {
