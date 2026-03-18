@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/api-auth';
 import { db } from '@/db';
 import { messageQueue, campaigns, chips, voters } from '@/db/schema';
-import { and, desc, eq, inArray, gte, lte, or, sql, count } from 'drizzle-orm';
+import { and, desc, eq, inArray, gte, lte, or, sql, count, ilike } from 'drizzle-orm';
 
 interface MessageHistoryRow {
   id: string;
@@ -44,6 +44,7 @@ interface HistoryResponse {
  * - status: filter by status (queued, assigned, sending, sent, delivered, read, failed, retry)
  * - startDate: filter from date (ISO string)
  * - endDate: filter to date (ISO string)
+ * - search: search by phone, name, or message content
  * - sortBy: sort field (createdAt, sentAt, status) default createdAt
  * - sortOrder: asc or desc (default desc)
  */
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get('status');
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
+  const searchQuery = searchParams.get('search');
   const sortBy = searchParams.get('sortBy') ?? 'createdAt';
   const sortOrder = searchParams.get('sortOrder') ?? 'desc';
 
@@ -94,6 +96,24 @@ export async function GET(request: NextRequest) {
         end.setDate(end.getDate() + 1);
         conditions.push(lte(messageQueue.createdAt, end));
       }
+    }
+
+    // Search filter (phone, name, message content)
+    if (searchQuery && searchQuery.trim().length >= 2) {
+      const searchTerm = searchQuery.trim();
+      const searchPattern = `%${searchTerm}%`;
+      conditions.push(or(
+        ilike(messageQueue.voterPhone, searchPattern),
+        ilike(messageQueue.voterName, searchPattern),
+        ilike(messageQueue.message, searchPattern),
+        ilike(messageQueue.resolvedMessage, searchPattern),
+        // Also search in voters table for name
+        sql`EXISTS (
+          SELECT 1 FROM ${voters} 
+          WHERE ${voters.id} = ${messageQueue.voterId} 
+          AND ${ilike(voters.name, searchPattern)}
+        )`
+      ));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
