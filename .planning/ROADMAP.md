@@ -301,7 +301,7 @@ Plans:
 | 19 | Operations Dashboard Rebuild | P0 | 14, 15, 16, 17 | 3 plans |
 | 20 | Critical Fixes | P0 | 19 | 1 plan |
 | 21 | Campaign-Group Integration | P0 | 16, 19 | 7 plans |
-| 22 | Full UI/UX Polishing | P0 | 21 | 3 plans (Wave 1) |
+| 22 | Full UI/UX Polishing | P0 | 21 | 8 plans (3 waves) |
 
 ---
 
@@ -471,10 +471,10 @@ Plans:
 ---
 
 ### Phase 22: Full UI/UX Polishing
-**Status:** In Progress
-**Goal:** Production-ready UI cleanup across every page — fix broken navigation, text truncation, loading state bugs, orphaned pages without app shell, mobile nav errors, and overall visual professionalism. Wave 1 covers navigation fixes, dashboard polish, and Operacoes professionalization.
+**Status:** In Progress (Wave 1 complete, Waves 2-3 planned)
+**Goal:** Production-ready UI cleanup across every page — fix broken navigation, text truncation, loading state bugs, orphaned pages without app shell, mobile nav errors, silent error handling, inconsistent component usage, and overall visual professionalism across all pages.
 
-**Requirements:** [NAV-01, NAV-02, NAV-03, NAV-04, NAV-05, DASH-01, DASH-02, DASH-03, OPS-01, OPS-02, OPS-03, OPS-04, OPS-05]
+**Requirements:** [NAV-01, NAV-02, NAV-03, NAV-04, NAV-05, DASH-01, DASH-02, DASH-03, OPS-01, OPS-02, OPS-03, OPS-04, OPS-05, CAMP-UX-01, CAMP-UX-02, SEG-UX-01, SEG-UX-02, CONV-UX-01, CONV-UX-02, CONV-UX-03, CRM-UX-01, CRM-UX-02, CRM-UX-03, REP-UX-01, COMP-UX-01, ADM-UX-01, ADM-UX-02, TOP-UX-01, TOP-UX-02, CLEANUP-01]
 
 - NAV-01: Dashboard compiles without references to removed operations tab
 - NAV-02: Every page renders inside SidebarLayout with correct sidebar/topbar/bottom-nav
@@ -489,14 +489,36 @@ Plans:
 - OPS-03: Group names are not truncated in capacity grid
 - OPS-04: Loading vs empty state correctly differentiated (no perpetual spinners)
 - OPS-05: Real voter count in NextActionsPanel
+- CAMP-UX-01: Campaign list shows error toast on API failure (not silent catch)
+- CAMP-UX-02: Campaign template preview uses line-clamp + title instead of truncate+max-w
+- SEG-UX-01: Segmentation delete uses AlertDialog instead of window.confirm
+- SEG-UX-02: Segmentation dropdowns use shadcn Select instead of raw HTML select elements
+- CONV-UX-01: Conversations right panel is 320px wide (matching dashboard)
+- CONV-UX-02: Priority indicators use text labels not emoji
+- CONV-UX-03: New conversation dialog uses shadcn Dialog component (not custom overlay)
+- CRM-UX-01: CRM page shows error toasts on API failures
+- CRM-UX-02: AlertDialog components use valid shadcn props (no size/variant on Action/Content)
+- CRM-UX-03: Tags column displays properly without overflow
+- REP-UX-01: Reports page shows error/success toasts, loading skeleton for schedules, AlertDialog for removal
+- COMP-UX-01: Compliance revoke action has confirmation dialog and error/success toasts
+- ADM-UX-01: Admin page shows success/error toasts for all 5 mutation types
+- ADM-UX-02: Admin remove user uses AlertDialog with destructive styling
+- TOP-UX-01: Topbar period section shows current date (not static placeholder)
+- TOP-UX-02: Topbar session section shows user context (not hardcoded "Sessao ativa")
+- CLEANUP-01: Orphaned chip-health-grid.tsx uncommitted changes are committed or reverted
 
 **Depends on:** Phase 21
-**Plans:** 3 plans (Wave 1 planned, Waves 2-3 TBD)
+**Plans:** 8 plans in 3 waves
 
 Plans:
-- [ ] 22-01-PLAN.md — Fix broken navigation (dashboard ops tab removal, mobile nav, orphaned pages)
-- [ ] 22-02-PLAN.md — Dashboard polish (wider right column, granular error toasts)
-- [ ] 22-03-PLAN.md — Professionalize Operacoes (text truncation, loading states, voter count)
+- [x] 22-01-PLAN.md — Fix broken navigation (dashboard ops tab removal, mobile nav, orphaned pages)
+- [x] 22-02-PLAN.md — Dashboard polish (wider right column, granular error toasts)
+- [x] 22-03-PLAN.md — Professionalize Operacoes (text truncation, loading states, voter count)
+- [ ] 22-04-PLAN.md — Campanhas + Segmentacao UX polish (error toasts, AlertDialog, shadcn Select, loading)
+- [ ] 22-05-PLAN.md — Conversas overhaul (right panel width, no-emoji priority, shadcn Dialog, mobile)
+- [ ] 22-06-PLAN.md — CRM polish (error toasts, valid AlertDialog props, tag overflow)
+- [ ] 22-07-PLAN.md — Reports + Compliance + Admin polish (toasts, confirmation dialogs, loading states)
+- [ ] 22-08-PLAN.md — Topbar content + orphaned changes cleanup
 
 ---
 
