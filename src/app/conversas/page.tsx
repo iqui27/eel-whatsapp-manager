@@ -424,6 +424,9 @@ export default function ConversasPage() {
   const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
   const [loadedMessagesForId, setLoadedMessagesForId] = useState<string | null>(null);
   const [mobileShowChat, setMobileShowChat] = useState(false);
+  const [voterDetail, setVoterDetail] = useState<Voter | null>(null);
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [newTag, setNewTag] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -632,6 +635,57 @@ export default function ConversasPage() {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  // ── Fetch voter details when conversation changes ──
+  useEffect(() => {
+    if (!selectedConv?.voterId) { setVoterDetail(null); return; }
+    let cancelled = false;
+    const fetchVoter = async () => {
+      try {
+        const res = await fetch(`/api/voters?id=${selectedConv.voterId}`);
+        if (res.ok && !cancelled) {
+          const data: Voter = await res.json();
+          setVoterDetail(data);
+        }
+      } catch { /* non-critical */ }
+    };
+    void fetchVoter();
+    return () => { cancelled = true; };
+  }, [selectedConv?.voterId]);
+
+  // ── Tag handlers ──
+  const handleAddTag = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTag.trim() || !voterDetail) return;
+    const updatedTags = [...(voterDetail.tags ?? []), newTag.trim()];
+    try {
+      const res = await fetch(`/api/voters?id=${voterDetail.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: updatedTags }),
+      });
+      if (res.ok) {
+        setVoterDetail(prev => prev ? { ...prev, tags: updatedTags } : prev);
+        setNewTag('');
+        setShowTagInput(false);
+      }
+    } catch { toast.error('Erro ao adicionar tag'); }
+  };
+
+  const handleRemoveTag = async (tag: string) => {
+    if (!voterDetail) return;
+    const updatedTags = (voterDetail.tags ?? []).filter(t => t !== tag);
+    try {
+      const res = await fetch(`/api/voters?id=${voterDetail.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: updatedTags }),
+      });
+      if (res.ok) {
+        setVoterDetail(prev => prev ? { ...prev, tags: updatedTags } : prev);
+      }
+    } catch { toast.error('Erro ao remover tag'); }
   };
 
   // ── Update conversation status ──
@@ -902,6 +956,86 @@ export default function ConversasPage() {
                       <p className="text-xs text-muted-foreground">Agente: {selectedConv.assignedAgent}</p>
                     )}
                   </div>
+                </div>
+
+                {/* AI Insights */}
+                {voterDetail && (voterDetail.aiTier || voterDetail.aiSentiment) && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Análise IA</p>
+                    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {voterDetail.aiTier && (
+                          <span className={cn(
+                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                            voterDetail.aiTier === 'hot' ? 'bg-red-500/10 text-red-600 border-red-200' :
+                            voterDetail.aiTier === 'warm' ? 'bg-amber-500/10 text-amber-600 border-amber-200' :
+                            voterDetail.aiTier === 'cold' ? 'bg-blue-500/10 text-blue-600 border-blue-200' :
+                            'bg-muted text-muted-foreground border-border'
+                          )}>
+                            <span className={cn('h-1.5 w-1.5 rounded-full',
+                              voterDetail.aiTier === 'hot' ? 'bg-red-500' :
+                              voterDetail.aiTier === 'warm' ? 'bg-amber-500' :
+                              voterDetail.aiTier === 'cold' ? 'bg-blue-500' : 'bg-gray-400'
+                            )} />
+                            {voterDetail.aiTier === 'hot' ? 'Quente' : voterDetail.aiTier === 'warm' ? 'Morno' : voterDetail.aiTier === 'cold' ? 'Frio' : 'Inativo'}
+                          </span>
+                        )}
+                        {voterDetail.aiSentiment && (
+                          <span className={cn(
+                            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                            voterDetail.aiSentiment === 'positive' ? 'bg-green-500/10 text-green-600 border-green-200' :
+                            voterDetail.aiSentiment === 'negative' ? 'bg-red-500/10 text-red-600 border-red-200' :
+                            'bg-muted text-muted-foreground border-border'
+                          )}>
+                            {voterDetail.aiSentiment === 'positive' ? 'Positivo' : voterDetail.aiSentiment === 'negative' ? 'Negativo' : 'Neutro'}
+                          </span>
+                        )}
+                      </div>
+                      {voterDetail.aiAnalysisSummary && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">{voterDetail.aiAnalysisSummary}</p>
+                      )}
+                      {voterDetail.aiRecommendedAction && (
+                        <p className="text-xs text-primary font-medium">Ação sugerida: {voterDetail.aiRecommendedAction}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tags</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(voterDetail?.tags ?? []).map(tag => (
+                      <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary font-medium">
+                        {tag}
+                        <button type="button" className="hover:text-destructive" onClick={() => void handleRemoveTag(tag)}>
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-0.5 rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] text-muted-foreground hover:border-primary hover:text-primary"
+                      onClick={() => setShowTagInput(true)}
+                    >
+                      <Plus className="h-2.5 w-2.5" /> Adicionar
+                    </button>
+                  </div>
+                  {showTagInput && (
+                    <form onSubmit={(e) => void handleAddTag(e)} className="flex gap-1.5">
+                      <Input
+                        className="h-7 text-xs"
+                        placeholder="Nova tag..."
+                        value={newTag}
+                        onChange={e => setNewTag(e.target.value)}
+                        autoFocus
+                      />
+                      <Button type="submit" size="sm" className="h-7 text-xs px-2">OK</Button>
+                      <Button type="button" variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => { setShowTagInput(false); setNewTag(''); }}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </form>
+                  )}
                 </div>
 
                 {/* Handoff controls */}
