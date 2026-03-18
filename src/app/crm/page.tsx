@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -490,9 +490,8 @@ export default function CrmPage() {
               </TableHeader>
               <TableBody>
                 {filteredVoters.map(voter => (
-                  <>
+                  <React.Fragment key={voter.id}>
                   <TableRow
-                    key={voter.id}
                     className="hover:bg-muted/30 cursor-pointer"
                     onClick={() => {
                       if (editingVoterId === voter.id) {
@@ -646,7 +645,7 @@ export default function CrmPage() {
                       </TableCell>
                     </TableRow>
                   )}
-                  </>
+                  </React.Fragment>
                 ))}
                </TableBody>
             </Table>

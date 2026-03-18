@@ -18,6 +18,16 @@ import {
   useConversationStream,
 } from '@/lib/use-conversation-stream';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -48,6 +58,8 @@ import {
   X,
   ArrowLeft,
   Search,
+  Trash2,
+  Clock,
 } from 'lucide-react';
 
 // ─── Relative time helper ─────────────────────────────────────────────────────
@@ -162,11 +174,11 @@ function QueueItem({
 
 // ─── Chat Bubble ──────────────────────────────────────────────────────────────
 
-function ChatBubble({ msg }: { msg: ConversationMessage }) {
+function ChatBubble({ msg, pending = false }: { msg: ConversationMessage; pending?: boolean }) {
   const isAgent = msg.sender === 'agent';
   const isBot   = msg.sender === 'bot';
   return (
-    <div className={cn('flex gap-2', isAgent ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex gap-2', isAgent ? 'justify-end' : 'justify-start', pending && 'opacity-60')}>
       {!isAgent && (
         <div className={cn(
           'flex h-6 w-6 items-center justify-center rounded-full shrink-0 mt-1',
@@ -182,13 +194,18 @@ function ChatBubble({ msg }: { msg: ConversationMessage }) {
           : isBot
             ? 'rounded-tl-sm bg-blue-500/10 text-blue-900 dark:text-blue-100'
             : 'rounded-tl-sm bg-muted text-foreground',
+        pending && 'ring-1 ring-primary/30',
       )}>
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
         <p className={cn(
-          'text-[10px] mt-1',
-          isAgent ? 'text-primary-foreground/60 text-right' : 'text-muted-foreground',
+          'text-[10px] mt-1 flex items-center gap-1',
+          isAgent ? 'text-primary-foreground/60 justify-end' : 'text-muted-foreground',
         )}>
-          {formatTime(msg.createdAt)}
+          {pending ? (
+            <><Clock className="h-2.5 w-2.5" /> Enviando...</>
+          ) : (
+            formatTime(msg.createdAt)
+          )}
         </p>
       </div>
     </div>
@@ -450,6 +467,12 @@ export default function ConversasPage() {
   const [newTag, setNewTag] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileContext, setShowMobileContext] = useState(false);
+  const [filterTag, setFilterTag] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [convToDelete, setConvToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  // Pending messages (optimistic, not yet confirmed by server)
+  const [pendingMsgId, setPendingMsgId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -573,8 +596,9 @@ export default function ConversasPage() {
   }, [refreshStreamCursorSeed, selectedId]);
 
   // Scroll to bottom when messages change
+  // Use 'auto' (instant) so sent messages snap immediately; 'smooth' would lag
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [messages]);
 
   // Reset handoffReason when selection changes
@@ -602,11 +626,19 @@ export default function ConversasPage() {
   });
 
   // ── Filtered queue ──
+  // Collect all unique tags from voter details for filter UI
+  const availableTags = Array.from(new Set(
+    conversations.flatMap(c => {
+      const vd = voterDetail?.id === c.voterId ? voterDetail : null;
+      return vd?.tags ?? [];
+    })
+  )).sort();
+
   const filtered = conversations.filter(c => {
     if (queueTab !== 'all' && c.status !== queueTab) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      return (c.voterName?.toLowerCase().includes(q) || c.voterPhone?.includes(q)) ?? false;
+      if (!(c.voterName?.toLowerCase().includes(q) || c.voterPhone?.includes(q))) return false;
     }
     return true;
   });
@@ -635,10 +667,28 @@ export default function ConversasPage() {
 
   // ── Send reply ──
   const handleSend = async () => {
-    if (!selectedId || !reply.trim()) return;
+    if (!selectedId || !reply.trim() || isSending) return;
     setIsSending(true);
     const content = reply.trim();
     setReply('');
+
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+
+    // Optimistic message — shown immediately with a temp id
+    const tempId = `pending-${Date.now()}`;
+    setPendingMsgId(tempId);
+    const optimisticMsg: ConversationMessage = {
+      id: tempId,
+      conversationId: selectedId,
+      sender: 'agent',
+      content,
+      createdAt: new Date(),
+    } as ConversationMessage;
+    setMessages(prev => [...prev, optimisticMsg]);
+
     try {
       const res = await fetch(`/api/conversations/${selectedId}/messages`, {
         method: 'POST',
@@ -647,13 +697,22 @@ export default function ConversasPage() {
       });
       if (res.ok) {
         const msg: ConversationMessage = await res.json();
-        setMessages(prev => [...prev, msg]);
+        // Replace optimistic msg with real one from server
+        setMessages(prev => prev.map(m => m.id === tempId ? msg : m));
+      } else {
+        // Remove optimistic msg on failure
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        setReply(content);
+        toast.error('Erro ao enviar mensagem');
       }
     } catch {
-      toast.error('Erro ao enviar mensagem');
+      setMessages(prev => prev.filter(m => m.id !== tempId));
       setReply(content);
+      toast.error('Erro ao enviar mensagem');
     } finally {
       setIsSending(false);
+      setPendingMsgId(null);
+      textareaRef.current?.focus();
     }
   };
 
@@ -683,6 +742,31 @@ export default function ConversasPage() {
 
   // Close mobile context sheet when conversation changes
   useEffect(() => { setShowMobileContext(false); }, [selectedId]);
+
+  // ── Delete conversation ──
+  const handleDeleteConversation = async () => {
+    if (!convToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/conversations?id=${convToDelete}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Conversa removida');
+        setConversations(prev => prev.filter(c => c.id !== convToDelete));
+        if (selectedId === convToDelete) {
+          setSelectedId(null);
+          setMessages([]);
+          setMobileShowChat(false);
+        }
+      } else {
+        toast.error('Erro ao remover conversa');
+      }
+    } catch {
+      toast.error('Erro ao remover conversa');
+    } finally {
+      setIsDeleting(false);
+      setConvToDelete(null);
+    }
+  };
 
   // ── Tag handlers ──
   const handleAddTag = async (e: React.FormEvent) => {
@@ -834,17 +918,39 @@ export default function ConversasPage() {
           </div>
 
           {/* Search */}
-          <div className="px-3 pb-2 pt-1">
+          <div className="px-3 pb-1 pt-1">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                className="h-8 pl-8 text-xs"
+                className="h-8 pl-8 pr-8 text-xs"
                 placeholder="Buscar por nome, telefone..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
+              {(searchQuery || filterTag !== 'all') && (
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => { setSearchQuery(''); setFilterTag('all'); }}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Active filter chips */}
+          {filterTag !== 'all' && (
+            <div className="px-3 pb-1 flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground">Tag:</span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary font-medium">
+                {filterTag}
+                <button type="button" onClick={() => setFilterTag('all')}>
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            </div>
+          )}
 
           {/* Queue list */}
           <ScrollArea className="flex-1 px-2 py-2">
@@ -942,7 +1048,7 @@ export default function ConversasPage() {
                       Nenhuma mensagem ainda
                     </div>
                   ) : (
-                    messages.map(msg => <ChatBubble key={msg.id} msg={msg} />)
+                    messages.map(msg => <ChatBubble key={msg.id} msg={msg} pending={msg.id === pendingMsgId} />)
                   )}
                   <div ref={messagesEndRef} />
                 </div>
@@ -951,15 +1057,21 @@ export default function ConversasPage() {
               {/* Reply bar */}
               <div className="border-t border-border p-3">
                 <div className="flex items-end gap-2">
-                  <textarea
+                   <textarea
                     ref={textareaRef}
                     value={reply}
-                    onChange={e => setReply(e.target.value)}
+                    onChange={e => {
+                      setReply(e.target.value);
+                      // auto-resize: reset then grow to content
+                      e.target.style.height = 'auto';
+                      e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
+                    }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Digite uma mensagem... (Enter para enviar)"
-                    rows={2}
+                    placeholder="Digite uma mensagem... (Enter envia, Shift+Enter quebra linha)"
+                    rows={1}
                     disabled={selectedConv.status === 'resolved'}
-                    className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    style={{ minHeight: '40px', maxHeight: '140px', overflowY: 'auto' }}
                   />
                   <Button
                     size="sm"
@@ -1092,6 +1204,30 @@ export default function ConversasPage() {
                 {/* Campaign origin */}
                 {/* Campaign origin — only renders if conversation type has campaignId */}
 
+                {/* Filter by tag (applies to queue) */}
+                {voterDetail?.tags && voterDetail.tags.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Filtrar por tag</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {voterDetail.tags.map(tag => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setFilterTag(filterTag === tag ? 'all' : tag)}
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors',
+                            filterTag === tag
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-primary/10 text-primary hover:bg-primary/20',
+                          )}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Handoff controls */}
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Controles</p>
@@ -1169,6 +1305,19 @@ export default function ConversasPage() {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Danger zone */}
+                <div className="pt-2 border-t border-border/60">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5"
+                    onClick={() => setConvToDelete(selectedId)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Apagar conversa
+                  </Button>
                 </div>
               </div>
             </ScrollArea>
@@ -1254,6 +1403,28 @@ export default function ConversasPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Delete conversation dialog */}
+      <AlertDialog open={!!convToDelete} onOpenChange={(open) => !open && setConvToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar conversa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Todas as mensagens desta conversa serão removidas permanentemente. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+              onClick={() => void handleDeleteConversation()}
+            >
+              {isDeleting ? 'Apagando...' : 'Apagar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* New conversation dialog */}
       <NewConvDialog
