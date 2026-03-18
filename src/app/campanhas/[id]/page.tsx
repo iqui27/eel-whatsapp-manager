@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { db } from '@/db';
 import { campaigns } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -89,18 +90,18 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <a
+          <Link
             href={`/campanhas/${id}/mensagens`}
             className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90"
           >
             Ver mensagens
-          </a>
-          <a
+          </Link>
+          <Link
             href="/campanhas"
             className="px-3 py-1.5 text-sm border rounded hover:bg-muted"
           >
             ← Voltar
-          </a>
+          </Link>
         </div>
       </div>
 

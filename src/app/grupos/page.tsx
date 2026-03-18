@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { listGroups } from '@/lib/db-groups';
 import { GroupCard } from '@/components/group-card';
 import { CreateGroupDialog } from '@/components/create-group-dialog';
@@ -64,38 +65,38 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
 
       {/* Filters */}
       <div className="flex gap-2">
-        <a
+        <Link
           href="/grupos"
           className={`px-3 py-1.5 rounded-md text-sm ${
             !status ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
           }`}
         >
           Todos
-        </a>
-        <a
+        </Link>
+        <Link
           href="/grupos?status=active"
           className={`px-3 py-1.5 rounded-md text-sm ${
             status === 'active' ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
           }`}
         >
           Ativos
-        </a>
-        <a
+        </Link>
+        <Link
           href="/grupos?status=full"
           className={`px-3 py-1.5 rounded-md text-sm ${
             status === 'full' ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
           }`}
         >
           Cheios
-        </a>
-        <a
+        </Link>
+        <Link
           href="/grupos?status=archived"
           className={`px-3 py-1.5 rounded-md text-sm ${
             status === 'archived' ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
           }`}
         >
           Arquivados
-        </a>
+        </Link>
       </div>
 
       {/* Groups Grid */}
