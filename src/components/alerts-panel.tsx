@@ -1,15 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { X, AlertTriangle, AlertCircle, Info } from 'lucide-react';
+import { X, AlertTriangle, AlertCircle, Info, RefreshCw, Zap } from 'lucide-react';
 
 export interface AlertData {
   id: string;
-  type: 'error' | 'warning' | 'info';
+  type: 'error' | 'warning' | 'info' | 'failover';
   message: string;
   chipId?: string;
   chipName?: string;
   createdAt: Date;
+  // Failover-specific data
+  fallbackChipId?: string;
+  fallbackChipName?: string;
+  messagesReassigned?: number;
 }
 
 interface AlertsPanelProps {
@@ -24,6 +28,8 @@ function getAlertIcon(type: string) {
       return <AlertCircle className="h-4 w-4 text-red-500" />;
     case 'warning':
       return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+    case 'failover':
+      return <RefreshCw className="h-4 w-4 text-orange-500" />;
     default:
       return <Info className="h-4 w-4 text-blue-500" />;
   }
@@ -35,6 +41,8 @@ function getAlertBg(type: string): string {
       return 'bg-red-50 border-red-200';
     case 'warning':
       return 'bg-yellow-50 border-yellow-200';
+    case 'failover':
+      return 'bg-orange-50 border-orange-200';
     default:
       return 'bg-blue-50 border-blue-200';
   }
@@ -82,7 +90,18 @@ export function AlertsPanel({ alerts, onDismiss, loading }: AlertsPanelProps) {
             {getAlertIcon(alert.type)}
             <div className="flex-1 min-w-0">
               <p className="text-sm">{alert.message}</p>
-              {alert.chipName && (
+              {alert.type === 'failover' && alert.fallbackChipName && (
+                <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                  <p className="flex items-center gap-1">
+                    <Zap className="h-3 w-3" />
+                    Fallback: {alert.fallbackChipName}
+                  </p>
+                  {alert.messagesReassigned !== undefined && (
+                    <p>{alert.messagesReassigned} mensagens realocadas</p>
+                  )}
+                </div>
+              )}
+              {alert.type !== 'failover' && alert.chipName && (
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Chip: {alert.chipName}
                 </p>
