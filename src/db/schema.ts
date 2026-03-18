@@ -194,11 +194,14 @@ export const voters = pgTable('voters', {
 export const segments = pgTable('segments', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   name: text('name').notNull(),
+  segmentTag: text('segment_tag').unique(),
   filters: text('filters').notNull(),
   audienceCount: integer('audience_count').default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
-});
+}, (t) => [
+  index('idx_segments_segment_tag').on(t.segmentTag),
+]);
 
 // ─── Campaigns ────────────────────────────────────────────────────────────────
 export const campaigns = pgTable('campaigns', {
