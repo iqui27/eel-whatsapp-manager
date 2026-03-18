@@ -136,7 +136,7 @@ export async function reassignMessagesToChip(
   failedChipId: string,
   fallbackChipId: string
 ): Promise<number> {
-  return await reassignMessagesFromChip(failedChipId);
+  return await reassignMessagesFromChip(failedChipId, fallbackChipId, 'failover');
 }
 
 /**

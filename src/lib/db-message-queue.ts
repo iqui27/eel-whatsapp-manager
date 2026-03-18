@@ -193,6 +193,39 @@ export async function resetFailedMessagesForRetry(maxRetries: number): Promise<n
 // ─── Stats & Bulk Operations ─────────────────────────────────────────────────
 
 /**
+ * Reassignment log entry for audit trail.
+ */
+export interface ReassignmentLog {
+  timestamp: Date;
+  fromChipId: string;
+  toChipId: string | null;
+  messageCount: number;
+  reason: string;
+}
+
+// In-memory reassignment log (cleared on server restart)
+const recentReassignments: ReassignmentLog[] = [];
+const MAX_REASSIGNMENT_LOGS = 100;
+
+/**
+ * Get recent message reassignment logs for audit.
+ */
+export function getRecentReassignments(): ReassignmentLog[] {
+  return [...recentReassignments];
+}
+
+/**
+ * Add a reassignment log entry.
+ */
+function logReassignment(log: ReassignmentLog): void {
+  recentReassignments.unshift(log);
+  if (recentReassignments.length > MAX_REASSIGNMENT_LOGS) {
+    recentReassignments.pop();
+  }
+  console.log(`[MessageQueue] Reassignment: ${log.messageCount} messages from chip ${log.fromChipId} → ${log.toChipId ?? 'queue'} (${log.reason})`);
+}
+
+/**
  * Get queue statistics (count by status).
  */
 export async function getQueueStats(
@@ -232,11 +265,20 @@ export async function getQueueStats(
 }
 
 /**
- * Reassign all pending messages from a chip back to the queue.
- * Called when a chip goes to quarantined/banned status.
+ * Reassign all pending messages from a chip.
+ * 
+ * When fallbackChipId is provided, messages are assigned to that chip.
+ * When fallbackChipId is null, messages are returned to the queue for
+ * any available chip to pick up.
+ * 
+ * Called when a chip goes to quarantined/banned status during failover.
  * Returns number of messages reassigned.
  */
-export async function reassignMessagesFromChip(chipId: string): Promise<number> {
+export async function reassignMessagesFromChip(
+  chipId: string,
+  fallbackChipId?: string | null,
+  reason: string = 'chip_failure'
+): Promise<number> {
   // Get messages to reassign first
   const toReassign = await db
     .select({ id: messageQueue.id })
@@ -250,23 +292,63 @@ export async function reassignMessagesFromChip(chipId: string): Promise<number> 
 
   if (toReassign.length === 0) return 0;
 
-  // Update them
-  await db
-    .update(messageQueue)
-    .set({
-      status: 'queued',
-      chipId: null,
-      assignedAt: null,
-      updatedAt: new Date(),
-    })
-    .where(
-      inArray(
-        messageQueue.id,
-        toReassign.map(m => m.id)
-      )
-    );
+  const messageIds = toReassign.map(m => m.id);
+
+  if (fallbackChipId) {
+    // Reassign to specific fallback chip
+    await db
+      .update(messageQueue)
+      .set({
+        chipId: fallbackChipId,
+        status: 'assigned', // Keep as assigned so it's picked up by the fallback
+        updatedAt: new Date(),
+      })
+      .where(inArray(messageQueue.id, messageIds));
+  } else {
+    // Return to queue (no specific fallback)
+    await db
+      .update(messageQueue)
+      .set({
+        status: 'queued',
+        chipId: null,
+        assignedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(inArray(messageQueue.id, messageIds));
+  }
+
+  // Log the reassignment
+  logReassignment({
+    timestamp: new Date(),
+    fromChipId: chipId,
+    toChipId: fallbackChipId ?? null,
+    messageCount: toReassign.length,
+    reason,
+  });
 
   return toReassign.length;
+}
+
+/**
+ * Get messages count by chip for a campaign.
+ * Useful for determining which chip handles which segments.
+ */
+export async function getMessageCountByChip(campaignId: string): Promise<
+  Array<{ chipId: string | null; count: number }>
+> {
+  const rows = await db
+    .select({
+      chipId: messageQueue.chipId,
+      count: sql<number>`count(*)`.as('count'),
+    })
+    .from(messageQueue)
+    .where(eq(messageQueue.campaignId, campaignId))
+    .groupBy(messageQueue.chipId);
+
+  return rows.map(row => ({
+    chipId: row.chipId,
+    count: Number(row.count),
+  }));
 }
 
 /**
