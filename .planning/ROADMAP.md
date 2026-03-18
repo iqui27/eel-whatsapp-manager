@@ -522,54 +522,226 @@ Plans:
 
 ---
 
-### Milestone 2 Dependency Graph
+## Milestone 3: Professional UI/UX Overhaul
 
-```
-Phase 14 (Chip Health) ──────┬── Phase 15 (Mass Messaging) ──┬── Phase 17 (Tracking)
-                              │                                │
-                              ├── Phase 16 (Groups) ───────────┤
-                              │                                │
-                              │                                └── Phase 18 (AI/Gemini)
-                              │
-                              └── Phase 19 (Dashboard) ← depends on 14, 15, 16, 17
-```
+> Make every page production-ready with professional layout, real data connections, user guidance, and consistent UX patterns.
+> No more cut text, broken layouts, missing features, or silent errors. Every page teaches the user how to use it.
 
-### Milestone 2 Wave Execution Plan
-
-| Wave | Phases | Parallelizable |
-|------|--------|----------------|
-| 1 | 14 (Chip Health) | Foundation — must be first |
-| 2 | 15 (Mass Messaging) + 16 (Groups) | Can overlap — 15 is engine, 16 is group API |
-| 3 | 17 (Delivery Tracking) | Needs 15+16 for data flow |
-| 4 | 18 (AI/Gemini) | Needs 17 for reply data |
-| 5 | 19 (Dashboard Rebuild) | Integrates everything above |
+| Phase | Name | Priority | Depends On | Plans |
+|-------|------|----------|------------|-------|
+| 23 | Critical Layout & Navigation Foundation | P0 | 22 | 2 plans |
+| 24 | Operations Unification & Professionalization | P0 | 23 | 2 plans |
+| 25 | Conversas System Overhaul | P0 | 23 | 3 plans |
+| 26 | Campanhas & Segmentacao UX | P0 | 23 | 2 plans |
+| 27 | CRM Overhaul | P0 | 23 | 2 plans |
+| 28 | Relatorios Professionalization | P1 | 23 | 2 plans |
+| 29 | Configuracoes & Perfil | P1 | 23 | 2 plans |
+| 30 | Header, Cleanup & Final Polish | P1 | 24-29 | 2 plans |
 
 ---
 
-## Dependency Graph
+### Phase 23: Critical Layout & Navigation Foundation
+**Status:** Not started
+**Goal:** Fix foundational layout problems that affect every page — topbar overflow on medium screens, dashboard chat queue scroll, orphaned pages missing SidebarLayout, and height calculations that don't account for topbar/bottom-nav. This is the base that all other phases depend on.
+
+**Requirements:** [LAY-01, LAY-02, LAY-03, LAY-04, LAY-05]
+
+- LAY-01: Topbar sections use flex-shrink and responsive widths instead of fixed px — no overflow on screens < 1200px
+- LAY-02: Dashboard right panel has proper max-height with overflow-y-auto — chat queue does not get cut off
+- LAY-03: All pages that use `h-[calc(100vh-Xrem)]` account for actual topbar height (74px) and mobile bottom nav (64px)
+- LAY-04: /wizard page wrapped in SidebarLayout (currently raw div with p-6)
+- LAY-05: /setup page uses theme tokens instead of hardcoded hex colors (#0B1220, #A1A1AA)
+
+**Depends on:** Phase 22
+**Plans:** 2 plans
+
+Plans:
+- [ ] 23-01-PLAN.md — Topbar responsive fix + dashboard chat queue scroll
+- [ ] 23-02-PLAN.md — Orphaned page wrappers + setup theme tokens + height calc fixes
+
+---
+
+### Phase 24: Operations Unification & Professionalization
+**Status:** Not started
+**Goal:** Unify the operations page with the most recent component versions, professionalize ALL operations sub-components — remove emojis from chip health, fix CSS bugs in TrafficLightIndicator, fix text truncation with fixed widths, add real auto-refresh to message feed, fix Portuguese accents, and make quick actions panel actually useful with relevant context.
+
+**Requirements:** [OPSV2-01, OPSV2-02, OPSV2-03, OPSV2-04, OPSV2-05, OPSV2-06, OPSV2-07, OPSV2-08]
+
+- OPSV2-01: ChipHealthGrid uses professional colored dots/badges (no emoji indicators), clean table layout with proper column widths
+- OPSV2-02: MessageFeed columns use flexible widths (not fixed w-16/w-24 that clip text), auto-refresh actually implemented (10s interval)
+- OPSV2-03: SystemStatusCard TrafficLightIndicator uses modern CSS (flex/grid, not float-left + negative margin)
+- OPSV2-04: All Portuguese text has proper accents (Saudavel→Saudável, Atencao→Atenção, etc.)
+- OPSV2-05: QuickActionsPanel shows contextual info for each action (e.g. "3 chips offline" not just "Ver Chips"), import link points to correct route
+- OPSV2-06: HelpPanel has real support email (not suporte@exemplo.com) and help links point to actual documentation/guides
+- OPSV2-07: Operations page uses the latest component versions (same as what dashboard operations tab used before removal)
+- OPSV2-08: All operations components have consistent card styling, proper spacing, and no text overflow
+
+**Depends on:** Phase 23
+**Plans:** 2 plans
+
+Plans:
+- [ ] 24-01-PLAN.md — ChipHealthGrid + MessageFeed + SystemStatusCard professionalization
+- [ ] 24-02-PLAN.md — QuickActions contextual info + HelpPanel cleanup + Operations page unification
+
+---
+
+### Phase 25: Conversas System Overhaul
+**Status:** Not started
+**Goal:** Complete rethink of the conversations system for lead campaign workflows — fix message feed reliability (silent errors causing messages to appear/disappear), surface Gemini AI analysis (tags, sentiment, tier, recommendations) in conversation context, fix priority inbox navigation, add message search, and ensure the system works as the primary lead engagement interface.
+
+**Requirements:** [CONV-01, CONV-02, CONV-03, CONV-04, CONV-05, CONV-06, CONV-07, CONV-08, CONV-09]
+
+- CONV-01: Message loading has proper error handling with retry — no silent catch blocks that cause messages to disappear
+- CONV-02: SSE streaming is reliable — messages arrive in real-time without needing manual refresh, reconnect on disconnect
+- CONV-03: Voter context panel shows Gemini AI analysis: sentiment badge, tier (hot/warm/cold), recommended action, auto-tags, analysis summary
+- CONV-04: Tags system works — voter tags visible in conversation list and context panel, editable inline
+- CONV-05: Priority inbox button navigates to correct filtered view (not a different page)
+- CONV-06: Message search — search across conversations by content, voter name, or phone
+- CONV-07: Lead campaign context — conversations show which campaign originated the lead, campaign status, and conversion funnel position
+- CONV-08: Conversation list shows AI tier badge (hot/warm/cold dot) and last message preview with timestamp
+- CONV-09: Mobile layout works — single column with queue/chat toggle, voter context accessible via slide-over
+
+**Depends on:** Phase 23
+**Plans:** 3 plans
+
+Plans:
+- [ ] 25-01-PLAN.md — Message feed reliability fix + SSE hardening + error handling
+- [ ] 25-02-PLAN.md — Gemini AI integration in conversation context + tags system fix
+- [ ] 25-03-PLAN.md — Lead campaign context + message search + priority inbox fix + mobile layout
+
+---
+
+### Phase 26: Campanhas & Segmentacao UX
+**Status:** Not started
+**Goal:** Transform campaign and segmentation pages from bare lists into guided workflows — add pagination/search/filters to campaigns, make segment creation discoverable with a prominent button, add onboarding guides that teach users the workflow, and unify both flows with the Setup Wizard so there's one coherent path.
+
+**Requirements:** [CAMPV2-01, CAMPV2-02, CAMPV2-03, CAMPV2-04, SEGV2-01, SEGV2-02, SEGV2-03, SEGV2-04]
+
+- CAMPV2-01: Campaign list has pagination (20 per page), search by name, filter by status (all/draft/scheduled/sending/sent), sort by date
+- CAMPV2-02: Campaign page has onboarding guide — feature overview cards explaining: create campaign, choose segment, write message, schedule/send, monitor
+- CAMPV2-03: Campaign creation flow is unified with Setup Wizard step — wizard "Criar Campanha" step links to /campanhas/nova with context preserved
+- CAMPV2-04: Empty state shows actionable CTA ("Crie sua primeira campanha") with link to guided flow
+- SEGV2-01: Prominent "Novo Segmento" button at top of page (not buried in filter builder)
+- SEGV2-02: Segmentation page has onboarding guide — explains what segments are, how filters work, what audience preview means
+- SEGV2-03: Segmentation flow unified with Setup Wizard — wizard "Criar Segmento" step links to /segmentacao with creation mode active
+- SEGV2-04: Saved segments table shows campaign usage count and last used date
+
+**Depends on:** Phase 23
+**Plans:** 2 plans
+
+Plans:
+- [ ] 26-01-PLAN.md — Campanhas pagination + search + filters + onboarding guide + empty state
+- [ ] 26-02-PLAN.md — Segmentacao create button + onboarding guide + wizard unification + usage stats
+
+---
+
+### Phase 27: CRM Overhaul
+**Status:** Not started
+**Goal:** Transform CRM from a simple voter list into a rich lead management interface — add inline editing, surface all AI analysis fields (tier, sentiment, summary, recommended action), improve forms with all DB fields, add tag/opt-in filters, bulk actions, and data export.
+
+**Requirements:** [CRMV2-01, CRMV2-02, CRMV2-03, CRMV2-04, CRMV2-05, CRMV2-06]
+
+- CRMV2-01: Voter list shows AI tier badge (hot/warm/cold/dead colored dot), sentiment indicator, and engagement score — not just name/phone/tags
+- CRMV2-02: Inline edit mode — click voter row to expand inline editor with all fields (name, phone, zone, section, tags, opt-in status)
+- CRMV2-03: Add voter form includes ALL DB fields: name, phone, cpf, zone, section, neighborhood, tags[], notes, optInStatus
+- CRMV2-04: Filter by: AI tier (hot/warm/cold/dead), opt-in status (active/expired/revoked), tags, zone, engagement score range
+- CRMV2-05: Bulk actions — select multiple voters for: bulk tag, bulk delete, bulk export, bulk add to segment
+- CRMV2-06: Export voters to CSV with all fields including AI analysis data
+
+**Depends on:** Phase 23
+**Plans:** 2 plans
+
+Plans:
+- [ ] 27-01-PLAN.md — AI fields display + inline editing + enriched add form
+- [ ] 27-02-PLAN.md — Filters + bulk actions + CSV export
+
+---
+
+### Phase 28: Relatorios Professionalization
+**Status:** Not started
+**Goal:** Replace hand-built SVG charts with a proper chart library (recharts), add responsive sizing, tooltips, hover states, axis labels, and create new visualization types: line charts for trends, comparison views, and conversion funnel from delivery tracking data.
+
+**Requirements:** [REPV2-01, REPV2-02, REPV2-03, REPV2-04]
+
+- REPV2-01: Install recharts and replace hand-built SVG bar chart with responsive BarChart component with tooltips, axis labels, and hover states
+- REPV2-02: Add LineChart for campaign performance trends over time (sent, delivered, read, replied per day)
+- REPV2-03: Add conversion funnel visualization using delivery tracking data (Sent→Delivered→Read→Replied→Joined Group)
+- REPV2-04: All charts are responsive (resize with container), have proper legends, and work on mobile
+
+**Depends on:** Phase 23
+**Plans:** 2 plans
+
+Plans:
+- [ ] 28-01-PLAN.md — Install recharts + replace SVG bar chart + add line chart
+- [ ] 28-02-PLAN.md — Conversion funnel visualization + responsive polish + mobile charts
+
+---
+
+### Phase 29: Configuracoes & Perfil
+**Status:** Not started
+**Goal:** Rework the settings page to use theme tokens and support all current features (Gemini API key, notification preferences, campaign defaults, chip configuration), and create a new profile page where the user can manage their own account (name, username, email, password).
+
+**Requirements:** [CFG-01, CFG-02, CFG-03, PRF-01, PRF-02, PRF-03]
+
+- CFG-01: Settings page uses theme tokens (not hardcoded hex colors) and renders correctly in both light and dark mode
+- CFG-02: Settings sections cover: candidate profile, Gemini API key, Evolution API config, notification preferences, campaign defaults (time window, delay range), chip warming settings
+- CFG-03: Settings page accessible via /configuracoes route (Portuguese) with redirect from /setup for backward compatibility
+- PRF-01: New /perfil page with user profile form: display name, username, email (read-only), password change (current + new + confirm)
+- PRF-02: Profile page shows user role, permissions summary, and last login timestamp
+- PRF-03: Profile page accessible from sidebar navigation and topbar user section
+
+**Depends on:** Phase 23
+**Plans:** 2 plans
+
+Plans:
+- [ ] 29-01-PLAN.md — Settings page rework (theme tokens, all feature sections)
+- [ ] 29-02-PLAN.md — New profile page (form, password change, role display, navigation links)
+
+---
+
+### Phase 30: Header, Cleanup & Final Polish
+**Status:** Not started
+**Goal:** Final sweep — verify header search/filter/alerts are functional, remove all deprecated routes and duplicate pages, fix placeholder content, and do a cross-page consistency audit to ensure every page has the same professional quality level.
+
+**Requirements:** [HDR-01, HDR-02, HDR-03, CLN-01, CLN-02, CLN-03, CLN-04]
+
+- HDR-01: Topbar search is functional — searches across voters, campaigns, segments, conversations (or shows clear "coming soon" if not ready)
+- HDR-02: Topbar date filter is functional — filters data on the current page by selected date range (or is removed if not applicable)
+- HDR-03: Topbar alerts badge shows real alert count from operations alerts system
+- CLN-01: Remove duplicate routes: /historico and /history — keep only one
+- CLN-02: Remove or redirect deprecated routes: /contacts → /crm, /clusters → removed
+- CLN-03: Replace all placeholder content (suporte@exemplo.com, help links to wrong pages)
+- CLN-04: Cross-page consistency audit — every page has: proper SidebarLayout wrapper, error toasts, loading states, empty states, Portuguese accents, no text truncation, no emoji in status indicators
+
+**Depends on:** Phases 24-29
+**Plans:** 2 plans
+
+Plans:
+- [ ] 30-01-PLAN.md — Header search + date filter + alerts verification/fix
+- [ ] 30-02-PLAN.md — Route cleanup + placeholder fixes + cross-page consistency audit
+
+---
+
+### Milestone 3 Dependency Graph
 
 ```
-Phase 01 (Shell) ──────────────────────┐
-                                       ├── Phase 05 (Dashboard V2)
-Phase 02 (DB Schema) ─┬── Phase 03 ───┤
-                       │   (Import)    ├── Phase 04 (Campaigns) ──┐
-                       │               │                          ├── Phase 08 (Reports)
-                       ├── Phase 07 ───┘                          │
-                       │   (Compliance)                           │
-                       └── Phase 06 (HITL/CRM) ───────────────────┘
+Phase 23 (Layout Foundation) ──┬── Phase 24 (Operations) ──────────────┐
+                                ├── Phase 25 (Conversas) ───────────────┤
+                                ├── Phase 26 (Campanhas/Seg) ───────────┤
+                                ├── Phase 27 (CRM) ─────────────────────┼── Phase 30 (Final Polish)
+                                ├── Phase 28 (Relatorios) ──────────────┤
+                                └── Phase 29 (Config/Perfil) ───────────┘
 ```
 
-## Wave Execution Plan
+### Milestone 3 Wave Execution Plan
 
 | Wave | Phases | Parallelizable |
 |------|--------|----------------|
-| 1 | 01 (Shell) + 02 (DB) | Yes — no file overlap |
-| 2 | 03 (Import/Seg) | After DB schema exists |
-| 3 | 04 (Campaigns) + 07 (Compliance) | After segments exist; compliance independent |
-| 4 | 05 (Dashboard V2) | After shell + campaigns exist |
-| 5 | 06 (HITL/CRM) | After dashboard + DB |
-| 6 | 08 (Reports + Polish) | After campaigns + HITL |
-| 7 | 09 (Real Data) → 10 (Realtime) → 11 (Verification/UAT) | Sequential hardening and release-readiness pass |
+| 1 | 23 (Layout Foundation) | Must be first — fixes base layout for all pages |
+| 2 | 24 + 25 + 26 + 27 + 28 + 29 | All parallel — each touches different page files |
+| 3 | 30 (Final Polish) | After all pages are individually polished |
+
+---
 
 ## Technical Decisions
 
@@ -582,3 +754,5 @@ Phase 02 (DB Schema) ─┬── Phase 03 ───┤
 | New shadcn components | Install as needed (Dialog, Sheet, Table, Tabs, Textarea, DataTable) | Many primitives currently missing |
 | Form validation | Add zod + react-hook-form | Currently manual validation everywhere |
 | Data fetching | Add SWR or React Query | Replace raw useEffect + fetch pattern |
+| Charts library | recharts | Replace hand-built SVG, responsive, well-maintained |
+| No emoji in UI | Text labels + colored dots/badges | Professional appearance, consistent across all pages |

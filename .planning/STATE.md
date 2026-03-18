@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: "Milestone 3 — Professional UI/UX Overhaul"
-current_phase: 23
-current_phase_name: critical-layout
+current_phase: 24
+current_phase_name: operations-unification
 current_plan: 0
-status: planning
-stopped_at: "Milestone 3 planning complete — 17 plans across 8 phases (23-30) created"
-last_updated: "2026-03-18T22:00:00.000Z"
+status: in_progress
+stopped_at: "Phase 23 complete — responsive topbar, dashboard right panel scroll, setup theme tokens, conversas height fix"
+last_updated: "2026-03-18T23:30:00.000Z"
 last_activity: 2026-03-18
 progress:
   total_phases: 30
-  completed_phases: 22
+  completed_phases: 23
   total_plans: 86
-  completed_plans: 69
-  percent: 80
+  completed_plans: 71
+  percent: 83
 ---
 
 # EEL Eleicao — Project State
@@ -201,13 +201,13 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Plan 22-07: Relatorios + Compliance + Admin - comprehensive toasts + AlertDialogs for all destructive actions ✅
 - Plan 22-08: Topbar date display, session dot indicator, chip-health-grid no-emoji commit ✅
 
-Progress: [██████████] 100%
+**Phase 23 (Critical Layout Foundation) — COMPLETE** ✅
+- Plan 23-01: Responsive topbar (flex-shrink, breakpoint hiding), dashboard right panel scroll ✅
+- Plan 23-02: Setup page 46 hex colors → Tailwind tokens, conversas height fix (74px), wizard verified ✅
 
-Last session: 2026-03-18T17:30:00.000Z
+Progress: [████████░░] 83% (Milestone 3 in progress)
 
-## 🎉 PROJECT COMPLETE
-
-All 22 phases of the EEL Eleicao project have been successfully completed.
+Last session: 2026-03-18T23:30:00.000Z
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -410,14 +410,16 @@ src/components/
 | 22-ui-polish P06 | 8 min | 1/1 | 1 file |
 | 22-ui-polish P07 | 20 min | 2/2 | 3 files |
 | 22-ui-polish P08 | 10 min | 2/2 | 2 files |
+| 23-critical-layout P01 | 8 min | 2/2 | 2 files |
+| 23-critical-layout P02 | 10 min | 2/2 | 2 files |
 
 ## Next Actions
 
-**Milestone 3 Planning Complete — Ready to Execute**
+**Phase 23 Complete — Starting Wave 2**
 
 Next steps:
-1. Execute Phase 23 (Wave 1): `/gsd-execute-phase 23-critical-layout`
-2. Execute Phases 24-29 (Wave 2): Parallelizable — each touches different page files
+1. Execute Phase 24 (Operations Unification): `/gsd-execute-phase 24-operations-unification`
+2. Execute Phases 25-29 (Wave 2): Parallelizable — each touches different page files
 3. Execute Phase 30 (Wave 3): Final cleanup after all pages are polished
 4. Deploy to production
 5. User acceptance testing
