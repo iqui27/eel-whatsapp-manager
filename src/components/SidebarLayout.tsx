@@ -48,6 +48,7 @@ type PageId =
   | 'clusters'
   | 'history'
   | 'settings'
+  | 'configuracoes'
   | 'wizard';
 
 interface SidebarLayoutProps {
@@ -86,7 +87,7 @@ const legacyNavItems = [
   { id: 'chips'    as PageId, label: 'Chips',          href: '/chips',        icon: Smartphone },
   { id: 'grupos'   as PageId, label: 'Grupos',         href: '/grupos',       icon: UsersRound },
   { id: 'history'  as PageId, label: 'Historico',      href: '/historico',    icon: History },
-  { id: 'settings' as PageId, label: 'Configuracoes',  href: '/settings',     icon: Settings },
+  { id: 'settings' as PageId, label: 'Configurações',  href: '/configuracoes', icon: Settings },
 ];
 
 // Mobile bottom nav: 5 most important electoral items
