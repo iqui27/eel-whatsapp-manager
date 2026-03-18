@@ -10,6 +10,14 @@ import { AlertsPanel, type AlertData } from '@/components/alerts-panel';
 import { GroupCapacityGrid } from '@/components/group-capacity-grid';
 import { ConversionKPIs } from '@/components/conversion-kpis';
 import { MessageFeed } from '@/components/message-feed';
+import { SystemStatusCard, type SystemStatus } from '@/components/system-status-card';
+import { NextActionsPanel } from '@/components/next-actions-panel';
+import { QuickActionsPanel } from '@/components/quick-actions-panel';
+import { HelpPanel } from '@/components/help-panel';
+import { OnboardingTooltips, useOnboardingState } from '@/components/onboarding-tooltips';
+import { KeyboardShortcutsOverlay } from '@/components/keyboard-shortcuts';
+import { type SystemState } from '@/lib/action-suggestions';
+import { getRecentNotifications, type StoredNotification } from '@/lib/notifications';
 import {
   RefreshCw,
   Smartphone,
@@ -18,10 +26,15 @@ import {
   MessageCircle,
   Activity,
   ArrowRightLeft,
+  HelpCircle,
+  Keyboard,
 } from 'lucide-react';
 
 export default function OperacoesPage() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { shouldShowTour, resetOnboarding } = useOnboardingState();
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   
   // Operations dashboard state
   const [opsData, setOpsData] = useState<{
@@ -80,8 +93,12 @@ export default function OperacoesPage() {
     chipInstanceName: string | null;
   }>>([]);
 
+  const [notifications, setNotifications] = useState<StoredNotification[]>([]);
+
   // Fetch operations data
-  const fetchOperations = useCallback(async () => {
+  const fetchOperations = useCallback(async (showRefreshing = false) => {
+    if (showRefreshing) setIsRefreshing(true);
+    
     try {
       const [opsRes, kpisRes, msgsRes, groupsRes] = await Promise.all([
         fetch('/api/dashboard/operations'),
@@ -106,10 +123,14 @@ export default function OperacoesPage() {
         const data = await groupsRes.json();
         setGroupsData(data.groups || []);
       }
+      
+      // Fetch notifications
+      setNotifications(getRecentNotifications(20));
     } catch (error) {
       console.error('Failed to fetch operations data:', error);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -120,7 +141,7 @@ export default function OperacoesPage() {
 
   // Auto-refresh every 10 seconds
   useEffect(() => {
-    const interval = setInterval(fetchOperations, 10000);
+    const interval = setInterval(() => fetchOperations(), 10000);
     return () => clearInterval(interval);
   }, [fetchOperations]);
 
@@ -132,11 +153,71 @@ export default function OperacoesPage() {
       });
       if (res.ok) {
         // Refresh data after restart
-        setTimeout(fetchOperations, 2000);
+        setTimeout(() => fetchOperations(), 2000);
       }
     } catch (error) {
       console.error('Failed to restart chip:', error);
     }
+  };
+
+  // Calculate system status for SystemStatusCard
+  const systemStatus: SystemStatus = {
+    chips: {
+      total: opsData?.chips?.length || 0,
+      healthy: opsData?.chips?.filter(c => c.healthStatus === 'healthy' || c.healthStatus === 'connected').length || 0,
+      warning: opsData?.chips?.filter(c => c.healthStatus === 'warning' || c.healthStatus === 'stale').length || 0,
+      error: opsData?.chips?.filter(c => c.healthStatus === 'error' || c.healthStatus === 'quarantined').length || 0,
+      offline: opsData?.chips?.filter(c => c.healthStatus === 'offline' || c.healthStatus === 'disconnected').length || 0,
+    },
+    groups: {
+      total: groupsData?.length || 0,
+      active: groupsData?.filter(g => g.status === 'active').length || 0,
+      nearCapacity: groupsData?.filter(g => {
+        const percent = (g.currentSize / g.maxSize) * 100;
+        return percent >= 80 && percent < 100;
+      }).length || 0,
+      full: groupsData?.filter(g => g.status === 'full' || g.currentSize >= g.maxSize).length || 0,
+    },
+    campaigns: {
+      active: opsData?.campaigns?.filter(c => c.status === 'sending' || c.status === 'active').length || 0,
+      scheduled: opsData?.campaigns?.filter(c => c.status === 'scheduled').length || 0,
+      completed: opsData?.campaigns?.filter(c => c.status === 'sent' || c.status === 'completed').length || 0,
+      failed: opsData?.campaigns?.filter(c => c.status === 'failed').length || 0,
+    },
+    lastUpdated: new Date(),
+    isRefreshing,
+  };
+
+  // Calculate system state for NextActionsPanel
+  const systemState: SystemState = {
+    chips: {
+      total: systemStatus.chips.total,
+      healthy: systemStatus.chips.healthy,
+      offline: systemStatus.chips.offline,
+      error: systemStatus.chips.error,
+    },
+    groups: {
+      total: systemStatus.groups.total,
+      nearCapacity: systemStatus.groups.nearCapacity,
+      full: systemStatus.groups.full,
+      active: systemStatus.groups.active,
+    },
+    campaigns: {
+      active: systemStatus.campaigns.active,
+      scheduled: systemStatus.campaigns.scheduled,
+      pending: 0,
+      failed: systemStatus.campaigns.failed,
+    },
+    voters: {
+      total: 0, // Will be populated from API if available
+    },
+    queue: {
+      pending: opsData?.campaigns?.reduce((sum, c) => sum + c.queued, 0) || 0,
+      failed: opsData?.campaigns?.reduce((sum, c) => sum + c.totalFailed, 0) || 0,
+    },
+    failover: {
+      recentCount: opsData?.failoverCount || 0,
+    },
   };
 
   if (isLoading) {
@@ -167,6 +248,26 @@ export default function OperacoesPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Onboarding Tour Button */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={resetOnboarding}
+              className="gap-1.5 text-muted-foreground hover:text-foreground"
+            >
+              <HelpCircle className="h-4 w-4" />
+              Tour
+            </Button>
+            {/* Keyboard Shortcuts Button */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowKeyboardShortcuts(true)}
+              className="gap-1.5 text-muted-foreground hover:text-foreground"
+            >
+              <Keyboard className="h-4 w-4" />
+              Atalhos
+            </Button>
             {/* Failover indicator */}
             {opsData?.failoverCount && opsData.failoverCount > 0 && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 text-sm">
@@ -174,8 +275,15 @@ export default function OperacoesPage() {
                 <span>{opsData.failoverCount} failover{opsData.failoverCount > 1 ? 's' : ''}</span>
               </div>
             )}
-            <Button variant="outline" size="sm" onClick={fetchOperations} className="gap-1.5">
-              <RefreshCw className="h-3.5 w-3.5" />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => fetchOperations(true)} 
+              className="gap-1.5"
+              data-tooltip="refresh-button"
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
           </div>
@@ -183,87 +291,131 @@ export default function OperacoesPage() {
 
         {/* Alerts */}
         {opsData?.alerts && opsData.alerts.length > 0 && (
-          <AlertsPanel alerts={opsData.alerts} />
+          <div data-tooltip="alerts-panel">
+            <AlertsPanel alerts={opsData.alerts} />
+          </div>
         )}
 
-        {/* Conversion KPIs */}
-        {kpiData && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                KPIs de Conversao
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ConversionKPIs data={kpiData} />
-            </CardContent>
-          </Card>
-        )}
+        {/* Main Grid: Status + Actions | KPIs */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Status + Next Actions */}
+          <div className="space-y-6">
+            <div data-tooltip="kpis-section">
+              <SystemStatusCard 
+                status={systemStatus}
+                onRefresh={() => fetchOperations(true)}
+                onNavigateToChips={() => window.location.href = '/chips'}
+                onNavigateToGroups={() => window.location.href = '/grupos'}
+                onNavigateToCampaigns={() => window.location.href = '/campanhas'}
+              />
+            </div>
+            <NextActionsPanel systemState={systemState} />
+          </div>
+
+          {/* Middle Column: Quick Actions + Help */}
+          <div className="space-y-6">
+            <QuickActionsPanel />
+            <HelpPanel />
+          </div>
+
+          {/* Right Column: Conversion KPIs */}
+          <div data-tooltip="kpis-section">
+            {kpiData && (
+              <Card className="h-full">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Activity className="h-4 w-4" />
+                    KPIs de Conversao
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ConversionKPIs data={kpiData} />
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
 
         {/* Two columns: Chips + Campaigns | Groups + Messages */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left: Chips + Campaigns */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Smartphone className="h-4 w-4" />
-                  Chips
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ChipHealthGrid 
-                  chips={opsData?.chips || []} 
-                  loading={!opsData}
-                  onRestart={handleRestartChip}
-                />
-              </CardContent>
-            </Card>
+            <div data-tooltip="chips-section">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Smartphone className="h-4 w-4" />
+                    Chips
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChipHealthGrid 
+                    chips={opsData?.chips || []} 
+                    loading={!opsData}
+                    onRestart={handleRestartChip}
+                  />
+                </CardContent>
+              </Card>
+            </div>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Send className="h-4 w-4" />
-                  Campanhas Ativas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CampaignProgressBars campaigns={opsData?.campaigns || []} loading={!opsData} />
-              </CardContent>
-            </Card>
+            <div data-tooltip="campaigns-section">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Send className="h-4 w-4" />
+                    Campanhas Ativas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CampaignProgressBars campaigns={opsData?.campaigns || []} loading={!opsData} />
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {/* Right: Groups + Messages */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Grupos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <GroupCapacityGrid 
-                  groups={groupsData} 
-                  loading={groupsData.length === 0}
-                />
-              </CardContent>
-            </Card>
+            <div data-tooltip="groups-section">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Grupos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <GroupCapacityGrid 
+                    groups={groupsData} 
+                    loading={groupsData.length === 0}
+                  />
+                </CardContent>
+              </Card>
+            </div>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4" />
-                  Mensagens Recentes
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 px-4 pb-4">
-                <MessageFeed messages={messagesData} loading={messagesData.length === 0} />
-              </CardContent>
-            </Card>
+            <div data-tooltip="messages-feed">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4" />
+                    Mensagens Recentes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 px-4 pb-4">
+                  <MessageFeed messages={messagesData} loading={messagesData.length === 0} />
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
+
+        {/* Onboarding Tooltips */}
+        <OnboardingTooltips />
+
+        {/* Keyboard Shortcuts Overlay */}
+        <KeyboardShortcutsOverlay 
+          isOpen={showKeyboardShortcuts}
+          onClose={() => setShowKeyboardShortcuts(false)}
+        />
       </div>
     </SidebarLayout>
   );

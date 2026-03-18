@@ -1,7 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { AlertTriangle, BellOff, Calendar, CheckCircle2, Search, Shield } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
+import { NotificationCenter, type Notification } from './notification-center';
+import { getRecentNotifications, type StoredNotification } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
 
 interface TopbarProps {
@@ -11,6 +14,7 @@ interface TopbarProps {
   alertLabel?: string;
   alertTone?: 'warning' | 'success' | 'neutral';
   sessionLabel?: string;
+  notifications?: Notification[];
 }
 
 const alertToneStyles = {
@@ -35,9 +39,34 @@ export function Topbar({
   alertLabel = 'Sem alertas operacionais',
   alertTone = 'neutral',
   sessionLabel = 'Sessão ativa',
+  notifications: externalNotifications,
 }: TopbarProps) {
   const alertStyle = alertToneStyles[alertTone];
   const AlertIcon = alertStyle.icon;
+
+  // Internal notifications state if not provided externally
+  const [internalNotifications, setInternalNotifications] = useState<Notification[]>([]);
+  
+  // Use external notifications if provided, otherwise use internal state
+  const notifications = externalNotifications ?? internalNotifications;
+
+  // Load notifications on mount
+  useEffect(() => {
+    if (!externalNotifications) {
+      const stored = getRecentNotifications(20);
+      setInternalNotifications(stored.map((n: StoredNotification) => ({
+        id: n.id,
+        type: n.type as Notification['type'],
+        title: n.title,
+        message: n.message,
+        severity: n.severity,
+        chipId: n.chipId,
+        chipName: n.chipName,
+        createdAt: n.createdAt,
+        data: n.data,
+      })));
+    }
+  }, [externalNotifications]);
 
   const openCommandPalette = () => {
     if (typeof window === 'undefined') return;
@@ -49,6 +78,22 @@ export function Topbar({
         bubbles: true,
       }),
     );
+  };
+
+  const handleMarkAsRead = (id: string) => {
+    setInternalNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+  };
+
+  const handleMarkAllAsRead = () => {
+    setInternalNotifications((prev) =>
+      prev.map((n) => ({ ...n, read: true }))
+    );
+  };
+
+  const handleDismiss = (id: string) => {
+    setInternalNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
   return (
@@ -102,7 +147,17 @@ export function Topbar({
         </div>
       </div>
 
-      {/* Section 5 — Theme Toggle */}
+      {/* Section 5 — Notification Center */}
+      <div className="shrink-0">
+        <NotificationCenter
+          notifications={notifications}
+          onMarkAsRead={handleMarkAsRead}
+          onMarkAllAsRead={handleMarkAllAsRead}
+          onDismiss={handleDismiss}
+        />
+      </div>
+
+      {/* Section 6 — Theme Toggle */}
       <div className="shrink-0">
         <ThemeToggle />
       </div>
