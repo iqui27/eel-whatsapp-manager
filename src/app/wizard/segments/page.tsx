@@ -436,14 +436,14 @@ export default function WizardSegmentsPage() {
                 </div>
                 <div className="w-48">
                   <Select
-                    value={item.chipId || ''}
-                    onValueChange={v => updateSegment(index, 'chipId', v || null)}
+                    value={item.chipId || '__none__'}
+                    onValueChange={v => updateSegment(index, 'chipId', v === '__none__' ? null : v)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Atribuir chip" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
+                      <SelectItem value="__none__">Nenhum</SelectItem>
                       {connectedChips.map(chip => (
                         <SelectItem key={chip.id} value={chip.id}>
                           <div className="flex items-center gap-2">
