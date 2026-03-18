@@ -10,6 +10,7 @@ import {
   Pencil,
   Plus,
   Save,
+  Tag,
   Trash2,
   Upload,
   Users,
@@ -109,6 +110,35 @@ const FILTER_LABELS: Record<string, string> = {
 
 function createFilterId() {
   return Math.random().toString(36).slice(2);
+}
+
+/**
+ * Generate a slugified tag from a name
+ */
+function slugifyForTag(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/[^a-z0-9]+/g, '_')     // Replace non-alphanumeric with underscore
+    .replace(/^_+|_+$/g, '')          // Trim underscores
+    .replace(/_+/g, '_')              // Collapse consecutive underscores
+    .substring(0, 50)                 // Limit length
+    || 'segmento';
+}
+
+/**
+ * Validate tag format
+ */
+function validateTag(tag: string): { valid: boolean; error?: string } {
+  if (!tag) return { valid: true };
+  if (tag.length < 2) return { valid: false, error: 'Minimo 2 caracteres' };
+  if (tag.length > 50) return { valid: false, error: 'Maximo 50 caracteres' };
+  const pattern = /^[a-z][a-z0-9_]*$/;
+  if (!pattern.test(tag)) {
+    return { valid: false, error: 'Apenas letras minusculas, numeros e underscore' };
+  }
+  return { valid: true };
 }
 
 function normalizeFilterValue(filter: ActiveFilter) {
@@ -337,6 +367,8 @@ export default function SegmentacaoPage() {
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [logic, setLogic] = useState<FilterOperator>('AND');
   const [segmentName, setSegmentName] = useState('');
+  const [segmentTag, setSegmentTag] = useState('');
+  const [tagError, setTagError] = useState<string | null>(null);
   const [selectedFilterKey, setSelectedFilterKey] = useState('');
   const [segments, setSegments] = useState<SavedSegment[]>([]);
   const [filterOptions, setFilterOptions] = useState<FilterOptionsResponse | null>(null);
@@ -446,9 +478,26 @@ export default function SegmentacaoPage() {
   const resetComposer = () => {
     setSegmentBeingEdited(null);
     setSegmentName('');
+    setSegmentTag('');
+    setTagError(null);
     setActiveFilters([]);
     setLogic('AND');
     setAudienceCount(null);
+  };
+
+  // Auto-generate tag from name
+  const handleNameChange = (name: string) => {
+    setSegmentName(name);
+    // Only auto-generate if not editing or tag is empty
+    if (!segmentBeingEdited && !segmentTag) {
+      setSegmentTag(slugifyForTag(name));
+    }
+  };
+
+  const handleTagChange = (tag: string) => {
+    setSegmentTag(tag);
+    const validation = validateTag(tag);
+    setTagError(validation.valid ? null : validation.error ?? null);
   };
 
   const saveSegment = async () => {
@@ -462,20 +511,23 @@ export default function SegmentacaoPage() {
         body: JSON.stringify({
           id: segmentBeingEdited?.id,
           name: segmentName.trim(),
+          segmentTag: segmentTag.trim() || null,
           filters: previewPayload,
           audienceCount: audienceCount ?? 0,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('save-failed');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'save-failed');
       }
 
       toast.success(segmentBeingEdited ? 'Segmento atualizado com sucesso!' : 'Segmento salvo com sucesso!');
       resetComposer();
       await loadSegments();
-    } catch {
-      toast.error(segmentBeingEdited ? 'Erro ao atualizar segmento' : 'Erro ao salvar segmento');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao salvar segmento';
+      toast.error(segmentBeingEdited ? message : message);
     } finally {
       setIsSaving(false);
     }
@@ -485,6 +537,8 @@ export default function SegmentacaoPage() {
     const parsed = parseStoredFilters(segment.filters);
     setSegmentBeingEdited(segment);
     setSegmentName(segment.name);
+    setSegmentTag(segment.segmentTag || '');
+    setTagError(null);
     setLogic(parsed.operator);
     setActiveFilters(parsed.filters.map((filter) => ({
       id: filter.id || createFilterId(),
@@ -659,24 +713,49 @@ export default function SegmentacaoPage() {
                   {segmentBeingEdited ? 'Atualizar Segmento' : 'Salvar Segmento'}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col gap-2 sm:flex-row">
-                <Input
-                  placeholder="Ex: Zona Sul - Apoiadores ativos"
-                  value={segmentName}
-                  onChange={(event) => setSegmentName(event.target.value)}
-                  className="flex-1"
-                />
-                {segmentBeingEdited && (
-                  <Button variant="outline" onClick={resetComposer}>
-                    Cancelar
+              <CardContent className="space-y-3">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="Ex: Zona Sul - Apoiadores ativos"
+                      value={segmentName}
+                      onChange={(event) => handleNameChange(event.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Tag (ex: zona_sul_ativos)"
+                        value={segmentTag}
+                        onChange={(event) => handleTagChange(event.target.value)}
+                        className={cn('flex-1 font-mono text-sm', tagError && 'border-destructive')}
+                      />
+                    </div>
+                    {tagError && (
+                      <p className="mt-1 text-xs text-destructive">{tagError}</p>
+                    )}
+                    {!tagError && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Identificador unico: minusculas, numeros e underscore
+                      </p>
+                    )}
+                  </div>
+                  {segmentBeingEdited && (
+                    <Button variant="outline" onClick={resetComposer}>
+                      Cancelar
+                    </Button>
+                  )}
+                  <Button
+                    onClick={saveSegment}
+                    disabled={!segmentName.trim() || !hasValidFilters || isSaving || isPreviewLoading || Boolean(tagError)}
+                  >
+                    {isSaving ? 'Salvando...' : segmentBeingEdited ? 'Salvar alteracoes' : 'Salvar'}
                   </Button>
-                )}
-                <Button
-                  onClick={saveSegment}
-                  disabled={!segmentName.trim() || !hasValidFilters || isSaving || isPreviewLoading}
-                >
-                  {isSaving ? 'Salvando...' : segmentBeingEdited ? 'Salvar alteracoes' : 'Salvar'}
-                </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -702,6 +781,7 @@ export default function SegmentacaoPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nome</TableHead>
+                        <TableHead>Tag</TableHead>
                         <TableHead>Resumo</TableHead>
                         <TableHead>Audiencia</TableHead>
                         <TableHead>Criado em</TableHead>
@@ -717,6 +797,15 @@ export default function SegmentacaoPage() {
                         return (
                           <TableRow key={segment.id}>
                             <TableCell className="font-medium text-sm">{segment.name}</TableCell>
+                            <TableCell>
+                              {segment.segmentTag ? (
+                                <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-muted-foreground">
+                                  {segment.segmentTag}
+                                </code>
+                              ) : (
+                                <span className="text-xs text-muted-foreground/50">—</span>
+                              )}
+                            </TableCell>
                             <TableCell className="max-w-[280px] text-xs text-muted-foreground">
                               {summarizeFilters(segment.filters)}
                             </TableCell>
