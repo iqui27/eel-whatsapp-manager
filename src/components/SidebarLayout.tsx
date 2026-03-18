@@ -88,7 +88,7 @@ const legacyNavItems = [
   { id: 'grupos'   as PageId, label: 'Grupos',       href: '/grupos',   icon: UsersRound },
   { id: 'contacts' as PageId, label: 'Contatos',     href: '/contacts', icon: Users },
   { id: 'clusters' as PageId, label: 'Clusters',     href: '/clusters', icon: Layers },
-  { id: 'history'  as PageId, label: 'Historico',    href: '/history',  icon: History },
+  { id: 'history'  as PageId, label: 'Historico',    href: '/historico',  icon: History },
   { id: 'settings' as PageId, label: 'Configuracoes', href: '/settings', icon: Settings },
 ];
 
