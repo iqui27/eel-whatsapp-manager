@@ -2,27 +2,27 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 21
-current_phase_name: campaign-integration
-current_plan: 7
+current_phase: 22
+current_phase_name: ui-polish
+current_plan: 3
 status: complete
-stopped_at: "Phase 21 complete — Campaign-Group Integration & Setup Wizard fully implemented"
-last_updated: "2026-03-18T04:00:00.000Z"
+stopped_at: "Phase 22 complete — UI Polish: navigation fixes, dashboard layout, Operacoes improvements"
+last_updated: "2026-03-18T17:30:00.000Z"
 last_activity: 2026-03-18
 progress:
-  total_phases: 21
-  completed_phases: 21
-  total_plans: 61
-  completed_plans: 61
+  total_phases: 22
+  completed_phases: 22
+  total_plans: 64
+  completed_plans: 64
   percent: 100
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 21
-**Current Phase Name:** campaign-integration
-**Current Plan:** 7
+**Current Phase:** 22
+**Current Phase Name:** ui-polish
+**Current Plan:** 3
 **Total Phases:** 21
 **Total Plans in Phase:** 7
 **Status:** Complete
@@ -179,13 +179,18 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Plan 21-06: Dashboard Enhancement - tooltips, status cards, next actions, quick actions, keyboard shortcuts ✅
 - Plan 21-07: Message History & Analytics - search, export, analytics charts, per-campaign/chip logs ✅
 
+**Phase 22 (UI Polish) — COMPLETE** ✅
+- Plan 22-01: Navigation Fix - dashboard ops tab removal, mobile nav indices, SidebarLayout wrappers, Link conversion ✅
+- Plan 22-02: Dashboard Layout - right column widened to 320px, per-endpoint error toasts ✅
+- Plan 22-03: Operacoes Polish - text truncation fixed, loading vs empty state bug, voter count populated ✅
+
 Progress: [██████████] 100%
 
-Last session: 2026-03-18T04:00:00.000Z
+Last session: 2026-03-18T17:30:00.000Z
 
 ## 🎉 PROJECT COMPLETE
 
-All 21 phases of the EEL Eleicao project have been successfully completed.
+All 22 phases of the EEL Eleicao project have been successfully completed.
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -380,12 +385,15 @@ src/components/
 | Phase 21 P06 | 12 min | 7 tasks | 11 files |
 | Phase 21 P05 | 18 | 8 tasks | 10 files |
 | Phase 21 P07 | 25 | 7 tasks | 15 files |
+| 22-ui-polish P01 | 12 min | 3/3 | 6 files |
+| 22-ui-polish P02 | 5 min | 1/1 | 1 file |
+| 22-ui-polish P03 | 10 min | 2/2 | 3 files |
 
 ## Next Actions
 
 **Project Complete!** 🎉
 
-All phases have been completed. Next steps:
+All phases (22) have been completed. Next steps:
 1. Run migrations on production database
 2. Configure GEMINI_API_KEY environment variable
 3. Set up cron jobs for scheduled tasks
