@@ -17,10 +17,27 @@ import {
   X,
 } from 'lucide-react';
 import SidebarLayout from '@/components/SidebarLayout';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import {
   Table,
@@ -296,18 +313,21 @@ function FilterRow({
         </div>
 
         {def.type === 'select' && def.options && (
-          <select
-            className="w-full max-w-[280px] rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          <Select
             value={typeof filter.value === 'string' ? filter.value : ''}
-            onChange={(event) => onUpdate(filter.id, event.target.value)}
+            onValueChange={(value) => onUpdate(filter.id, value)}
           >
-            <option value="">Selecionar...</option>
-            {def.options.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-full max-w-[280px]">
+              <SelectValue placeholder="Selecionar..." />
+            </SelectTrigger>
+            <SelectContent>
+              {def.options.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
         {def.type === 'number' && (
@@ -376,6 +396,8 @@ export default function SegmentacaoPage() {
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [segmentBeingEdited, setSegmentBeingEdited] = useState<SavedSegment | null>(null);
+  const [segmentToDelete, setSegmentToDelete] = useState<SavedSegment | null>(null);
+  const [isLoadingSegments, setIsLoadingSegments] = useState(true);
 
   const filterDefs = buildFilterDefs(filterOptions);
   const previewPayload = serializeFilters(activeFilters, logic);
@@ -389,6 +411,8 @@ export default function SegmentacaoPage() {
       setSegments(await response.json());
     } catch {
       toast.error('Erro ao carregar segmentos');
+    } finally {
+      setIsLoadingSegments(false);
     }
   }, []);
 
@@ -548,7 +572,7 @@ export default function SegmentacaoPage() {
     setAudienceCount(segment.audienceCount ?? null);
   };
 
-  const deleteSegment = async (segment: SavedSegment) => {
+  const requestDeleteSegment = (segment: SavedSegment) => {
     const blockedCampaign = segment.campaigns?.find((campaign) => (
       campaign.status === 'scheduled' || campaign.status === 'sending'
     ));
@@ -558,9 +582,13 @@ export default function SegmentacaoPage() {
       return;
     }
 
-    if (!window.confirm(`Excluir o segmento "${segment.name}"?`)) {
-      return;
-    }
+    setSegmentToDelete(segment);
+  };
+
+  const confirmDeleteSegment = async () => {
+    if (!segmentToDelete) return;
+    const segment = segmentToDelete;
+    setSegmentToDelete(null);
 
     try {
       const response = await fetch(`/api/segments?id=${segment.id}`, { method: 'DELETE' });
@@ -675,24 +703,27 @@ export default function SegmentacaoPage() {
                 </div>
 
                 <div className="flex gap-2">
-                  <select
-                    className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                    value={selectedFilterKey}
-                    onChange={(event) => setSelectedFilterKey(event.target.value)}
-                  >
-                    <option value="">Selecionar filtro...</option>
-                    {(['geografico', 'comportamental', 'demografico'] as FilterCategory[]).map((category) => (
-                      <optgroup key={category} label={CATEGORY_LABELS[category]}>
-                        {filterDefs
-                          .filter((filterDef) => filterDef.category === category)
-                          .map((filterDef) => (
-                            <option key={filterDef.key} value={filterDef.key}>
-                              {filterDef.label}
-                            </option>
-                          ))}
-                      </optgroup>
-                    ))}
-                  </select>
+                  <Select value={selectedFilterKey} onValueChange={setSelectedFilterKey}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Selecionar filtro..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(['geografico', 'comportamental', 'demografico'] as FilterCategory[]).map((category) => (
+                        <div key={category}>
+                          <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            {CATEGORY_LABELS[category]}
+                          </div>
+                          {filterDefs
+                            .filter((filterDef) => filterDef.category === category)
+                            .map((filterDef) => (
+                              <SelectItem key={filterDef.key} value={filterDef.key}>
+                                {filterDef.label}
+                              </SelectItem>
+                            ))}
+                        </div>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button
                     variant="outline"
                     size="sm"
@@ -768,7 +799,13 @@ export default function SegmentacaoPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {segments.length === 0 ? (
+                {isLoadingSegments ? (
+                  <div className="space-y-2 py-2">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-12 animate-pulse rounded-md bg-muted" />
+                    ))}
+                  </div>
+                ) : segments.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
                     <Users className="h-8 w-8 text-muted-foreground/40" />
                     <p className="text-sm text-muted-foreground">Nenhum segmento salvo ainda.</p>
@@ -806,8 +843,10 @@ export default function SegmentacaoPage() {
                                 <span className="text-xs text-muted-foreground/50">—</span>
                               )}
                             </TableCell>
-                            <TableCell className="max-w-[280px] text-xs text-muted-foreground">
-                              {summarizeFilters(segment.filters)}
+                             <TableCell className="max-w-[280px] text-xs text-muted-foreground">
+                              <span className="line-clamp-1" title={summarizeFilters(segment.filters)}>
+                                {summarizeFilters(segment.filters)}
+                              </span>
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {segment.audienceCount?.toLocaleString('pt-BR') ?? '0'}
@@ -837,7 +876,7 @@ export default function SegmentacaoPage() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-8 px-2 text-xs text-destructive hover:text-destructive"
-                                  onClick={() => deleteSegment(segment)}
+                                   onClick={() => requestDeleteSegment(segment)}
                                   disabled={Boolean(activeCampaign)}
                                 >
                                   <Trash2 className="mr-1.5 h-3.5 w-3.5" />
@@ -958,6 +997,26 @@ export default function SegmentacaoPage() {
           </div>
         </div>
       </div>
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!segmentToDelete} onOpenChange={(open) => !open && setSegmentToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Segmento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acao nao pode ser desfeita. O segmento &ldquo;{segmentToDelete?.name}&rdquo; sera removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteSegment}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarLayout>
   );
 }

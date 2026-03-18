@@ -74,7 +74,7 @@ export default function CampanhasPage() {
       if (campaignsRes.ok) setCampaigns(await campaignsRes.json());
       if (segmentsRes.ok) setSegments(await segmentsRes.json());
     } catch {
-      /* silently fail */
+      toast.error('Erro ao carregar campanhas');
     } finally {
       setIsLoading(false);
     }
@@ -197,11 +197,11 @@ export default function CampanhasPage() {
                         <span className="text-muted-foreground/50">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="max-w-[200px] text-sm text-muted-foreground truncate">
-                      {campaign.template
-                        ? campaign.template.slice(0, 60) + (campaign.template.length > 60 ? '…' : '')
-                        : <span className="text-muted-foreground/40 italic">Sem mensagem</span>}
-                    </TableCell>
+                     <TableCell className="max-w-[200px] text-sm text-muted-foreground">
+                       {campaign.template
+                         ? <span className="line-clamp-1" title={campaign.template}>{campaign.template}</span>
+                         : <span className="text-muted-foreground/40 italic">Sem mensagem</span>}
+                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {campaign.scheduledAt
                         ? new Date(campaign.scheduledAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -211,14 +211,14 @@ export default function CampanhasPage() {
                       <div className="flex items-center justify-end gap-1">
                         {(campaign.status === 'scheduled' || campaign.status === 'sending' || campaign.status === 'sent') && (
                           <Link href={`/campanhas/${campaign.id}/monitor`}>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Monitorar campanha">
                               <BarChart3 className="h-3.5 w-3.5" />
                             </Button>
                           </Link>
                         )}
                         {campaign.status === 'draft' && (
                           <Link href={`/campanhas/${campaign.id}/editar`}>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Editar campanha">
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
                           </Link>
@@ -227,6 +227,7 @@ export default function CampanhasPage() {
                           variant="ghost"
                           size="sm"
                           className="h-7 w-7 p-0"
+                          title="Duplicar campanha"
                           onClick={() => handleDuplicate(campaign)}
                         >
                           <Copy className="h-3.5 w-3.5" />
@@ -235,6 +236,7 @@ export default function CampanhasPage() {
                           variant="ghost"
                           size="sm"
                           className="h-7 w-7 p-0 hover:text-destructive hover:bg-destructive/10"
+                          title="Excluir campanha"
                           onClick={() => setDeleteId(campaign.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
