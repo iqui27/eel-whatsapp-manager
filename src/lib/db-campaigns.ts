@@ -1,12 +1,15 @@
 /**
  * Campaigns data access — Drizzle / Supabase
  * Electoral campaign management with A/B testing and delivery stats.
+ * 
+ * Phase 21-02: Enhanced with segment-based group resolution
  */
 import { db } from '@/db';
 import {
   campaigns,
   campaignDeliveryEvents,
   voters,
+  segments,
   type Campaign, type NewCampaign,
   type CampaignDeliveryEvent,
   type NewCampaignDeliveryEvent,
@@ -21,7 +24,12 @@ import {
 } from './campaign-variables';
 import { applyVariations, type VariationOptions } from './message-variation';
 import { loadConfig } from './db-config';
-import { resolveGroupInviteVariable } from './campaign-groups';
+import { 
+  resolveCampaignVariables, 
+  resolveGroupLinkForSegment,
+  clearCampaignGroupCache,
+  type ResolvedTemplate 
+} from './campaign-groups';
 
 export type { Campaign, NewCampaign, CampaignDeliveryEvent, NewCampaignDeliveryEvent };
 
@@ -142,19 +150,27 @@ export interface HydrationResult {
   enqueued: number;
   skipped: number;
   errors: string[];
+  warnings: string[];
+  groupResolved: boolean;
+  groupId: string | null;
+  chipId: string | null;
 }
 
 /**
  * Hydrate a campaign to the message queue.
  * 
- * 1. Load campaign and its segment
+ * Phase 21-02: Enhanced with segment-based group resolution
+ * 
+ * 1. Load campaign and its segment (including segmentTag)
  * 2. Resolve segment to get all voter IDs
- * 3. Load voter data for each ID
- * 4. For each voter:
+ * 3. Resolve group link for segment (with caching)
+ * 4. Load voter data for each ID
+ * 5. For each voter:
  *    a. Resolve template variables with voter data
  *    b. Apply message variations
  *    c. Create queue entry with resolved message
- * 5. Batch insert into message_queue
+ * 6. Batch insert into message_queue
+ * 7. Track group assignment in delivery events
  */
 export async function hydrateCampaignToQueue(
   campaignId: string,
@@ -170,6 +186,10 @@ export async function hydrateCampaignToQueue(
     enqueued: 0,
     skipped: 0,
     errors: [],
+    warnings: [],
+    groupResolved: false,
+    groupId: null,
+    chipId: null,
   };
 
   // 1. Load campaign
@@ -185,6 +205,15 @@ export async function hydrateCampaignToQueue(
     result.errors.push('Campaign has no segment assigned');
     return result;
   }
+
+  // 2.5. Load segment to get segmentTag
+  const [segment] = await db
+    .select()
+    .from(segments)
+    .where(eq(segments.id, campaign.segmentId))
+    .limit(1);
+  
+  const segmentTag = segment?.segmentTag ?? null;
 
   // 3. Get voter IDs from segment
   const voterIds = await getSegmentVoterIds(campaign.segmentId);
@@ -204,13 +233,60 @@ export async function hydrateCampaignToQueue(
     candidateRegion: config.candidateRegion,
   } : null;
 
-  // 4.5. Resolve group invite link if template contains {link_grupo}
-  let groupInviteLink = '';
-  if (campaign.template.includes('{link_grupo}')) {
-    groupInviteLink = await resolveGroupInviteVariable(campaignId);
-    if (!groupInviteLink) {
-      console.warn('[hydrateCampaignToQueue] Template contains {link_grupo} but no group found for campaign', campaignId);
+  // 4.5. Resolve group invite link for segment (with caching)
+  // This uses the segmentTag to find/create the appropriate group
+  let resolvedGroup: {
+    inviteUrl: string;
+    groupId: string;
+    chipId: string | null;
+  } | null = null;
+  
+  if (campaign.template.includes('{link_grupo}') && segmentTag) {
+    resolvedGroup = await resolveGroupLinkForSegment(segmentTag, campaignId);
+    
+    if (!resolvedGroup) {
+      const warning = `Nenhum grupo encontrado para o segmento ${segmentTag} - verifique se há chips disponíveis`;
+      result.warnings.push(warning);
+      console.warn('[hydrateCampaignToQueue]', warning);
+      
+      // Log warning event
+      await addCampaignDeliveryEvent({
+        campaignId,
+        chipId: null,
+        eventType: 'group_resolution_warning',
+        message: warning,
+        metadata: { segmentTag },
+      });
+    } else {
+      result.groupResolved = true;
+      result.groupId = resolvedGroup.groupId;
+      result.chipId = resolvedGroup.chipId;
+      
+      // Log successful group resolution
+      await addCampaignDeliveryEvent({
+        campaignId,
+        chipId: resolvedGroup.chipId,
+        eventType: 'group_resolved',
+        message: `Grupo resolvido para segmento ${segmentTag}`,
+        metadata: {
+          segmentTag,
+          groupId: resolvedGroup.groupId,
+          inviteUrl: resolvedGroup.inviteUrl,
+        },
+      });
     }
+  } else if (campaign.template.includes('{link_grupo}') && !segmentTag) {
+    const warning = 'Template contém {link_grupo} mas o segmento não possui tag definida';
+    result.warnings.push(warning);
+    console.warn('[hydrateCampaignToQueue]', warning);
+    
+    await addCampaignDeliveryEvent({
+      campaignId,
+      chipId: null,
+      eventType: 'segment_tag_missing',
+      message: warning,
+      metadata: { segmentId: campaign.segmentId },
+    });
   }
 
   // 5. Load voter data in batches
@@ -243,7 +319,7 @@ export async function hydrateCampaignToQueue(
         candidateProfile,
         voter,
         scheduledAt: campaign.scheduledAt,
-        groupInviteLink,
+        groupInviteLink: resolvedGroup?.inviteUrl ?? '',
       });
 
       // Resolve template variables
