@@ -150,10 +150,34 @@ export async function GET() {
     }
 
     // Add notifications from notifications module
-    const notifications = getRecentNotifications(5);
+    const notifications = getRecentNotifications(10);
     for (const notification of notifications) {
       // Skip if already added as failover
       if (notification.type === 'failover') continue;
+      
+      // Handle group notifications
+      if (notification.type === 'group_overflow') {
+        alerts.push({
+          id: notification.id,
+          type: 'group_overflow',
+          message: notification.message,
+          groupName: notification.data?.newGroupName as string,
+          segmentTag: notification.data?.segmentTag as string,
+          createdAt: notification.createdAt,
+        });
+        continue;
+      }
+      
+      if (notification.type === 'group_capacity') {
+        alerts.push({
+          id: notification.id,
+          type: 'group_capacity',
+          message: notification.message,
+          groupName: notification.data?.groupName as string,
+          createdAt: notification.createdAt,
+        });
+        continue;
+      }
       
       alerts.push({
         id: notification.id,

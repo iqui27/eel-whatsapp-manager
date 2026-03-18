@@ -126,6 +126,21 @@ export function clearAllCaches(): void {
 }
 
 /**
+ * Invalidate all cache entries for a specific segment tag.
+ * Call this when a group overflows and a new group is created.
+ */
+export function invalidateGroupCache(segmentTag: string): void {
+  // Find and delete all entries for this segment
+  const suffix = `:${segmentTag}`;
+  
+  for (const [key] of groupLinkCache) {
+    if (key.endsWith(suffix)) {
+      groupLinkCache.delete(key);
+    }
+  }
+}
+
+/**
  * Get cache statistics for monitoring.
  */
 export function getCacheStats(): {

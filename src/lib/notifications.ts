@@ -24,10 +24,12 @@ export interface NoFallbackNotificationData {
 }
 
 // In-memory store for recent notifications (cleared on server restart)
-interface StoredNotification {
+export interface StoredNotification {
   id: string;
-  type: 'failover' | 'no_fallback' | 'chip_failure' | 'chip_recovery';
+  type: 'failover' | 'no_fallback' | 'chip_failure' | 'chip_recovery' | 'group_overflow' | 'group_capacity' | string;
+  title?: string;
   message: string;
+  severity?: 'info' | 'warning' | 'error';
   chipId?: string;
   chipName?: string;
   createdAt: Date;
@@ -46,8 +48,9 @@ export function getRecentNotifications(limit: number = 20): StoredNotification[]
 
 /**
  * Add a notification to the recent list.
+ * Exported for use by other modules.
  */
-function addNotification(notification: StoredNotification): void {
+export function addNotification(notification: StoredNotification): void {
   recentNotifications.unshift(notification);
   if (recentNotifications.length > MAX_NOTIFICATIONS) {
     recentNotifications.pop();
@@ -177,6 +180,62 @@ export async function getFailoverStats(): Promise<{
     recentRecoveries,
     totalMessagesReassigned,
   };
+}
+
+/**
+ * Send a notification when group overflow is created.
+ */
+export async function sendGroupOverflowNotification(data: {
+  originalGroupName: string;
+  newGroupName: string;
+  segmentTag: string;
+}): Promise<void> {
+  const message = `Grupo overflow "${data.newGroupName}" criado para substituir "${data.originalGroupName}"`;
+  
+  console.log(`[Notifications] GROUP_OVERFLOW: ${message}`);
+  
+  addNotification({
+    id: `group-overflow-${Date.now()}`,
+    type: 'group_overflow',
+    title: 'Grupo Overflow Criado',
+    message,
+    severity: 'info',
+    createdAt: new Date(),
+    data: {
+      originalGroupName: data.originalGroupName,
+      newGroupName: data.newGroupName,
+      segmentTag: data.segmentTag,
+    },
+  });
+}
+
+/**
+ * Send a notification when group is near capacity.
+ */
+export async function sendGroupCapacityWarning(data: {
+  groupName: string;
+  currentSize: number;
+  maxSize: number;
+  percent: number;
+}): Promise<void> {
+  const message = `Grupo "${data.groupName}" está a ${data.percent}% da capacidade (${data.currentSize}/${data.maxSize})`;
+  
+  console.log(`[Notifications] GROUP_CAPACITY: ${message}`);
+  
+  addNotification({
+    id: `group-capacity-${Date.now()}-${data.groupName}`,
+    type: 'group_capacity',
+    title: 'Grupo Próximo da Capacidade',
+    message,
+    severity: 'warning',
+    createdAt: new Date(),
+    data: {
+      groupName: data.groupName,
+      currentSize: data.currentSize,
+      maxSize: data.maxSize,
+      percent: data.percent,
+    },
+  });
 }
 
 /**
