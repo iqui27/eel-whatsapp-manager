@@ -334,6 +334,11 @@ export default function DashboardPage() {
 
       if (campRes.status === 401) { router.push('/login'); return; }
 
+      if (!campRes.ok) toast.error('Erro ao carregar campanhas');
+      if (!segRes.ok) toast.error('Erro ao carregar segmentos');
+      if (!voterRes.ok) toast.error('Erro ao carregar eleitores');
+      if (!chipRes.ok) toast.error('Erro ao carregar chips');
+
       const [campData, segData, voterData, chipData] = await Promise.all([
         campRes.ok ? campRes.json() : [],
         segRes.ok ? segRes.json() : [],
@@ -437,7 +442,7 @@ export default function DashboardPage() {
         )}
 
         {/* ── Two-column layout: main + right panel ── */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
 
           {/* ── Left: KPIs + Operations table ── */}
           <div className="space-y-6">
