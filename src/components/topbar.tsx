@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AlertTriangle, BellOff, Calendar, CheckCircle2, Search, Shield } from 'lucide-react';
+import { AlertTriangle, BellOff, CheckCircle2, Search, Shield } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import { NotificationCenter, type Notification } from './notification-center';
+import { TopbarDatePicker } from './topbar-date-picker';
 import { getRecentNotifications, type StoredNotification } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
 
@@ -97,11 +98,7 @@ export function Topbar({
   const effectiveAlertStyle = alertToneStyles[effectiveAlertTone];
   const EffectiveAlertIcon = effectiveAlertStyle.icon;
 
-  // Format current date in Portuguese — computed client-side only to avoid hydration mismatch
-  const [todayLabel, setTodayLabel] = useState('');
-  useEffect(() => {
-    setTodayLabel(new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' }));
-  }, []);
+
 
   const openCommandPalette = () => {
     if (typeof window === 'undefined') return;
@@ -152,13 +149,8 @@ export function Topbar({
         </button>
       </div>
 
-      {/* Section 2 — Current date (informational, hidden on small screens) */}
-      <div className="hidden xl:flex h-[42px] w-auto min-w-fit items-center gap-2 rounded-lg border border-border bg-transparent px-3 text-sm shrink-0">
-        <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-        <span className="text-muted-foreground capitalize whitespace-nowrap">
-          {todayLabel}
-        </span>
-      </div>
+      {/* Section 2 — Date picker */}
+      <TopbarDatePicker />
 
       {/* Section 3 — Operational status (icon always, text only on lg+) */}
       <div
