@@ -46,6 +46,7 @@ export function Topbar({
 
   // Internal notifications state if not provided externally
   const [internalNotifications, setInternalNotifications] = useState<Notification[]>([]);
+  const [alertCount, setAlertCount] = useState(0);
   
   // Use external notifications if provided, otherwise use internal state
   const notifications = externalNotifications ?? internalNotifications;
@@ -67,6 +68,34 @@ export function Topbar({
       })));
     }
   }, [externalNotifications]);
+
+  // Fetch real alert count from operations
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        const res = await fetch('/api/dashboard/operations');
+        if (res.ok) {
+          const data = await res.json();
+          setAlertCount(data.alerts?.length ?? 0);
+        }
+      } catch { /* silent — non-critical */ }
+    };
+    void fetchAlerts();
+    const interval = setInterval(() => void fetchAlerts(), 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Compute effective alert label and tone
+  const effectiveAlertLabel = alertLabel !== 'Sem alertas operacionais'
+    ? alertLabel
+    : alertCount > 0
+      ? `${alertCount} alerta${alertCount > 1 ? 's' : ''} operacional${alertCount > 1 ? 'is' : ''}`
+      : 'Sem alertas operacionais';
+  const effectiveAlertTone = alertTone !== 'neutral'
+    ? alertTone
+    : alertCount > 0 ? 'warning' : 'neutral';
+  const effectiveAlertStyle = alertToneStyles[effectiveAlertTone];
+  const EffectiveAlertIcon = effectiveAlertStyle.icon;
 
   // Format current date in Portuguese
   const todayLabel = new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -132,11 +161,11 @@ export function Topbar({
       <div
         className={cn(
           'flex h-[42px] max-w-[240px] flex-shrink items-center gap-2 rounded-lg border px-3 text-sm font-medium',
-          alertStyle.container,
+          effectiveAlertStyle.container,
         )}
       >
-        <AlertIcon className="h-4 w-4 shrink-0" />
-        <span className="hidden lg:inline truncate">{alertLabel}</span>
+        <EffectiveAlertIcon className="h-4 w-4 shrink-0" />
+        <span className="hidden lg:inline truncate">{effectiveAlertLabel}</span>
       </div>
 
       {/* Section 4 — Session context */}

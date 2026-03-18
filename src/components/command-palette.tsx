@@ -1,19 +1,31 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   Smartphone,
   Users,
-  Layers,
   History,
   Settings,
   Search,
   ArrowRight,
+  UserCheck,
+  Send,
+  Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// ─── Entity search types ──────────────────────────────────────────────────────
+
+interface EntityResult {
+  id: string;
+  label: string;
+  sublabel?: string;
+  href: string;
+  type: 'voter' | 'campaign' | 'segment';
+}
 
 interface CommandItem {
   id: string;
@@ -54,7 +66,7 @@ const commands: CommandItem[] = [
     id: 'clusters',
     label: 'Clusters',
     description: 'Grupos de mensagens',
-    icon: Layers,
+    icon: Target,
     href: '/clusters',
     keywords: ['clusters', 'grupos', 'mensagens'],
   },
@@ -69,10 +81,42 @@ const commands: CommandItem[] = [
   {
     id: 'settings',
     label: 'Configurações',
-    description: 'Evolution API, aquecimento',
+    description: 'Evolution API, Gemini AI, aquecimento',
     icon: Settings,
-    href: '/settings',
+    href: '/configuracoes',
     keywords: ['configurações', 'settings', 'api', 'aquecimento', 'senha'],
+  },
+  {
+    id: 'crm',
+    label: 'CRM Eleitoral',
+    description: 'Gerenciar perfis de eleitores',
+    icon: Users,
+    href: '/crm',
+    keywords: ['crm', 'eleitores', 'contatos', 'leads'],
+  },
+  {
+    id: 'campanhas',
+    label: 'Campanhas',
+    description: 'Criar e gerenciar campanhas',
+    icon: Send,
+    href: '/campanhas',
+    keywords: ['campanhas', 'envio', 'mensagens', 'disparo'],
+  },
+  {
+    id: 'conversas',
+    label: 'Conversas',
+    description: 'Atendimento humano HITL',
+    icon: UserCheck,
+    href: '/conversas',
+    keywords: ['conversas', 'chat', 'atendimento', 'hitl'],
+  },
+  {
+    id: 'perfil',
+    label: 'Meu Perfil',
+    description: 'Editar nome, senha e permissões',
+    icon: UserCheck,
+    href: '/perfil',
+    keywords: ['perfil', 'senha', 'permissões', 'conta'],
   },
 ];
 
@@ -80,6 +124,9 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
+  const [entityResults, setEntityResults] = useState<EntityResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimerRef = useRef<number | null>(null);
   const router = useRouter();
 
   // ⌘K / Ctrl+K to open
@@ -96,6 +143,31 @@ export function CommandPalette() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Entity search (debounced, 3+ chars)
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 3) { setEntityResults([]); return; }
+    if (searchTimerRef.current) window.clearTimeout(searchTimerRef.current);
+    setIsSearching(true);
+    searchTimerRef.current = window.setTimeout(async () => {
+      try {
+        const [votersRes] = await Promise.all([
+          fetch(`/api/voters?search=${encodeURIComponent(q)}&limit=5`),
+        ]);
+        const results: EntityResult[] = [];
+        if (votersRes.ok) {
+          const data = await votersRes.json();
+          const voters = Array.isArray(data) ? data : (data.data ?? []);
+          for (const v of voters) {
+            results.push({ id: v.id, label: v.name, sublabel: v.phone, href: `/crm/${v.id}`, type: 'voter' });
+          }
+        }
+        setEntityResults(results);
+      } catch { setEntityResults([]); }
+      finally { setIsSearching(false); }
+    }, 300);
+  }, [query]);
 
   const filtered = query.trim()
     ? commands.filter((c) =>
@@ -179,24 +251,23 @@ export function CommandPalette() {
               </div>
 
               {/* Results */}
-              <ul className="max-h-64 overflow-y-auto p-1.5">
-                {filtered.length === 0 ? (
-                  <li className="px-4 py-6 text-center text-sm text-muted-foreground">
-                    Nenhum resultado para &quot;{query}&quot;
-                  </li>
-                ) : (
-                  filtered.map((item, i) => {
-                    const Icon = item.icon;
-                    return (
-                      <li key={item.id}>
+              <div className="max-h-72 overflow-y-auto p-1.5 space-y-0.5">
+                {/* Page navigation results */}
+                {filtered.length > 0 && (
+                  <>
+                    {query.trim().length >= 3 && entityResults.length > 0 && (
+                      <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Páginas</p>
+                    )}
+                    {filtered.map((item, i) => {
+                      const Icon = item.icon;
+                      return (
                         <button
+                          key={item.id}
                           onClick={() => execute(item)}
                           onMouseEnter={() => setSelected(i)}
                           className={cn(
                             'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors',
-                            i === selected
-                              ? 'bg-accent text-accent-foreground'
-                              : 'text-foreground hover:bg-accent/50',
+                            i === selected ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent/50',
                           )}
                         >
                           <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background shrink-0">
@@ -205,20 +276,63 @@ export function CommandPalette() {
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium">{item.label}</div>
                             {item.description && (
-                              <div className="text-xs text-muted-foreground truncate">
-                                {item.description}
-                              </div>
+                              <div className="text-xs text-muted-foreground truncate">{item.description}</div>
                             )}
                           </div>
-                          {i === selected && (
-                            <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          )}
+                          {i === selected && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                         </button>
-                      </li>
-                    );
-                  })
+                      );
+                    })}
+                  </>
                 )}
-              </ul>
+
+                {/* Entity search results */}
+                {query.trim().length >= 3 && (
+                  <>
+                    {entityResults.length > 0 && (
+                      <>
+                        <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Eleitores</p>
+                        {entityResults.map(entity => (
+                          <button
+                            key={entity.id}
+                            onClick={() => { setOpen(false); router.push(entity.href); }}
+                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors text-foreground hover:bg-accent/50"
+                          >
+                            <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background shrink-0">
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{entity.label}</div>
+                              {entity.sublabel && <div className="text-xs text-muted-foreground">{entity.sublabel}</div>}
+                            </div>
+                            <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          </button>
+                        ))}
+                      </>
+                    )}
+                    {isSearching && (
+                      <p className="px-4 py-2 text-xs text-muted-foreground">Buscando eleitores...</p>
+                    )}
+                    {!isSearching && filtered.length === 0 && entityResults.length === 0 && (
+                      <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                        Nenhum resultado para &quot;{query}&quot;
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {/* Empty state for short queries */}
+                {query.trim().length > 0 && query.trim().length < 3 && filtered.length === 0 && (
+                  <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                    Nenhum resultado para &quot;{query}&quot;
+                  </p>
+                )}
+                {query.trim().length === 0 && filtered.length === 0 && (
+                  <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                    Nenhum resultado
+                  </p>
+                )}
+              </div>
 
               {/* Footer hint */}
               <div className="flex items-center gap-3 border-t border-border px-4 py-2">
