@@ -152,27 +152,12 @@ export function Topbar({
         </button>
       </div>
 
-      {/* Section 2 — Date picker (hidden on small/medium screens) */}
-      <div className="hidden xl:flex h-[42px] w-auto min-w-fit items-center gap-2 rounded-lg border border-border bg-transparent px-3 text-sm text-foreground shrink-0 group">
+      {/* Section 2 — Current date (informational, hidden on small screens) */}
+      <div className="hidden xl:flex h-[42px] w-auto min-w-fit items-center gap-2 rounded-lg border border-border bg-transparent px-3 text-sm shrink-0">
         <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-        <label className="relative cursor-pointer hidden lg:inline">
-          <span className="text-muted-foreground capitalize select-none pointer-events-none">
-            {todayLabel || '—'}
-          </span>
-          <input
-            type="date"
-            className="absolute inset-0 opacity-0 w-full cursor-pointer"
-            defaultValue={new Date().toISOString().slice(0, 10)}
-            onChange={(e) => {
-              if (!e.target.value) return;
-              const d = new Date(e.target.value + 'T12:00:00');
-              setTodayLabel(d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' }));
-              // Emit custom event so pages can react to date changes
-              window.dispatchEvent(new CustomEvent('topbar:datechange', { detail: { date: e.target.value } }));
-            }}
-            title="Filtrar por data"
-          />
-        </label>
+        <span className="text-muted-foreground capitalize whitespace-nowrap">
+          {todayLabel}
+        </span>
       </div>
 
       {/* Section 3 — Operational status (icon always, text only on lg+) */}
