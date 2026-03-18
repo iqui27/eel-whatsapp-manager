@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: "Milestone 3 — Professional UI/UX Overhaul"
-current_phase: 26
-current_phase_name: campanhas-segmentacao
-current_plan: 0
-status: in_progress
-stopped_at: "Phase 25 complete — conversas silent catch fixed, SSE hardened, AI voter panel, search, mobile Sheet"
-last_updated: "2026-03-19T02:00:00.000Z"
+current_phase: 30
+current_phase_name: header-cleanup
+current_plan: 2
+status: complete
+stopped_at: "Milestone 3 complete — all 30 phases executed, Phases 26-30 UI/UX overhaul finished"
+last_updated: "2026-03-19T06:00:00.000Z"
 last_activity: 2026-03-18
 progress:
   total_phases: 30
-  completed_phases: 25
+  completed_phases: 30
   total_plans: 86
-  completed_plans: 76
-  percent: 88
+  completed_plans: 86
+  percent: 100
 ---
 
 # EEL Eleicao — Project State
@@ -213,6 +213,28 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Plan 25-01: Silent catch → toast+retry, SSE status dots, MAX_RECONNECT 5→8, heartbeat 45s, online/offline listeners, forceReconnect ✅
 - Plan 25-02: AI tier/sentiment badges, analysis summary, recommended action, inline tag editing in voter panel ✅
 - Plan 25-03: Client-side search in queue, mobile voter context Sheet via User button, shadcn Sheet installed ✅
+
+**Phase 26 (Campanhas & Segmentação UX) — COMPLETE** ✅
+- Plan 26-01: Campanhas — pagination 20/pg, name search, status filter, date sort, onboarding guide, empty states ✅
+- Plan 26-02: Segmentação — Novo Segmento button, Geográfico/Demográfico/Seção accents, usage stats table, onboarding ✅
+
+**Phase 27 (CRM Overhaul) — COMPLETE** ✅
+- Plan 27-01: AI tier dot + sentiment column, inline row editor (name/phone/zone/section/opt-in/notes) ✅
+- Plan 27-02: Filter bar (tier/opt-in/zone), checkbox multi-select, bulk delete+export, CSV with 16 fields + BOM ✅
+
+**Phase 28 (Relatórios Pro) — COMPLETE** ✅
+- Plan 28-01: recharts installed, DailyBarChart (tooltips+axes), TrendLineChart (sent/delivered/read) ✅
+- Plan 28-02: ConversionFunnel (4-step with drop-off%), responsive 2-col chart grid, KPI grid 2-col mobile ✅
+
+**Phase 29 (Configurações & Perfil) — COMPLETE** ✅
+- Plan 29-01: /configuracoes page (6 sections: Candidato/Evolution/Gemini/Notif/Campanhas/Aquecimento), sidebar updated ✅
+- Plan 29-02: /perfil page (avatar, role badge, name edit, password change, permissions checklist), sidebar 'Meu Perfil' ✅
+
+**Phase 30 (Header Cleanup & Final Polish) — COMPLETE** ✅
+- Plan 30-01: Command palette entity search (voters), new nav commands, topbar real alert count from API ✅
+- Plan 30-02: Deprecated redirects (/history→/historico, /contacts→/crm, /clusters→/), all sidebar accent fixes ✅
+
+## 🎉 MILESTONE 3 COMPLETE — ALL 30 PHASES EXECUTED
 
 Progress: [████████░░] 83% (Milestone 3 in progress)
 
@@ -426,6 +448,14 @@ src/components/
 | 25-conversas-overhaul P01 | 18 min | 2/2 | 2 files |
 | 25-conversas-overhaul P02 | 15 min | 1/1 | 1 file |
 | 25-conversas-overhaul P03 | 20 min | 2/2 | 2 files |
+| 26-campanhas-segmentacao P01 | 18 min | 1/1 | 1 file |
+| 26-campanhas-segmentacao P02 | 20 min | 2/2 | 1 file |
+| 27-crm-overhaul P01+P02 | 35 min | 3/3 | 1 file |
+| 28-relatorios-pro P01+P02 | 20 min | 3/3 | 2 files |
+| 29-config-perfil P01 | 15 min | 2/2 | 2 files |
+| 29-config-perfil P02 | 15 min | 2/2 | 2 files |
+| 30-header-cleanup P01 | 20 min | 1/1 | 2 files |
+| 30-header-cleanup P02 | 10 min | 2/2 | 7 files |
 
 ## Next Actions
 
