@@ -299,6 +299,9 @@ Plans:
 | 17 | Delivery Tracking & Conversion Funnel | P0 | 15, 16 | 2 plans |
 | 18 | AI Lead Analysis (Gemini) | P1 | 17 | 2 plans |
 | 19 | Operations Dashboard Rebuild | P0 | 14, 15, 16, 17 | 3 plans |
+| 20 | Critical Fixes | P0 | 19 | 1 plan |
+| 21 | Campaign-Group Integration | P0 | 16, 19 | 7 plans |
+| 22 | Full UI/UX Polishing | P0 | 21 | 3 plans (Wave 1) |
 
 ---
 
@@ -421,6 +424,79 @@ Plans:
 - [x] 19-01-PLAN.md — Chip health grid + active campaign progress bars + alerts panel
 - [x] 19-02-PLAN.md — Group capacity grid + conversion KPIs + message feed
 - [x] 19-03-PLAN.md — Fix broken dashboard features + final integration polish
+
+---
+
+### Phase 20: Critical Fixes
+**Status:** COMPLETE
+**Goal:** Fix broken visualizations, connection status, message feed, and group capacity displays across the operations dashboard and related components.
+
+**Requirements:** [FIX-01, FIX-02, FIX-03, FIX-04]
+
+- FIX-01: Fix Evolution API connection visualization with 5min stale threshold
+- FIX-02: Message feed includes inbound messages with real-time 10s auto-refresh
+- FIX-03: GroupCapacityGrid with real data and segment-to-group mapping
+- FIX-04: Auto-admin promotion on group creation
+
+**Plans:** 1 plan (1/1 complete)
+Plans:
+- [x] 20-01-PLAN.md — Fix all broken dashboard features
+
+---
+
+### Phase 21: Campaign-Group Integration
+**Status:** COMPLETE
+**Goal:** Full campaign-group integration with segment-based group management, setup wizard, dashboard enhancements, and message history analytics.
+
+**Requirements:** [INT-01, INT-02, INT-03, INT-04, INT-05, INT-06, INT-07]
+
+- INT-01: Schema enhancement with segmentTag field and segment-chip-group mapping
+- INT-02: Campaign queue integration with {link_grupo} resolution and group auto-creation
+- INT-03: Automatic group overflow detection and creation
+- INT-04: Chip failover enhancement with fallback chain
+- INT-05: 5-step setup wizard with QR code scan and progress persistence
+- INT-06: Dashboard enhancement with tooltips, status cards, quick actions, keyboard shortcuts
+- INT-07: Message history with search, export, analytics charts
+
+**Plans:** 7 plans (7/7 complete)
+Plans:
+- [x] 21-01-PLAN.md — Schema enhancement
+- [x] 21-02-PLAN.md — Campaign queue integration
+- [x] 21-03-PLAN.md — Automatic group overflow
+- [x] 21-04-PLAN.md — Chip failover enhancement
+- [x] 21-05-PLAN.md — Setup wizard implementation
+- [x] 21-06-PLAN.md — Dashboard enhancement
+- [x] 21-07-PLAN.md — Message history & analytics
+
+---
+
+### Phase 22: Full UI/UX Polishing
+**Status:** In Progress
+**Goal:** Production-ready UI cleanup across every page — fix broken navigation, text truncation, loading state bugs, orphaned pages without app shell, mobile nav errors, and overall visual professionalism. Wave 1 covers navigation fixes, dashboard polish, and Operacoes professionalization.
+
+**Requirements:** [NAV-01, NAV-02, NAV-03, NAV-04, NAV-05, DASH-01, DASH-02, DASH-03, OPS-01, OPS-02, OPS-03, OPS-04, OPS-05]
+
+- NAV-01: Dashboard compiles without references to removed operations tab
+- NAV-02: Every page renders inside SidebarLayout with correct sidebar/topbar/bottom-nav
+- NAV-03: Mobile bottom nav shows correct 5 items (Dashboard, Campanhas, Conversas, CRM, Relatorios)
+- NAV-04: Sidebar does not show deprecated Contatos or Clusters items
+- NAV-05: All internal links use Next.js Link component, not `<a href>`
+- DASH-01: Dashboard right column wide enough for ChatQueuePanel (320px)
+- DASH-02: Granular per-endpoint error toasts for API failures
+- DASH-03: No NaN in KPI cards (division by zero guard)
+- OPS-01: ChipHealthGrid uses colored dots and table layout (no emojis)
+- OPS-02: Campaign names are not truncated in progress bars
+- OPS-03: Group names are not truncated in capacity grid
+- OPS-04: Loading vs empty state correctly differentiated (no perpetual spinners)
+- OPS-05: Real voter count in NextActionsPanel
+
+**Depends on:** Phase 21
+**Plans:** 3 plans (Wave 1 planned, Waves 2-3 TBD)
+
+Plans:
+- [ ] 22-01-PLAN.md — Fix broken navigation (dashboard ops tab removal, mobile nav, orphaned pages)
+- [ ] 22-02-PLAN.md — Dashboard polish (wider right column, granular error toasts)
+- [ ] 22-03-PLAN.md — Professionalize Operacoes (text truncation, loading states, voter count)
 
 ---
 
