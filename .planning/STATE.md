@@ -1,35 +1,47 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_phase: 22
-current_phase_name: ui-polish
-current_plan: 3
-status: complete
-stopped_at: "Phase 22 complete — UI Polish: all 8 plans executed across Waves 1-3"
-last_updated: "2026-03-18T20:00:00.000Z"
+milestone: v3.0
+milestone_name: "Milestone 3 — Professional UI/UX Overhaul"
+current_phase: 23
+current_phase_name: critical-layout
+current_plan: 0
+status: planning
+stopped_at: "Milestone 3 planning complete — 17 plans across 8 phases (23-30) created"
+last_updated: "2026-03-18T22:00:00.000Z"
 last_activity: 2026-03-18
 progress:
-  total_phases: 22
+  total_phases: 30
   completed_phases: 22
-  total_plans: 69
+  total_plans: 86
   completed_plans: 69
-  percent: 100
+  percent: 80
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 22
-**Current Phase Name:** ui-polish
-**Current Plan:** 3
-**Total Phases:** 21
-**Total Plans in Phase:** 7
-**Status:** Complete
-**Progress:** [██████████] 100%
+**Current Phase:** 23
+**Current Phase Name:** critical-layout
+**Current Plan:** 0 (planning complete, ready to execute)
+**Total Phases:** 30
+**Total Plans in Phase:** 2
+**Status:** Planning Complete — Ready to Execute
+**Progress:** [████████░░] 80% (Milestones 1-2 complete, Milestone 3 planned)
 **Last Activity:** 2026-03-18
-**Last Activity Description:** Phase 21 complete — Campaign-Group Integration, Setup Wizard, Dashboard Enhancement, Message History
-**Stopped At:** Phase 21 complete — all 7 plans executed across 4 waves
+**Last Activity Description:** Milestone 3 planning complete — 17 PLAN.md files created across 8 phases (23-30)
+**Stopped At:** Milestone 3 planning complete — 17 plans across 8 phases created
+
+## Milestone 3 — Professional UI/UX Overhaul (Phases 23-30)
+
+**Wave 1:** Phase 23 — Critical Layout & Navigation Foundation (2 plans)
+**Wave 2:** Phases 24-29 — Individual page overhauls (13 plans, parallelizable)
+- Phase 24: Operations Unification (2 plans)
+- Phase 25: Conversas System Overhaul (3 plans)
+- Phase 26: Campanhas & Segmentacao UX (2 plans)
+- Phase 27: CRM Overhaul (2 plans)
+- Phase 28: Relatorios Professionalization (2 plans)
+- Phase 29: Configuracoes & Perfil (2 plans)
+**Wave 3:** Phase 30 — Header, Cleanup & Final Polish (2 plans)
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -401,11 +413,11 @@ src/components/
 
 ## Next Actions
 
-**Project Complete!** 🎉
+**Milestone 3 Planning Complete — Ready to Execute**
 
-All phases (22) have been completed. Next steps:
-1. Run migrations on production database
-2. Configure GEMINI_API_KEY environment variable
-3. Set up cron jobs for scheduled tasks
+Next steps:
+1. Execute Phase 23 (Wave 1): `/gsd-execute-phase 23-critical-layout`
+2. Execute Phases 24-29 (Wave 2): Parallelizable — each touches different page files
+3. Execute Phase 30 (Wave 3): Final cleanup after all pages are polished
 4. Deploy to production
 5. User acceptance testing
