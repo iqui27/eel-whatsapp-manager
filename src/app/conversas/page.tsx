@@ -18,6 +18,21 @@ import {
   useConversationStream,
 } from '@/lib/use-conversation-stream';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   MessageSquare,
   Send,
   User,
@@ -25,6 +40,7 @@ import {
   Zap,
   Plus,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -161,10 +177,12 @@ function ChatBubble({ msg }: { msg: ConversationMessage }) {
 // ─── New Conversation Dialog ──────────────────────────────────────────────────
 
 function NewConvDialog({
+  open,
   initialVoter,
   onClose,
   onCreated,
 }: {
+  open: boolean;
   initialVoter?: VoterContext | null;
   onClose: () => void;
   onCreated: (conv: Conversation) => Promise<void> | void;
@@ -301,14 +319,12 @@ function NewConvDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground">Nova conversa</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Nova Conversa</DialogTitle>
+          <DialogDescription>Selecione um eleitor e chip para iniciar uma nova conversa</DialogDescription>
+        </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-2">
             <Input
@@ -355,23 +371,22 @@ function NewConvDialog({
           <Input placeholder="Nome do eleitor" value={name} readOnly />
           <Input placeholder="Telefone" value={formatPhoneDisplay(phone)} readOnly />
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="chip-selector">
+            <label className="text-xs font-medium text-muted-foreground">
               Chip de saída
             </label>
-            <select
-              id="chip-selector"
-              value={selectedChipId}
-              onChange={(e) => setSelectedChipId(e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              disabled={chipsLoading}
-            >
-              <option value="auto">Auto (primeiro disponível)</option>
-              {chips.map((chip) => (
-                <option key={chip.id} value={chip.id}>
-                  {chip.name} · {formatPhoneDisplay(chip.phone)}
-                </option>
-              ))}
-            </select>
+            <Select value={selectedChipId} onValueChange={setSelectedChipId} disabled={chipsLoading}>
+              <SelectTrigger>
+                <SelectValue placeholder="Auto (primeiro disponível)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto (primeiro disponível)</SelectItem>
+                {chips.map((chip) => (
+                  <SelectItem key={chip.id} value={chip.id}>
+                    {chip.name} · {formatPhoneDisplay(chip.phone)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="text-[11px] text-muted-foreground">
               {selectedChipId === 'auto'
                 ? 'O envio usará o primeiro chip conectado disponível.'
@@ -379,14 +394,14 @@ function NewConvDialog({
             </p>
           </div>
         </div>
-        <div className="flex justify-end gap-2">
+        <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={handleCreate} disabled={saving || !voterId || !name.trim() || !phone.trim()}>
             {saving ? 'Criando...' : 'Criar'}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -408,6 +423,7 @@ export default function ConversasPage() {
   const [filteredVoter, setFilteredVoter] = useState<VoterContext | null>(null);
   const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
   const [loadedMessagesForId, setLoadedMessagesForId] = useState<string | null>(null);
+  const [mobileShowChat, setMobileShowChat] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -636,7 +652,7 @@ export default function ConversasPage() {
       <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
 
         {/* ══ LEFT: Queue ══ */}
-        <div className="flex w-[300px] shrink-0 flex-col border-r border-border">
+        <div className={cn('flex w-full lg:w-[300px] shrink-0 flex-col border-r border-border', mobileShowChat && 'hidden lg:flex')}>
           {/* Queue header */}
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-3">
             <h2 className="text-sm font-semibold text-foreground">Conversas</h2>
@@ -730,6 +746,7 @@ export default function ConversasPage() {
                     onClick={() => {
                       setSelectedId(conv.id);
                       setMessages([]);
+                      setMobileShowChat(true);
                     }}
                   />
                 ))}
@@ -739,7 +756,7 @@ export default function ConversasPage() {
         </div>
 
         {/* ══ CENTER: Chat ══ */}
-        <div className="flex flex-1 flex-col min-w-0">
+        <div className={cn('flex flex-1 flex-col min-w-0', !mobileShowChat && 'hidden lg:flex')}>
           {!selectedConv ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center p-8">
               <MessageSquare className="h-10 w-10 text-muted-foreground/20" />
@@ -749,6 +766,13 @@ export default function ConversasPage() {
             <>
               {/* Chat header */}
               <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setMobileShowChat(false)}
+                  className="lg:hidden flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
                 <div className={cn('h-2.5 w-2.5 rounded-full shrink-0', STATUS_DOT[selectedConv.status ?? 'bot'])} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">{selectedConv.voterName}</p>
@@ -824,7 +848,7 @@ export default function ConversasPage() {
         </div>
 
         {/* ══ RIGHT: Voter context + handoff ══ */}
-        <div className="flex w-[280px] shrink-0 flex-col border-l border-border">
+        <div className="hidden lg:flex w-[320px] shrink-0 flex-col border-l border-border">
           {!selectedConv ? (
             <div className="flex flex-1 items-center justify-center p-4 text-center">
               <p className="text-xs text-muted-foreground">Selecione uma conversa para ver o contexto</p>
@@ -856,15 +880,19 @@ export default function ConversasPage() {
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Controles</p>
                   <div className="space-y-2">
-                    <select
-                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    <Select
                       value={selectedConv.status ?? 'bot'}
-                      onChange={e => updateStatus(e.target.value as ConvStatus)}
+                      onValueChange={(v) => updateStatus(v as ConvStatus)}
                     >
-                      {STATUS_OPTS.map(s => (
-                        <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPTS.map(s => (
+                          <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <input
                       type="text"
                       placeholder="Motivo do handoff (opcional)"
@@ -921,7 +949,7 @@ export default function ConversasPage() {
                           );
                         }}
                       >
-                        {p === 0 ? 'Norm' : p === 1 ? 'Alta' : p === 2 ? 'Urg' : '🔥'}
+                        {p === 0 ? 'Baixa' : p === 1 ? 'Media' : p === 2 ? 'Alta' : 'Crit'}
                       </button>
                     ))}
                   </div>
@@ -933,17 +961,16 @@ export default function ConversasPage() {
       </div>
 
       {/* New conversation dialog */}
-      {showNewDialog && (
-        <NewConvDialog
-          initialVoter={filteredVoter}
-          onClose={() => setShowNewDialog(false)}
-          onCreated={async (conv) => {
-            await loadConversations();
-            setMessages([]);
-            setSelectedId(conv.id);
-          }}
-        />
-      )}
+      <NewConvDialog
+        open={showNewDialog}
+        initialVoter={filteredVoter}
+        onClose={() => setShowNewDialog(false)}
+        onCreated={async (conv) => {
+          await loadConversations();
+          setMessages([]);
+          setSelectedId(conv.id);
+        }}
+      />
     </SidebarLayout>
   );
 }
