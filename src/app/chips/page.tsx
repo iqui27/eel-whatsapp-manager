@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Flame, Trash2, Smartphone, Loader2, X, RefreshCw,
-  RotateCcw, AlertTriangle, Wifi, WifiOff, Clock, ChevronDown,
+  RotateCcw, AlertTriangle, Wifi, WifiOff, Clock, ChevronDown, Layers,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,6 +19,12 @@ import { cn } from '@/lib/utils';
 type ChipHealthStatus =
   | 'healthy' | 'degraded' | 'cooldown' | 'quarantined'
   | 'banned' | 'warming_up' | 'disconnected' | 'not_found';
+
+interface SegmentOption {
+  id: string;
+  name: string;
+  segmentTag: string | null;
+}
 
 interface Chip {
   id: string;
@@ -42,6 +48,8 @@ interface Chip {
   bannedAt: string | null;
   errorCount: number;
   blockRate: number | null;
+  // Segment assignment (Phase 21)
+  assignedSegments: string[] | null;
 }
 
 // ─── Health status config ─────────────────────────────────────────────────────
@@ -192,6 +200,7 @@ const FILTER_BTNS: { label: string; value: HealthFilter }[] = [
 export default function ChipsPage() {
   const router = useRouter();
   const [chips, setChips] = useState<Chip[]>([]);
+  const [segments, setSegments] = useState<SegmentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [restartingId, setRestartingId] = useState<string | null>(null);
@@ -204,9 +213,26 @@ export default function ChipsPage() {
   const [form, setForm] = useState({
     name: '', phone: '', instanceName: '', groupId: '',
     dailyLimit: '200', hourlyLimit: '25',
+    assignedSegments: [] as string[],
   });
 
   // ─── Data loading ──────────────────────────────────────────────────────────
+
+  const fetchSegments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/segments');
+      if (res.ok) {
+        const data = await res.json();
+        setSegments(data.map((s: SegmentOption) => ({
+          id: s.id,
+          name: s.name,
+          segmentTag: s.segmentTag,
+        })));
+      }
+    } catch {
+      // Silent fail - segments are optional
+    }
+  }, []);
 
   const fetchChips = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -224,9 +250,10 @@ export default function ChipsPage() {
   // Auto-refresh every 15 seconds
   useEffect(() => {
     fetchChips();
+    fetchSegments();
     const interval = setInterval(() => fetchChips(true), 15000);
     return () => clearInterval(interval);
-  }, [fetchChips]);
+  }, [fetchChips, fetchSegments]);
 
   // ─── Actions ───────────────────────────────────────────────────────────────
 
@@ -241,11 +268,12 @@ export default function ChipsPage() {
           ...form,
           dailyLimit: parseInt(form.dailyLimit) || 200,
           hourlyLimit: parseInt(form.hourlyLimit) || 25,
+          assignedSegments: form.assignedSegments.length > 0 ? form.assignedSegments : null,
         }),
       });
       if (res.ok) {
         toast.success('Chip adicionado');
-        setForm({ name: '', phone: '', instanceName: '', groupId: '', dailyLimit: '200', hourlyLimit: '25' });
+        setForm({ name: '', phone: '', instanceName: '', groupId: '', dailyLimit: '200', hourlyLimit: '25', assignedSegments: [] });
         setShowForm(false);
         fetchChips(true);
       } else {
@@ -473,13 +501,59 @@ export default function ChipsPage() {
                         type={type}
                         placeholder={String(ph)}
                         required={req}
-                        value={form[key as keyof typeof form]}
+                        value={form[key as keyof typeof form] as string}
                         onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                         className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </div>
                   ))}
                 </div>
+                
+                {/* Segment selection */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Layers className="h-3 w-3" />
+                    Segmentos atribuídos
+                  </label>
+                  <div className="flex flex-wrap gap-2 p-3 rounded-md border border-input bg-background min-h-[60px]">
+                    {segments.length === 0 ? (
+                      <span className="text-xs text-muted-foreground">Nenhum segmento disponível</span>
+                    ) : (
+                      segments.map((segment) => {
+                        const isSelected = form.assignedSegments.includes(segment.id);
+                        return (
+                          <button
+                            key={segment.id}
+                            type="button"
+                            onClick={() => {
+                              setForm((f) => ({
+                                ...f,
+                                assignedSegments: isSelected
+                                  ? f.assignedSegments.filter((id) => id !== segment.id)
+                                  : [...f.assignedSegments, segment.id],
+                              }));
+                            }}
+                            className={cn(
+                              'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                              isSelected
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border bg-background text-muted-foreground hover:border-primary/50',
+                            )}
+                          >
+                            {segment.name}
+                            {segment.segmentTag && (
+                              <code className="ml-1 opacity-60">({segment.segmentTag})</code>
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Selecione os segmentos que este chip irá atender
+                  </p>
+                </div>
+                
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
@@ -667,6 +741,21 @@ export default function ChipsPage() {
                     <p className="text-xs text-muted-foreground font-mono truncate">
                       {chip.instanceName}
                     </p>
+                  )}
+
+                  {/* Assigned segments */}
+                  {chip.assignedSegments && chip.assignedSegments.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Layers className="h-3 w-3 text-muted-foreground shrink-0" />
+                      {chip.assignedSegments.map((tag) => (
+                        <code
+                          key={tag}
+                          className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground"
+                        >
+                          {tag}
+                        </code>
+                      ))}
+                    </div>
                   )}
 
                   {/* Status explanation for non-healthy chips */}
