@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 21
 **Current Phase Name:** campaign-integration
-**Current Plan:** 4
+**Current Plan:** 5
 **Total Phases:** 21
 **Total Plans in Phase:** 7
 **Status:** Ready to execute
 **Progress:** [██████████] 104%
 **Last Activity:** 2026-03-18
 **Last Activity Description:** Phase 21 planned — Campaign-Group Integration & Setup Wizard (7 plans)
-**Stopped At:** Completed 21-02-Campaign-Queue-Integration
+**Stopped At:** Completed 21-06-Dashboard-Enhancement-Guidance
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -273,6 +273,9 @@ All 20 phases of the EEL Eleicao project have been successfully completed.
 - [Phase 21]: Notifications stored in-memory (cleared on server restart) for operational alerts
 - [Phase 21]: In-memory cache for group links (cleared on server restart) - acceptable for MVP since campaign hydration is short-lived
 - [Phase 21]: Group resolution uses segmentTag instead of campaignId for proper segment-group mapping
+- [Phase 21]: Tooltips use localStorage to track which were seen (simple, no DB needed for MVP)
+- [Phase 21]: Action suggestions derived from system state analysis (chips, groups, campaigns)
+- [Phase 21]: Keyboard shortcuts follow common patterns (single letters for nav, Ctrl+key for actions)
 
 ## Accumulated Context
 
@@ -372,6 +375,7 @@ src/components/
 | Phase 21 P04 | 15 | 5 tasks | 8 files |
 | Phase 21 P01 | 15 min | 8 tasks | 8 files |
 | Phase 21 P02 | 6 | 5 tasks | 4 files |
+| Phase 21 P06 | 12 min | 7 tasks | 11 files |
 
 ## Next Actions
 
