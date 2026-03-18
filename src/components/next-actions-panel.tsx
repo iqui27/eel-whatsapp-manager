@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -45,27 +46,15 @@ const priorityBgColors = {
 
 interface NextActionsPanelProps {
   systemState: SystemState;
-  onNavigate?: (href: string) => void;
   maxItems?: number;
 }
 
 export function NextActionsPanel({ 
   systemState, 
-  onNavigate,
   maxItems = 5,
 }: NextActionsPanelProps) {
   const suggestions = getActionSuggestions(systemState).slice(0, maxItems);
   const counts = getActionCounts(systemState);
-
-  const handleAction = (href?: string) => {
-    if (href) {
-      if (onNavigate) {
-        onNavigate(href);
-      } else {
-        window.location.href = href;
-      }
-    }
-  };
 
   if (suggestions.length === 0) {
     return (
@@ -112,16 +101,8 @@ export function NextActionsPanel({
         {suggestions.map((suggestion) => {
           const Icon = iconMap[suggestion.icon];
           
-          return (
-            <button
-              key={suggestion.id}
-              onClick={() => handleAction(suggestion.href)}
-              className={cn(
-                'w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-all',
-                'hover:shadow-sm',
-                priorityBgColors[suggestion.priority]
-              )}
-            >
+          const content = (
+            <>
               <div className={cn(
                 'w-2 h-2 rounded-full mt-1.5 shrink-0',
                 priorityColors[suggestion.priority]
@@ -143,7 +124,35 @@ export function NextActionsPanel({
                 </span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
-            </button>
+            </>
+          );
+
+          if (suggestion.href) {
+            return (
+              <Link
+                key={suggestion.id}
+                href={suggestion.href}
+                className={cn(
+                  'w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-all',
+                  'hover:shadow-sm',
+                  priorityBgColors[suggestion.priority]
+                )}
+              >
+                {content}
+              </Link>
+            );
+          }
+
+          return (
+            <div
+              key={suggestion.id}
+              className={cn(
+                'w-full flex items-start gap-3 p-3 rounded-lg border text-left',
+                priorityBgColors[suggestion.priority]
+              )}
+            >
+              {content}
+            </div>
           );
         })}
 

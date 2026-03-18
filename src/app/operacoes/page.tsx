@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ import {
 } from 'lucide-react';
 
 export default function OperacoesPage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { shouldShowTour, resetOnboarding } = useOnboardingState();
@@ -304,9 +306,9 @@ export default function OperacoesPage() {
               <SystemStatusCard 
                 status={systemStatus}
                 onRefresh={() => fetchOperations(true)}
-                onNavigateToChips={() => window.location.href = '/chips'}
-                onNavigateToGroups={() => window.location.href = '/grupos'}
-                onNavigateToCampaigns={() => window.location.href = '/campanhas'}
+                onNavigateToChips={() => router.push('/chips')}
+                onNavigateToGroups={() => router.push('/grupos')}
+                onNavigateToCampaigns={() => router.push('/campanhas')}
               />
             </div>
             <NextActionsPanel systemState={systemState} />
