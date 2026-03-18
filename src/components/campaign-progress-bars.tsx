@@ -79,7 +79,7 @@ export function CampaignProgressBars({ campaigns, loading }: CampaignProgressBar
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-2">
-              <span className="font-medium text-sm truncate max-w-[200px]">
+              <span className="font-medium text-sm line-clamp-1" title={campaign.name}>
                 {campaign.name}
               </span>
               <span className={`text-xs px-2 py-0.5 rounded ${STATUS_COLORS[campaign.status] || 'bg-gray-100'}`}>

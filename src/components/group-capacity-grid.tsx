@@ -65,7 +65,7 @@ export function GroupCapacityGrid({ groups, onCopyInvite, onCreateOverflow, load
           >
             {/* Header */}
             <div className="flex items-center justify-between">
-              <span className="font-medium text-sm truncate max-w-[120px]">
+              <span className="font-medium text-sm line-clamp-1" title={group.name}>
                 {group.name}
               </span>
               <span className={`text-xs px-1.5 py-0.5 rounded ${status.color}`}>
@@ -97,7 +97,7 @@ export function GroupCapacityGrid({ groups, onCopyInvite, onCreateOverflow, load
             {/* Actions */}
             <div className="flex items-center justify-between text-xs">
               {group.chipInstanceName && (
-                <span className="text-muted-foreground truncate max-w-[80px]">
+                <span className="text-muted-foreground line-clamp-1" title={group.chipInstanceName}>
                   {group.chipInstanceName}
                 </span>
               )}
