@@ -18,6 +18,7 @@ import {
   UsersRound,
   History,
   Settings,
+  UserCircle,
   LogOut,
   Wifi,
   WifiOff,
@@ -49,6 +50,7 @@ type PageId =
   | 'history'
   | 'settings'
   | 'configuracoes'
+  | 'perfil'
   | 'wizard';
 
 interface SidebarLayoutProps {
@@ -86,7 +88,8 @@ const legacyNavItems = [
   { id: 'admin'    as PageId, label: 'Admin',          href: '/admin',        icon: Lock },
   { id: 'chips'    as PageId, label: 'Chips',          href: '/chips',        icon: Smartphone },
   { id: 'grupos'   as PageId, label: 'Grupos',         href: '/grupos',       icon: UsersRound },
-  { id: 'history'  as PageId, label: 'Historico',      href: '/historico',    icon: History },
+  { id: 'history'  as PageId, label: 'Histórico',       href: '/historico',    icon: History },
+  { id: 'perfil'   as PageId, label: 'Meu Perfil',     href: '/perfil',       icon: UserCircle },
   { id: 'settings' as PageId, label: 'Configurações',  href: '/configuracoes', icon: Settings },
 ];
 
