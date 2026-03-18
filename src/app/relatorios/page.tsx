@@ -31,6 +31,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  BarChart as RechartsBarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart as RechartsLineChart,
+  Line,
+  Legend,
+} from 'recharts';
 import { buildCampaignReport, type ReportFormat, type ReportFrequency } from '@/lib/reporting';
 import { cn } from '@/lib/utils';
 import type { Campaign, ReportDispatch, ReportSchedule } from '@/db/schema';
@@ -109,40 +121,103 @@ function buildDailyBars(campaigns: Campaign[], periodDays: number, referenceDate
   });
 }
 
-function BarChart({ bars }: { bars: Array<{ date: string; value: number }> }) {
-  const max = Math.max(...bars.map((bar) => bar.value), 1);
-  const chartH = 120;
-  const barW = Math.min(48, Math.floor(480 / Math.max(bars.length, 1)) - 8);
+function DailyBarChart({ bars }: { bars: Array<{ date: string; value: number }> }) {
+  if (bars.length === 0) return <p className="text-xs text-muted-foreground text-center py-8">Sem dados no período</p>;
+  return (
+    <ResponsiveContainer width="100%" height={180} minWidth={300}>
+      <RechartsBarChart data={bars} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+        <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} width={32} />
+        <Tooltip
+          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+          labelStyle={{ fontWeight: 600 }}
+          formatter={(value) => [typeof value === 'number' ? value.toLocaleString('pt-BR') : value, 'Enviados']}
+        />
+        <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+      </RechartsBarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function TrendLineChart({ campaigns }: { campaigns: Campaign[] }) {
+  const data = useMemo(() => {
+    const byDay = new Map<string, { date: string; sent: number; delivered: number; read: number }>();
+    for (const c of campaigns) {
+      const source = c.updatedAt ?? c.createdAt;
+      if (!source) continue;
+      const d = new Date(source);
+      if (Number.isNaN(d.getTime())) continue;
+      const key = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      const existing = byDay.get(key) ?? { date: key, sent: 0, delivered: 0, read: 0 };
+      existing.sent += c.totalSent ?? 0;
+      existing.delivered += c.totalDelivered ?? 0;
+      existing.read += c.totalRead ?? 0;
+      byDay.set(key, existing);
+    }
+    return Array.from(byDay.values());
+  }, [campaigns]);
+
+  if (data.length === 0) return <p className="text-xs text-muted-foreground text-center py-8">Sem dados no período</p>;
 
   return (
-    <div className="w-full overflow-x-auto">
-      <svg
-        viewBox={`0 0 ${bars.length * (barW + 12)} ${chartH + 32}`}
-        className="w-full"
-        style={{ minWidth: bars.length * (barW + 12) }}
-        aria-label="Gráfico de envios"
-      >
-        {bars.map((bar, index) => {
-          const barH = Math.max(4, (bar.value / max) * chartH);
-          const x = index * (barW + 12);
-          const y = chartH - barH;
-          return (
-            <g key={bar.date}>
-              <rect
-                x={x}
-                y={y}
-                width={barW}
-                height={barH}
-                rx={4}
-                className="fill-primary opacity-80"
-              />
-              <text x={x + barW / 2} y={chartH + 16} textAnchor="middle" fontSize={10} className="fill-muted-foreground">
-                {bar.date}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+    <ResponsiveContainer width="100%" height={180} minWidth={300}>
+      <RechartsLineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+        <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} width={32} />
+        <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
+        <Legend wrapperStyle={{ fontSize: '11px' }} />
+        <Line type="monotone" dataKey="sent" stroke="hsl(var(--primary))" strokeWidth={2} name="Enviados" dot={false} />
+        <Line type="monotone" dataKey="delivered" stroke="#22c55e" strokeWidth={2} name="Entregues" dot={false} />
+        <Line type="monotone" dataKey="read" stroke="#3b82f6" strokeWidth={2} name="Lidos" dot={false} />
+      </RechartsLineChart>
+    </ResponsiveContainer>
+  );
+}
+
+function ConversionFunnel({ campaigns }: { campaigns: Campaign[] }) {
+  const funnel = useMemo(() => {
+    const totals = { sent: 0, delivered: 0, read: 0, replied: 0 };
+    for (const c of campaigns) {
+      totals.sent += c.totalSent ?? 0;
+      totals.delivered += c.totalDelivered ?? 0;
+      totals.read += c.totalRead ?? 0;
+      totals.replied += c.totalReplied ?? 0;
+    }
+    return totals;
+  }, [campaigns]);
+
+  if (funnel.sent === 0) return <p className="text-xs text-muted-foreground text-center py-8">Sem dados de envio</p>;
+
+  const steps = [
+    { label: 'Enviados', value: funnel.sent, color: 'bg-primary' },
+    { label: 'Entregues', value: funnel.delivered, color: 'bg-green-500' },
+    { label: 'Lidos', value: funnel.read, color: 'bg-blue-500' },
+    { label: 'Respondidos', value: funnel.replied, color: 'bg-amber-500' },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {steps.map((step, i) => {
+        const pct = funnel.sent > 0 ? (step.value / funnel.sent) * 100 : 0;
+        const dropOff = i > 0 ? ((steps[i - 1].value - step.value) / Math.max(steps[i - 1].value, 1) * 100).toFixed(0) : null;
+        return (
+          <div key={step.label} className="space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium">{step.label}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">{step.value.toLocaleString('pt-BR')}</span>
+                <span className="text-muted-foreground font-mono">({pct.toFixed(1)}%)</span>
+                {dropOff && <span className="text-[10px] text-red-500">-{dropOff}%</span>}
+              </div>
+            </div>
+            <div className="h-6 rounded-md bg-muted overflow-hidden">
+              <div className={cn('h-full rounded-md transition-all', step.color)} style={{ width: `${Math.max(pct, 2)}%` }} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -329,17 +404,32 @@ export default function RelatoriosPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiCard label="Enviadas" value={report.summary.totalSent} icon={Send} />
           <KpiCard label="Entregues" value={report.summary.totalDelivered} icon={CheckCheck} />
           <KpiCard label="Lidas" value={report.summary.totalRead} icon={Mail} />
           <KpiCard label="Respondidas" value={report.summary.totalReplied} icon={MessageSquare} />
-          <KpiCard label="Bloqueios" value={report.summary.totalFailed} icon={Users} />
         </div>
 
+        {/* Charts 2-col grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h2 className="text-sm font-semibold mb-4 text-foreground">Volume de envios</h2>
+            <DailyBarChart bars={bars} />
+          </div>
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h2 className="text-sm font-semibold mb-4 text-foreground">Tendências de Desempenho</h2>
+            <TrendLineChart campaigns={campaigns} />
+          </div>
+        </div>
+
+        {/* Conversion funnel */}
         <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold mb-4 text-foreground">Volume de envios</h2>
-          <BarChart bars={bars} />
+          <div className="mb-4">
+            <h2 className="text-sm font-semibold text-foreground">Funil de Conversão</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Taxas de conversão acumuladas de todas as campanhas</p>
+          </div>
+          <ConversionFunnel campaigns={campaigns} />
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
