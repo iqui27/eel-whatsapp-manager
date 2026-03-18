@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { conversations } from '@/db/schema';
+import { conversations, campaigns } from '@/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { loadChips, updateChip, updateChipHealth } from '@/lib/db-chips';
 import { addConversation, addMessage } from '@/lib/db-conversations';
@@ -15,6 +15,7 @@ import {
 } from '@/lib/conversion-tracking';
 import { triggerAnalysis, applyAutoTags } from '@/lib/ai-analysis';
 import { isGeminiConfigured } from '@/lib/gemini';
+import { addCampaignDeliveryEvent } from '@/lib/db-campaigns';
 
 // ─── Dedup cache — prevents storing duplicate webhook deliveries ─────────────
 // Evolution API occasionally fires the same event twice within a few seconds.
@@ -184,18 +185,36 @@ export async function POST(request: NextRequest) {
           console.log('[webhook] Created conversation for', phone, 'on', instanceName, '→ conv', newConv.id);
         }
 
-        // ─── Reply correlation (Phase 17) ───────────────────────────────────────
+        // ─── Reply correlation (Phase 17 + Phase 21-02) ───────────────────────────
         // Check if this sender has a recent message from an active campaign
         try {
           const recentMessage = await findRecentMessageToPhone(phone, 7);
           if (recentMessage?.campaignId) {
-            const result = await recordReply(
+            const recordResult = await recordReply(
               recentMessage.campaignId, 
               phone, 
               voterId ?? undefined
             );
-            if (result.updated) {
+            if (recordResult.updated) {
               console.log('[webhook] Recorded reply for campaign', recentMessage.campaignId, 'from', phone);
+              
+              // Log campaign reply event for tracking
+              try {
+                await addCampaignDeliveryEvent({
+                  campaignId: recentMessage.campaignId,
+                  chipId: null,
+                  voterId: voterId ?? null,
+                  voterPhone: phone,
+                  eventType: 'reply_received',
+                  message: `Resposta recebida de ${voterName}`,
+                  metadata: {
+                    conversationId,
+                    messageLength: messageText.length,
+                  },
+                });
+              } catch (eventErr) {
+                console.error('[webhook] Failed to log reply event:', eventErr);
+              }
             }
           }
         } catch (replyErr) {
