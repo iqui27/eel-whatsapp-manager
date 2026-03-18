@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
@@ -104,9 +104,9 @@ interface PreviewResponse {
 }
 
 const CATEGORY_LABELS: Record<FilterCategory, string> = {
-  geografico: 'Geografico',
+  geografico: 'Geográfico',
   comportamental: 'Comportamental',
-  demografico: 'Demografico',
+  demografico: 'Demográfico',
 };
 
 const CATEGORY_COLORS: Record<FilterCategory, string> = {
@@ -117,7 +117,7 @@ const CATEGORY_COLORS: Record<FilterCategory, string> = {
 
 const FILTER_LABELS: Record<string, string> = {
   zone: 'Zona Eleitoral',
-  section: 'Secao',
+  section: 'Seção',
   city: 'Cidade',
   neighborhood: 'Bairro',
   optInStatus: 'Status de Opt-in',
@@ -149,11 +149,11 @@ function slugifyForTag(name: string): string {
  */
 function validateTag(tag: string): { valid: boolean; error?: string } {
   if (!tag) return { valid: true };
-  if (tag.length < 2) return { valid: false, error: 'Minimo 2 caracteres' };
-  if (tag.length > 50) return { valid: false, error: 'Maximo 50 caracteres' };
+  if (tag.length < 2) return { valid: false, error: 'Mínimo 2 caracteres' };
+  if (tag.length > 50) return { valid: false, error: 'Máximo 50 caracteres' };
   const pattern = /^[a-z][a-z0-9_]*$/;
   if (!pattern.test(tag)) {
-    return { valid: false, error: 'Apenas letras minusculas, numeros e underscore' };
+    return { valid: false, error: 'Apenas letras minúsculas, números e underscore' };
   }
   return { valid: true };
 }
@@ -246,7 +246,7 @@ function buildFilterDefs(options: FilterOptionsResponse | null): FilterDef[] {
     },
     {
       key: 'section',
-      label: 'Secao',
+      label: 'Seção',
       category: 'geografico',
       type: 'select',
       options: options?.sections ?? [],
@@ -398,6 +398,36 @@ export default function SegmentacaoPage() {
   const [segmentBeingEdited, setSegmentBeingEdited] = useState<SavedSegment | null>(null);
   const [segmentToDelete, setSegmentToDelete] = useState<SavedSegment | null>(null);
   const [isLoadingSegments, setIsLoadingSegments] = useState(true);
+  const [showGuide, setShowGuide] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !localStorage.getItem('segmentacao-guide-dismissed');
+  });
+  const [campaigns, setCampaigns] = useState<Array<{ id: string; segmentId: string | null; updatedAt: string | null }>>([]);
+  const filterBuilderRef = useRef<HTMLDivElement>(null);
+
+  const segmentUsage = useMemo(() => {
+    const usage = new Map<string, { count: number; lastUsed: string | null }>();
+    for (const campaign of campaigns) {
+      if (!campaign.segmentId) continue;
+      const existing = usage.get(campaign.segmentId);
+      if (!existing) {
+        usage.set(campaign.segmentId, { count: 1, lastUsed: campaign.updatedAt });
+      } else {
+        existing.count++;
+        if (campaign.updatedAt && (!existing.lastUsed || campaign.updatedAt > existing.lastUsed)) {
+          existing.lastUsed = campaign.updatedAt;
+        }
+      }
+    }
+    return usage;
+  }, [campaigns]);
+
+  const handleNewSegment = () => {
+    setSegmentBeingEdited(null);
+    setActiveFilters([]);
+    setSegmentName('');
+    filterBuilderRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const filterDefs = buildFilterDefs(filterOptions);
   const previewPayload = serializeFilters(activeFilters, logic);
@@ -406,9 +436,12 @@ export default function SegmentacaoPage() {
 
   const loadSegments = useCallback(async () => {
     try {
-      const response = await fetch('/api/segments');
-      if (!response.ok) return;
-      setSegments(await response.json());
+      const [segRes, campRes] = await Promise.all([
+        fetch('/api/segments'),
+        fetch('/api/campaigns'),
+      ]);
+      if (segRes.ok) setSegments(await segRes.json());
+      if (campRes.ok) setCampaigns(await campRes.json());
     } catch {
       toast.error('Erro ao carregar segmentos');
     } finally {
@@ -616,26 +649,60 @@ export default function SegmentacaoPage() {
     : null;
 
   return (
-    <SidebarLayout currentPage="segmentacao" pageTitle="Segmentacao">
+    <SidebarLayout currentPage="segmentacao" pageTitle="Segmentação">
       <div className="space-y-6 p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Segmentacao</h1>
+            <h1 className="text-2xl font-semibold text-foreground">Segmentação</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Crie segmentos de audiencia com filtros reais da base eleitoral
+              Crie segmentos de audiência com filtros reais da base eleitoral
             </p>
           </div>
-          <Link href="/segmentacao/importar">
-            <Button variant="outline" size="sm">
-              <Upload className="mr-2 h-4 w-4" />
-              Importar eleitores
+          <div className="flex items-center gap-2">
+            <Button onClick={handleNewSegment}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              Novo Segmento
             </Button>
-          </Link>
+            <Link href="/segmentacao/importar">
+              <Button variant="outline" size="sm">
+                <Upload className="mr-2 h-4 w-4" />
+                Importar
+              </Button>
+            </Link>
+          </div>
         </div>
+
+        {/* Onboarding guide */}
+        {showGuide && (
+          <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">O que são segmentos?</h3>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setShowGuide(false); localStorage.setItem('segmentacao-guide-dismissed', '1'); }}>
+                Fechar guia
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground max-w-2xl">
+              Segmentos agrupam eleitores por critérios como zona eleitoral, bairro, tags ou nível de engajamento.
+              Use segmentos para enviar campanhas direcionadas — quanto mais específico o segmento, maior a taxa de resposta.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { title: 'Filtros', desc: 'Combine filtros com AND/OR para definir seu público' },
+                { title: 'Pré-visualização', desc: 'Veja quantos eleitores serão incluídos antes de salvar' },
+                { title: 'Campanhas', desc: 'Associe segmentos a campanhas para envio direcionado' },
+              ].map(item => (
+                <div key={item.title} className="rounded-lg border border-border bg-background p-3 space-y-1">
+                  <p className="text-xs font-medium">{item.title}</p>
+                  <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
           <div className="space-y-5">
-            <Card>
+            <Card ref={filterBuilderRef}>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Filter className="h-4 w-4 text-primary" />
@@ -645,7 +712,7 @@ export default function SegmentacaoPage() {
               <CardContent className="space-y-4">
                 {segmentBeingEdited && (
                   <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
-                    Editando <span className="font-medium">{segmentBeingEdited.name}</span>. Ajuste os filtros e salve as alteracoes.
+                    Editando <span className="font-medium">{segmentBeingEdited.name}</span>. Ajuste os filtros e salve as alterações.
                   </div>
                 )}
 
@@ -680,14 +747,14 @@ export default function SegmentacaoPage() {
                   <span className="text-xs text-muted-foreground">
                     {logic === 'AND'
                       ? 'Todos os filtros devem ser verdadeiros'
-                      : 'Qualquer filtro e suficiente'}
+                      : 'Qualquer filtro é suficiente'}
                   </span>
                 </div>
 
                 <div className="min-h-[48px] space-y-2">
                   {activeFilters.length === 0 ? (
                     <div className="flex h-12 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
-                      Nenhum filtro adicionado. Clique em &quot;Adicionar filtro&quot; para comecar.
+                      Nenhum filtro adicionado. Clique em &quot;Adicionar filtro&quot; para começar.
                     </div>
                   ) : (
                     activeFilters.map((filter) => (
@@ -784,7 +851,7 @@ export default function SegmentacaoPage() {
                     onClick={saveSegment}
                     disabled={!segmentName.trim() || !hasValidFilters || isSaving || isPreviewLoading || Boolean(tagError)}
                   >
-                    {isSaving ? 'Salvando...' : segmentBeingEdited ? 'Salvar alteracoes' : 'Salvar'}
+                    {isSaving ? 'Salvando...' : segmentBeingEdited ? 'Salvar alterações' : 'Salvar'}
                   </Button>
                 </div>
               </CardContent>
@@ -823,7 +890,8 @@ export default function SegmentacaoPage() {
                         <TableHead>Audiencia</TableHead>
                         <TableHead>Criado em</TableHead>
                         <TableHead>Campanhas</TableHead>
-                        <TableHead>Acoes</TableHead>
+                        <TableHead>Último uso</TableHead>
+                        <TableHead>Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -856,12 +924,15 @@ export default function SegmentacaoPage() {
                                 ? new Date(segment.createdAt).toLocaleDateString('pt-BR')
                                 : '—'}
                             </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {segment.campaigns && segment.campaigns.length > 0
-                                ? segment.campaigns.map((campaign) => campaign.name).join(', ')
-                                : 'Sem campanha'}
-                            </TableCell>
-                            <TableCell>
+                             <TableCell className="text-sm text-muted-foreground tabular-nums">
+                               {segmentUsage.get(segment.id)?.count ?? 0}
+                             </TableCell>
+                             <TableCell className="text-xs text-muted-foreground">
+                               {segmentUsage.get(segment.id)?.lastUsed
+                                 ? new Date(segmentUsage.get(segment.id)!.lastUsed!).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+                                 : '—'}
+                             </TableCell>
+                             <TableCell>
                               <div className="flex items-center gap-1">
                                 <Button
                                   variant="ghost"
