@@ -17,6 +17,7 @@ import {
   Users,
   MessageCircle,
   Activity,
+  ArrowRightLeft,
 } from 'lucide-react';
 
 export default function OperacoesPage() {
@@ -33,6 +34,7 @@ export default function OperacoesPage() {
       dailyLimit: number;
       lastWebhookEvent: Date | null;
       lastHealthCheck: Date | null;
+      isFallbackFor?: string[];
     }>;
     campaigns: Array<{
       id: string;
@@ -45,6 +47,7 @@ export default function OperacoesPage() {
       queued: number;
     }>;
     alerts: AlertData[];
+    failoverCount?: number;
   } | null>(null);
   
   const [kpiData, setKpiData] = useState<{
@@ -163,7 +166,14 @@ export default function OperacoesPage() {
               Monitoramento em tempo real das operacoes WhatsApp
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Failover indicator */}
+            {opsData?.failoverCount && opsData.failoverCount > 0 && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 text-sm">
+                <ArrowRightLeft className="h-3.5 w-3.5" />
+                <span>{opsData.failoverCount} failover{opsData.failoverCount > 1 ? 's' : ''}</span>
+              </div>
+            )}
             <Button variant="outline" size="sm" onClick={fetchOperations} className="gap-1.5">
               <RefreshCw className="h-3.5 w-3.5" />
               Atualizar

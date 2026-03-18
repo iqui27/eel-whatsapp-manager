@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { chips, campaigns, messageQueue, whatsappGroups } from '@/db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
+import { getRecentFailoverLogs } from '@/lib/chip-router';
+import { getRecentNotifications } from '@/lib/notifications';
 
 /**
  * GET /api/dashboard/operations
@@ -131,12 +133,55 @@ export async function GET() {
       });
     }
 
+    // Add failover alerts from recent logs
+    const failoverLogs = getRecentFailoverLogs().slice(0, 5);
+    for (const log of failoverLogs) {
+      alerts.push({
+        id: `failover-${log.timestamp.getTime()}`,
+        type: 'failover' as const,
+        message: `Chip ${log.failedChipName} → ${log.fallbackChipName}`,
+        chipId: log.failedChipId,
+        chipName: log.failedChipName,
+        fallbackChipId: log.fallbackChipId,
+        fallbackChipName: log.fallbackChipName,
+        messagesReassigned: log.messagesReassigned,
+        createdAt: log.timestamp,
+      });
+    }
+
+    // Add notifications from notifications module
+    const notifications = getRecentNotifications(5);
+    for (const notification of notifications) {
+      // Skip if already added as failover
+      if (notification.type === 'failover') continue;
+      
+      alerts.push({
+        id: notification.id,
+        type: notification.type === 'chip_failure' ? 'error' : 
+              notification.type === 'no_fallback' ? 'error' : 'warning',
+        message: notification.message,
+        chipId: notification.chipId,
+        chipName: notification.chipName,
+        createdAt: notification.createdAt,
+      });
+    }
+
     // Sort alerts by type (errors first) then by createdAt
     alerts.sort((a, b) => {
       if (a.type === 'error' && b.type !== 'error') return -1;
       if (a.type !== 'error' && b.type === 'error') return 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
+
+    // Calculate which chips are acting as fallbacks
+    const fallbackMap = new Map<string, string[]>();
+    for (const log of failoverLogs) {
+      const existing = fallbackMap.get(log.fallbackChipId) ?? [];
+      if (!existing.includes(log.failedChipId)) {
+        existing.push(log.failedChipId);
+      }
+      fallbackMap.set(log.fallbackChipId, existing);
+    }
 
     return NextResponse.json({
       chips: allChips.map(c => ({
@@ -148,9 +193,12 @@ export async function GET() {
         dailyLimit: c.dailyLimit,
         lastWebhookEvent: c.lastWebhookEvent,
         lastHealthCheck: c.lastHealthCheck,
+        // Failover state
+        isFallbackFor: fallbackMap.get(c.id) ?? [],
       })),
       campaigns: campaignsProgress,
       alerts: alerts.slice(0, 10), // Limit to 10 alerts
+      failoverCount: failoverLogs.length,
     });
   } catch (error) {
     console.error('[api/dashboard/operations] Error:', error);

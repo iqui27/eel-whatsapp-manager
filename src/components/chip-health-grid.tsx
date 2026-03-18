@@ -1,6 +1,6 @@
 'use client';
 
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ArrowRightLeft } from 'lucide-react';
 
 interface ChipHealthData {
   id: string;
@@ -11,6 +11,9 @@ interface ChipHealthData {
   dailyLimit: number;
   lastWebhookEvent: Date | null;
   lastHealthCheck: Date | null;
+  // Failover state
+  isFallbackFor?: string[];
+  failedOverAt?: Date;
 }
 
 interface ChipHealthGridProps {
@@ -83,11 +86,22 @@ export function ChipHealthGrid({ chips, onRestart, loading }: ChipHealthGridProp
             key={chip.id}
             className="rounded-lg border bg-card p-3 space-y-2"
           >
-            {/* Header */}
+            {/* Header with swap indicator */}
             <div className="flex items-center justify-between">
-              <span className="font-medium text-sm truncate max-w-[100px]">
-                {chip.name}
-              </span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-medium text-sm truncate max-w-[100px]">
+                  {chip.name}
+                </span>
+                {chip.isFallbackFor && chip.isFallbackFor.length > 0 && (
+                  <span 
+                    className="flex items-center gap-0.5 px-1 py-0.5 rounded text-[10px] bg-orange-100 text-orange-700 whitespace-nowrap"
+                    title={`Fallback para ${chip.isFallbackFor.length} chip(s)`}
+                  >
+                    <ArrowRightLeft className="h-3 w-3" />
+                    {chip.isFallbackFor.length}
+                  </span>
+                )}
+              </div>
               <span title={status.label}>{status.emoji}</span>
             </div>
             
