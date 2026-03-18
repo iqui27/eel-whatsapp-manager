@@ -33,10 +33,12 @@ type UseConversationStreamResult = {
   status: ConversationStreamStatus;
   lastEventAt: string | null;
   reconnectAttempts: number;
+  forceReconnect: () => void;
 };
 
-const MAX_RECONNECT_ATTEMPTS = 5;
+const MAX_RECONNECT_ATTEMPTS = 8;
 const OFFLINE_RETRY_MS = 30000;
+const HEARTBEAT_TIMEOUT_MS = 45000;
 
 export function useConversationStream({
   enabled = true,
@@ -51,6 +53,7 @@ export function useConversationStream({
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const cursorRef = useRef<string | null>(initialCursor ?? null);
+  const heartbeatTimerRef = useRef<number | null>(null);
 
   const [streamStatus, setStreamStatus] = useState<ConversationStreamStatus>(
     enabled ? 'connecting' : 'idle',
@@ -76,11 +79,19 @@ export function useConversationStream({
     }
   }, []);
 
+  const clearHeartbeatTimer = useCallback(() => {
+    if (heartbeatTimerRef.current !== null) {
+      window.clearTimeout(heartbeatTimerRef.current);
+      heartbeatTimerRef.current = null;
+    }
+  }, []);
+
   const disconnect = useCallback(() => {
     clearReconnectTimer();
+    clearHeartbeatTimer();
     eventSourceRef.current?.close();
     eventSourceRef.current = null;
-  }, [clearReconnectTimer]);
+  }, [clearReconnectTimer, clearHeartbeatTimer]);
 
   useEffect(() => {
     cursorRef.current = initialCursor ?? null;
@@ -97,6 +108,7 @@ export function useConversationStream({
 
     const handleMetaEvent = (payload: ConversationConnectedPayload | ConversationHeartbeatPayload) => {
       if (cancelled) return;
+      resetHeartbeat();
       cursorRef.current = payload.cursor;
       startTransition(() => {
         setCursor(payload.cursor);
@@ -109,6 +121,7 @@ export function useConversationStream({
 
     const handleConversationUpsert = (payload: ConversationUpsertPayload) => {
       if (cancelled) return;
+      resetHeartbeat();
       cursorRef.current = payload.cursor;
       startTransition(() => {
         setCursor(payload.cursor);
@@ -122,6 +135,7 @@ export function useConversationStream({
 
     const handleMessageCreated = (payload: MessageCreatedPayload) => {
       if (cancelled) return;
+      resetHeartbeat();
       cursorRef.current = payload.cursor;
       startTransition(() => {
         setCursor(payload.cursor);
@@ -131,6 +145,17 @@ export function useConversationStream({
       });
       reconnectAttemptsRef.current = 0;
       onMessageCreatedRef.current?.(payload.message, payload.cursor);
+    };
+
+    const resetHeartbeat = () => {
+      if (heartbeatTimerRef.current !== null) window.clearTimeout(heartbeatTimerRef.current);
+      heartbeatTimerRef.current = window.setTimeout(() => {
+        // No events for 45s — connection is stale, force reconnect
+        if (!cancelled) {
+          disconnect();
+          reconnectTimerRef.current = window.setTimeout(() => { connect(); }, 500);
+        }
+      }, HEARTBEAT_TIMEOUT_MS);
     };
 
     const connect = () => {
@@ -153,6 +178,7 @@ export function useConversationStream({
 
       source.onopen = () => {
         if (cancelled) return;
+        resetHeartbeat();
         startTransition(() => {
           setStreamStatus('live');
           setReconnectAttempts(reconnectAttemptsRef.current);
@@ -205,18 +231,42 @@ export function useConversationStream({
 
     connect();
 
+    // Online/offline browser event handlers
+    const handleOnline = () => {
+      if (cancelled) return;
+      reconnectAttemptsRef.current = 0;
+      connect();
+    };
+    const handleOffline = () => {
+      if (cancelled) return;
+      clearHeartbeatTimer();
+      disconnect();
+      startTransition(() => setStreamStatus('offline'));
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
     return () => {
       cancelled = true;
       window.clearTimeout(resetTimer);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
       disconnect();
     };
-  }, [conversationId, disconnect, enabled, initialCursor, status, voterId]);
+  }, [conversationId, disconnect, clearHeartbeatTimer, enabled, initialCursor, status, voterId]);
+
+  const forceReconnect = useCallback(() => {
+    reconnectAttemptsRef.current = 0;
+    // Setting the deps via a state trick will re-trigger the effect to reconnect
+    setStreamStatus('connecting');
+  }, []);
 
   return {
     cursor,
     status: streamStatus,
     lastEventAt,
     reconnectAttempts,
+    forceReconnect,
   };
 }
 

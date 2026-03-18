@@ -451,8 +451,13 @@ export default function ConversasPage() {
         setConversations(data);
         refreshStreamCursorSeed();
       }
-    } catch { /* silent */ }
-    finally {
+    } catch (err) {
+      if (!silent) {
+        toast.error('Erro ao carregar conversas', {
+          action: { label: 'Tentar novamente', onClick: () => void loadConversations() },
+        });
+      }
+    } finally {
       if (!silent) {
         setHasLoadedConversations(true);
       }
@@ -519,7 +524,11 @@ export default function ConversasPage() {
         setLoadedMessagesForId(selectedId);
         refreshStreamCursorSeed();
       }
-    } catch { /* silent */ }
+    } catch {
+      toast.error('Erro ao carregar mensagens', {
+        action: { label: 'Tentar novamente', onClick: () => void loadMessages() },
+      });
+    }
   }, [refreshStreamCursorSeed, selectedId]);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
@@ -667,15 +676,34 @@ export default function ConversasPage() {
           </div>
 
           <div className="border-b border-border px-3 py-2">
-            <p className="text-[11px] text-muted-foreground">
-              {streamStatus === 'live'
-                ? 'Tempo real ativo'
-                : streamStatus === 'reconnecting'
-                  ? `Reconectando tempo real (${reconnectAttempts})`
-                  : streamStatus === 'offline'
-                    ? 'Tempo real em fallback offline'
-                    : 'Conectando stream...'}
-            </p>
+            {streamStatus === 'live' ? (
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+                <span className="text-[11px] text-muted-foreground">Tempo real ativo</span>
+              </div>
+            ) : streamStatus === 'reconnecting' ? (
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <span className="text-[11px] text-muted-foreground">Reconectando ({reconnectAttempts})...</span>
+              </div>
+            ) : streamStatus === 'offline' ? (
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+                <span className="text-[11px] text-muted-foreground">Tempo real offline</span>
+                <button
+                  type="button"
+                  onClick={() => void loadConversations(true)}
+                  className="text-primary text-[11px] hover:underline ml-auto"
+                >
+                  Atualizar
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-pulse shrink-0" />
+                <span className="text-[11px] text-muted-foreground">Conectando...</span>
+              </div>
+            )}
           </div>
 
           {voterFilterId && (
