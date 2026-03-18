@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -33,31 +34,31 @@ export interface FAQItem {
 
 const DEFAULT_HELP_LINKS: HelpLink[] = [
   {
-    id: 'fluxo-completo',
-    title: 'Fluxo Completo',
-    description: 'Guia completo de uso do sistema',
-    href: '/docs/FLUXO_COMPLETO.md',
+    id: 'setup-wizard',
+    title: 'Setup Wizard',
+    description: 'Configure o sistema passo a passo',
+    href: '/wizard',
     icon: 'file',
   },
   {
     id: 'chips-setup',
     title: 'Configurar Chips',
-    description: 'Como conectar chips WhatsApp',
-    href: '/docs/chips-setup.md',
+    description: 'Conecte chips WhatsApp',
+    href: '/chips',
     icon: 'file',
   },
   {
     id: 'campaigns-guide',
     title: 'Criar Campanhas',
     description: 'Tutorial de campanhas',
-    href: '/docs/campaigns.md',
+    href: '/campanhas/nova',
     icon: 'video',
   },
   {
     id: 'groups-manage',
     title: 'Gerenciar Grupos',
     description: 'Criar e manter grupos',
-    href: '/docs/groups.md',
+    href: '/grupos',
     icon: 'file',
   },
 ];
@@ -143,33 +144,53 @@ export function HelpPanel({
       <CardContent className="space-y-4">
         {/* Quick Links */}
         <div className="space-y-2">
-          {links.map((link) => (
-            <a
-              key={link.id}
-              href={link.href}
-              target={link.external ? '_blank' : undefined}
-              rel={link.external ? 'noopener noreferrer' : undefined}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors group"
-            >
-              <div className="text-muted-foreground">
-                {getIcon(link.icon)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-sm font-medium block truncate">
-                  {link.title}
-                </span>
-                {link.description && (
-                  <span className="text-xs text-muted-foreground truncate block">
-                    {link.description}
+          {links.map((link) => {
+            const content = (
+              <>
+                <div className="text-muted-foreground">
+                  {getIcon(link.icon)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium block truncate">
+                    {link.title}
                   </span>
+                  {link.description && (
+                    <span className="text-xs text-muted-foreground truncate block">
+                      {link.description}
+                    </span>
+                  )}
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+                {link.external && (
+                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
                 )}
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-              {link.external && (
-                <ExternalLink className="h-3 w-3 text-muted-foreground" />
-              )}
-            </a>
-          ))}
+              </>
+            );
+
+            if (link.external) {
+              return (
+                <a
+                  key={link.id}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors group"
+                >
+                  {content}
+                </a>
+              );
+            }
+
+            return (
+              <Link
+                key={link.id}
+                href={link.href}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors group"
+              >
+                {content}
+              </Link>
+            );
+          })}
         </div>
 
         {/* FAQ Toggle */}

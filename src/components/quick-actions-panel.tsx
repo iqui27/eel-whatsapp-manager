@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -38,6 +39,14 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     category: 'create',
   },
   {
+    id: 'setup-wizard',
+    label: 'Setup Wizard',
+    icon: Zap,
+    href: '/wizard',
+    shortcut: 'W',
+    category: 'create',
+  },
+  {
     id: 'add-chip',
     label: 'Adicionar Chip',
     icon: Smartphone,
@@ -57,7 +66,7 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: 'import-voters',
     label: 'Importar Eleitores',
     icon: Database,
-    href: '/importar',
+    href: '/segmentacao',
     shortcut: 'I',
     category: 'create',
   },
@@ -81,7 +90,7 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: 'settings',
     label: 'Configuracoes',
     icon: Settings,
-    href: '/configuracoes',
+    href: '/settings',
     shortcut: 'S',
     category: 'manage',
   },
@@ -109,15 +118,6 @@ export function QuickActionsPanel({
 }: QuickActionsPanelProps) {
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
 
-  const handleAction = (action: QuickAction) => {
-    onActionClick?.(action);
-    if (action.href && !action.onClick) {
-      window.location.href = action.href;
-    } else if (action.onClick) {
-      action.onClick();
-    }
-  };
-
   const createActions = actions.filter((a) => a.category === 'create');
   const manageActions = actions.filter((a) => a.category === 'manage');
   const viewActions = actions.filter((a) => a.category === 'view');
@@ -139,10 +139,40 @@ export function QuickActionsPanel({
     const Icon = action.icon;
     const isHovered = hoveredAction === action.id;
 
+    const content = (
+      <>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+        <span className="flex-1 text-left">{action.label}</span>
+        {action.shortcut && (
+          <kbd className="hidden sm:inline-flex h-5 min-w-5 items-center justify-center rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+            {action.shortcut}
+          </kbd>
+        )}
+      </>
+    );
+
+    if (action.href) {
+      return (
+        <Link
+          key={action.id}
+          href={action.href}
+          onMouseEnter={() => setHoveredAction(action.id)}
+          onMouseLeave={() => setHoveredAction(null)}
+          className={cn(
+            'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all',
+            'hover:bg-muted/50 hover:shadow-sm',
+            isHovered && 'bg-muted/50'
+          )}
+        >
+          {content}
+        </Link>
+      );
+    }
+
     return (
       <button
         key={action.id}
-        onClick={() => handleAction(action)}
+        onClick={() => action.onClick?.()}
         onMouseEnter={() => setHoveredAction(action.id)}
         onMouseLeave={() => setHoveredAction(null)}
         className={cn(
@@ -151,13 +181,7 @@ export function QuickActionsPanel({
           isHovered && 'bg-muted/50'
         )}
       >
-        <Icon className="h-4 w-4 text-muted-foreground" />
-        <span className="flex-1 text-left">{action.label}</span>
-        {action.shortcut && (
-          <kbd className="hidden sm:inline-flex h-5 min-w-5 items-center justify-center rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
-            {action.shortcut}
-          </kbd>
-        )}
+        {content}
       </button>
     );
   };
@@ -219,15 +243,26 @@ export function QuickActionsPanel({
             </h4>
             <div className="space-y-1">
               {displayedRecentActions.map((action) => (
-                <button
-                  key={action.id}
-                  onClick={() => action.href && (window.location.href = action.href)}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                >
-                  <Clock className="h-3 w-3" />
-                  <span className="flex-1 text-left truncate">{action.label}</span>
-                  <span className="text-xs">{formatTimestamp(action.timestamp)}</span>
-                </button>
+                action.href ? (
+                  <Link
+                    key={action.id}
+                    href={action.href}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  >
+                    <Clock className="h-3 w-3" />
+                    <span className="flex-1 text-left truncate">{action.label}</span>
+                    <span className="text-xs">{formatTimestamp(action.timestamp)}</span>
+                  </Link>
+                ) : (
+                  <div
+                    key={action.id}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-muted-foreground"
+                  >
+                    <Clock className="h-3 w-3" />
+                    <span className="flex-1 text-left truncate">{action.label}</span>
+                    <span className="text-xs">{formatTimestamp(action.timestamp)}</span>
+                  </div>
+                )
               ))}
             </div>
           </div>

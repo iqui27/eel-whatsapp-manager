@@ -83,13 +83,14 @@ const electoralNavItems = [
 
 // Legacy operational navigation
 const legacyNavItems = [
-  { id: 'admin'    as PageId, label: 'Admin',        href: '/admin',    icon: Lock },
-  { id: 'chips'    as PageId, label: 'Chips',        href: '/chips',    icon: Smartphone },
-  { id: 'grupos'   as PageId, label: 'Grupos',       href: '/grupos',   icon: UsersRound },
-  { id: 'contacts' as PageId, label: 'Contatos',     href: '/contacts', icon: Users },
-  { id: 'clusters' as PageId, label: 'Clusters',     href: '/clusters', icon: Layers },
-  { id: 'history'  as PageId, label: 'Historico',    href: '/historico',  icon: History },
-  { id: 'settings' as PageId, label: 'Configuracoes', href: '/settings', icon: Settings },
+  { id: 'wizard'   as PageId, label: 'Setup Wizard',   href: '/wizard',       icon: Zap },
+  { id: 'admin'    as PageId, label: 'Admin',          href: '/admin',        icon: Lock },
+  { id: 'chips'    as PageId, label: 'Chips',          href: '/chips',        icon: Smartphone },
+  { id: 'grupos'   as PageId, label: 'Grupos',         href: '/grupos',       icon: UsersRound },
+  { id: 'contacts' as PageId, label: 'Contatos',       href: '/contacts',     icon: Users },
+  { id: 'clusters' as PageId, label: 'Clusters',       href: '/clusters',     icon: Layers },
+  { id: 'history'  as PageId, label: 'Historico',      href: '/historico',    icon: History },
+  { id: 'settings' as PageId, label: 'Configuracoes',  href: '/settings',     icon: Settings },
 ];
 
 // Mobile bottom nav: 5 most important electoral items
