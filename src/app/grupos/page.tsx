@@ -2,6 +2,7 @@ import { listGroups } from '@/lib/db-groups';
 import { GroupCard } from '@/components/group-card';
 import { CreateGroupDialog } from '@/components/create-group-dialog';
 import { loadChips } from '@/lib/db-chips';
+import { loadSegments } from '@/lib/db-segments';
 import { Suspense } from 'react';
 
 interface GroupsPageProps {
@@ -39,6 +40,14 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
   const status = params.status;
   const campaignId = params.campaignId;
   const chips = await loadChips();
+  const segmentsData = await loadSegments();
+  
+  // Map segments for the dialog
+  const segments = segmentsData.map(s => ({
+    id: s.id,
+    name: s.name,
+    segmentTag: s.segmentTag,
+  }));
 
   return (
     <div className="space-y-6">
@@ -50,7 +59,7 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
             Gerencie grupos para campanhas e convites
           </p>
         </div>
-        <CreateGroupDialog chips={chips} />
+        <CreateGroupDialog chips={chips} segments={segments} />
       </div>
 
       {/* Filters */}

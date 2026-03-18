@@ -1,21 +1,45 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Chip } from '@/db/schema';
+
+interface SegmentOption {
+  id: string;
+  name: string;
+  segmentTag: string | null;
+}
 
 interface CreateGroupDialogProps {
   chips: Chip[];
+  segments: SegmentOption[];
 }
 
-export function CreateGroupDialog({ chips }: CreateGroupDialogProps) {
+export function CreateGroupDialog({ chips, segments }: CreateGroupDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [chipId, setChipId] = useState('');
+  const [segmentId, setSegmentId] = useState('');
   const [participants, setParticipants] = useState('');
 
   const connectedChips = chips.filter(c => c.status === 'connected' || c.healthStatus === 'healthy');
+
+  // Auto-select chip when segment is chosen
+  useEffect(() => {
+    if (segmentId) {
+      const segment = segments.find(s => s.id === segmentId);
+      if (segment) {
+        // Find chip that has this segment assigned
+        const chipWithSegment = chips.find(c => 
+          c.assignedSegments?.includes(segment.segmentTag || '')
+        );
+        if (chipWithSegment) {
+          setChipId(chipWithSegment.id);
+        }
+      }
+    }
+  }, [segmentId, segments, chips]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +50,7 @@ export function CreateGroupDialog({ chips }: CreateGroupDialogProps) {
 
     setLoading(true);
     try {
+      const segment = segments.find(s => s.id === segmentId);
       const response = await fetch('/api/groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -33,6 +58,7 @@ export function CreateGroupDialog({ chips }: CreateGroupDialogProps) {
           name,
           description: description || undefined,
           chipId,
+          segmentTag: segment?.segmentTag || undefined,
           participants: participants ? participants.split(',').map(p => p.trim()) : undefined,
         }),
       });
@@ -42,6 +68,7 @@ export function CreateGroupDialog({ chips }: CreateGroupDialogProps) {
         setName('');
         setDescription('');
         setChipId('');
+        setSegmentId('');
         setParticipants('');
         window.location.reload();
       } else {
@@ -67,7 +94,7 @@ export function CreateGroupDialog({ chips }: CreateGroupDialogProps) {
 
       {open && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background rounded-lg p-6 w-full max-w-md space-y-4">
+          <div className="bg-background rounded-lg p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold">Criar Grupo WhatsApp</h2>
             
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -90,22 +117,47 @@ export function CreateGroupDialog({ chips }: CreateGroupDialogProps) {
               {/* Description */}
               <div className="space-y-1">
                 <label htmlFor="description" className="text-sm font-medium">
-                  Descrição
+                  Descricao
                 </label>
                 <textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3 py-2 border rounded-md"
-                  placeholder="Descrição opcional do grupo"
+                  placeholder="Descricao opcional do grupo"
                   rows={2}
                 />
+              </div>
+
+              {/* Segment Selection */}
+              <div className="space-y-1">
+                <label htmlFor="segment" className="text-sm font-medium">
+                  Segmento
+                </label>
+                <select
+                  id="segment"
+                  value={segmentId}
+                  onChange={(e) => setSegmentId(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md"
+                >
+                  <option value="">Selecione um segmento (opcional)</option>
+                  {segments.filter(s => s.segmentTag).map((segment) => (
+                    <option key={segment.id} value={segment.id}>
+                      {segment.name} ({segment.segmentTag})
+                    </option>
+                  ))}
+                </select>
+                {segments.filter(s => s.segmentTag).length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Nenhum segmento com tag. Crie segmentos com tags para associar grupos.
+                  </p>
+                )}
               </div>
 
               {/* Chip Selection */}
               <div className="space-y-1">
                 <label htmlFor="chip" className="text-sm font-medium">
-                  Chip/Instância *
+                  Chip/Instancia *
                 </label>
                 <select
                   id="chip"
@@ -139,10 +191,10 @@ export function CreateGroupDialog({ chips }: CreateGroupDialogProps) {
                   value={participants}
                   onChange={(e) => setParticipants(e.target.value)}
                   className="w-full px-3 py-2 border rounded-md"
-                  placeholder="Números separados por vírgula (ex: 5511999999999)"
+                  placeholder="Numeros separados por virgula (ex: 5511999999999)"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Números no formato E.164 (código país + DDD + número)
+                  Numeros no formato E.164 (codigo pais + DDD + numero)
                 </p>
               </div>
 
