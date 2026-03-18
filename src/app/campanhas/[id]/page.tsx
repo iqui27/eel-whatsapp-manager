@@ -88,12 +88,20 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
             </span>
           </div>
         </div>
-        <a
-          href="/campanhas"
-          className="px-3 py-1.5 text-sm border rounded hover:bg-muted"
-        >
-          ← Voltar
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/campanhas/${id}/mensagens`}
+            className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90"
+          >
+            Ver mensagens
+          </a>
+          <a
+            href="/campanhas"
+            className="px-3 py-1.5 text-sm border rounded hover:bg-muted"
+          >
+            ← Voltar
+          </a>
+        </div>
       </div>
 
       {/* Alerts */}
