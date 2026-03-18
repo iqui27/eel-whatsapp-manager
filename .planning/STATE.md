@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 21
 **Current Phase Name:** campaign-integration
-**Current Plan:** 3
+**Current Plan:** 4
 **Total Phases:** 21
 **Total Plans in Phase:** 7
 **Status:** Ready to execute
 **Progress:** [██████████] 104%
 **Last Activity:** 2026-03-18
 **Last Activity Description:** Phase 21 planned — Campaign-Group Integration & Setup Wizard (7 plans)
-**Stopped At:** Completed 21-01-Schema-Enhancement-Segment-Group-Mapping
+**Stopped At:** Completed 21-02-Campaign-Queue-Integration
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -271,6 +271,8 @@ All 20 phases of the EEL Eleicao project have been successfully completed.
 - [Phase 20-critical-fixes]: Admin phone numbers can be auto-promoted when creating groups for segments
 - [Phase 21]: Fallback chips selected with +100 priority for shared segments during failover
 - [Phase 21]: Notifications stored in-memory (cleared on server restart) for operational alerts
+- [Phase 21]: In-memory cache for group links (cleared on server restart) - acceptable for MVP since campaign hydration is short-lived
+- [Phase 21]: Group resolution uses segmentTag instead of campaignId for proper segment-group mapping
 
 ## Accumulated Context
 
@@ -369,6 +371,7 @@ src/components/
 | 20-critical-fixes P01 | 10 min | 8/8 | 6 files |
 | Phase 21 P04 | 15 | 5 tasks | 8 files |
 | Phase 21 P01 | 15 min | 8 tasks | 8 files |
+| Phase 21 P02 | 6 | 5 tasks | 4 files |
 
 ## Next Actions
 
