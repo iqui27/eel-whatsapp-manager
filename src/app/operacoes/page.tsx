@@ -236,7 +236,7 @@ export default function OperacoesPage() {
 
   if (isLoading) {
     return (
-      <SidebarLayout currentPage="operacoes" pageTitle="Operacoes">
+      <SidebarLayout currentPage="operacoes" pageTitle="Operações">
         <div className="p-6 space-y-6">
           <div className="animate-pulse space-y-4">
             <div className="h-32 bg-muted rounded-xl" />
@@ -251,14 +251,14 @@ export default function OperacoesPage() {
   }
 
   return (
-    <SidebarLayout currentPage="operacoes" pageTitle="Operacoes">
+    <SidebarLayout currentPage="operacoes" pageTitle="Operações">
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Operacoes</h1>
+            <h1 className="text-2xl font-semibold text-foreground">Operações</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Monitoramento em tempo real das operacoes WhatsApp
+              Monitoramento em tempo real das operações WhatsApp
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -328,7 +328,13 @@ export default function OperacoesPage() {
 
           {/* Middle Column: Quick Actions + Help */}
           <div className="space-y-6">
-            <QuickActionsPanel />
+            <QuickActionsPanel systemContext={{
+              chipsOffline: opsData?.chips?.filter(c => c.healthStatus === 'offline' || c.healthStatus === 'disconnected').length ?? 0,
+              chipsTotal: opsData?.chips?.length ?? 0,
+              voterCount: voterTotal,
+              groupCount: groupsData?.length ?? 0,
+              campaignCount: opsData?.campaigns?.length ?? 0,
+            }} />
             <HelpPanel />
           </div>
 
@@ -339,7 +345,7 @@ export default function OperacoesPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Activity className="h-4 w-4" />
-                    KPIs de Conversao
+                    KPIs de Conversão
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -415,7 +421,7 @@ export default function OperacoesPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 px-4 pb-4">
-                  <MessageFeed messages={messagesData} loading={isLoading} />
+                  <MessageFeed messages={messagesData} loading={isLoading} autoRefresh={true} refreshInterval={10000} />
                 </CardContent>
               </Card>
             </div>

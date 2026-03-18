@@ -27,6 +27,7 @@ export interface QuickAction {
   onClick?: () => void;
   shortcut?: string;
   category: 'create' | 'manage' | 'view';
+  contextInfo?: string; // e.g., "3 chips offline", "1.234 eleitores"
 }
 
 const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
@@ -66,13 +67,13 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: 'import-voters',
     label: 'Importar Eleitores',
     icon: Database,
-    href: '/segmentacao',
+    href: '/segmentacao/importar',
     shortcut: 'I',
     category: 'create',
   },
   {
     id: 'view-reports',
-    label: 'Ver Relatorios',
+    label: 'Ver Relatórios',
     icon: BarChart3,
     href: '/relatorios',
     shortcut: 'R',
@@ -88,7 +89,7 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
   },
   {
     id: 'settings',
-    label: 'Configuracoes',
+    label: 'Configurações',
     icon: Settings,
     href: '/settings',
     shortcut: 'S',
@@ -108,6 +109,13 @@ interface QuickActionsPanelProps {
   recentActions?: RecentAction[];
   onActionClick?: (action: QuickAction) => void;
   maxRecentActions?: number;
+  systemContext?: {
+    chipsOffline?: number;
+    chipsTotal?: number;
+    voterCount?: number;
+    groupCount?: number;
+    campaignCount?: number;
+  };
 }
 
 export function QuickActionsPanel({
@@ -115,6 +123,7 @@ export function QuickActionsPanel({
   recentActions = [],
   onActionClick,
   maxRecentActions = 5,
+  systemContext,
 }: QuickActionsPanelProps) {
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
 
@@ -135,16 +144,42 @@ export function QuickActionsPanel({
     return new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   };
 
+  // Compute contextual info from systemContext
+  const getContextInfo = (actionId: string): string | undefined => {
+    if (!systemContext) return undefined;
+    const { chipsOffline = 0, chipsTotal = 0, voterCount = 0, groupCount = 0, campaignCount = 0 } = systemContext;
+    switch (actionId) {
+      case 'create-campaign':
+        return campaignCount > 0 ? `${campaignCount} campanhas` : undefined;
+      case 'add-chip':
+        return chipsTotal > 0
+          ? chipsOffline > 0 ? `${chipsOffline} offline de ${chipsTotal}` : `${chipsTotal} conectados`
+          : undefined;
+      case 'import-voters':
+        return voterCount > 0 ? `${voterCount.toLocaleString('pt-BR')} eleitores` : undefined;
+      case 'sync-groups':
+        return groupCount > 0 ? `${groupCount} grupos` : undefined;
+      default:
+        return undefined;
+    }
+  };
+
   const renderAction = (action: QuickAction) => {
     const Icon = action.icon;
     const isHovered = hoveredAction === action.id;
+    const contextInfo = action.contextInfo ?? getContextInfo(action.id);
 
     const content = (
       <>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-        <span className="flex-1 text-left">{action.label}</span>
+        <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="flex-1 text-left min-w-0">
+          <span className="block text-sm truncate">{action.label}</span>
+          {contextInfo && (
+            <span className="block text-xs text-muted-foreground truncate">{contextInfo}</span>
+          )}
+        </div>
         {action.shortcut && (
-          <kbd className="hidden sm:inline-flex h-5 min-w-5 items-center justify-center rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+          <kbd className="hidden sm:inline-flex h-5 min-w-5 items-center justify-center rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground shrink-0">
             {action.shortcut}
           </kbd>
         )}
@@ -191,7 +226,7 @@ export function QuickActionsPanel({
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Zap className="h-4 w-4" />
-          Acoes Rapidas
+          Ações Rápidas
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

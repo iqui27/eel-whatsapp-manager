@@ -67,32 +67,32 @@ const DEFAULT_FAQ: FAQItem[] = [
   {
     id: 'faq-1',
     question: 'Como conectar um chip WhatsApp?',
-    answer: 'Va para a pagina de Chips, clique em "Adicionar Chip" e siga as instrucoes para escanear o QR Code com o WhatsApp do chip.',
+    answer: 'Vá para a página de Chips, clique em "Adicionar Chip" e siga as instruções para escanear o QR Code com o WhatsApp do chip.',
   },
   {
     id: 'faq-2',
-    question: 'O que e failover de chip?',
-    answer: 'Failover e a troca automatica de mensagens de um chip com problemas para outro chip saudavel. Isso garante que suas mensagens sejam enviadas mesmo se um chip falhar.',
+    question: 'O que é failover de chip?',
+    answer: 'Failover é a troca automática de mensagens de um chip com problemas para outro chip saudável. Isso garante que suas mensagens sejam enviadas mesmo se um chip falhar.',
   },
   {
     id: 'faq-3',
     question: 'Como criar grupos overflow?',
-    answer: 'Quando um grupo atinge 90% da capacidade, o sistema alerta. Va para a pagina de Grupos e crie um novo grupo para o mesmo segmento.',
+    answer: 'Quando um grupo atinge 90% da capacidade, o sistema alerta. Vá para a página de Grupos e crie um novo grupo para o mesmo segmento.',
   },
   {
     id: 'faq-4',
     question: 'Posso agendar campanhas?',
-    answer: 'Sim! Ao criar uma campanha, voce pode definir uma data e horario para envio automatico. A campanha sera enviada no momento agendado.',
+    answer: 'Sim! Ao criar uma campanha, você pode definir uma data e horário para envio automático. A campanha será enviada no momento agendado.',
   },
   {
     id: 'faq-5',
     question: 'Como importar eleitores?',
-    answer: 'Va para Importar, faca upload de um arquivo CSV, mapeie as colunas e confirme a importacao. O sistema criara um novo segmento automaticamente.',
+    answer: 'Vá para Importar, faça upload de um arquivo CSV, mapeie as colunas e confirme a importação. O sistema criará um novo segmento automaticamente.',
   },
   {
     id: 'faq-6',
     question: 'O que significam os status dos chips?',
-    answer: 'Verde = Saudavel e conectado. Amarelo = Atencao (problemas menores). Vermelho = Erro ou desconectado. Cinza = Status desconhecido.',
+    answer: 'Verde = Saudável e conectado. Amarelo = Atenção (problemas menores). Vermelho = Erro ou desconectado. Cinza = Status desconhecido.',
   },
 ];
 
@@ -105,7 +105,7 @@ interface HelpPanelProps {
 export function HelpPanel({ 
   links = DEFAULT_HELP_LINKS, 
   faq = DEFAULT_FAQ,
-  supportEmail = 'suporte@exemplo.com',
+  supportEmail = 'suporte@eel.app',
 }: HelpPanelProps) {
   const [showFAQ, setShowFAQ] = useState(false);
   const [expandedFAQ, setExpandedFAQ] = useState<Set<string>>(new Set());
