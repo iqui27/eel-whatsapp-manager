@@ -53,10 +53,18 @@ const EMPTY_FORM = {
 
 export default function MobileCapturePage() {
   const router = useRouter();
-  const [online, setOnline] = useState(() => (typeof window === 'undefined' ? true : window.navigator.onLine));
+  const [mounted, setMounted] = useState(false);
+  const [online, setOnline] = useState(true); // Default to online for SSR
   const [syncing, setSyncing] = useState(false);
-  const [queue, setQueue] = useState<PendingCapture[]>(readStoredQueue);
+  const [queue, setQueue] = useState<PendingCapture[]>([]);
   const [form, setForm] = useState(EMPTY_FORM);
+
+  // Set initial state after mount to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+    setOnline(window.navigator.onLine);
+    setQueue(readStoredQueue());
+  }, []);
 
   const queueCount = queue.length;
   const queueLabel = useMemo(() => {
