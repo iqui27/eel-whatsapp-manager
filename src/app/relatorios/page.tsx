@@ -1,7 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -165,6 +176,8 @@ export default function RelatoriosPage() {
   const [dispatches, setDispatches] = useState<ReportDispatch[]>([]);
   const [scheduleForm, setScheduleForm] = useState<ScheduleForm>(EMPTY_SCHEDULE_FORM);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [isLoadingSchedules, setIsLoadingSchedules] = useState(true);
+  const [scheduleToRemove, setScheduleToRemove] = useState<string | null>(null);
 
   useEffect(() => {
     setReferenceDate(new Date());
@@ -176,18 +189,31 @@ export default function RelatoriosPage() {
       const res = await fetch('/api/campaigns');
       if (res.ok) {
         setCampaigns(await res.json());
+      } else {
+        toast.error('Erro ao carregar campanhas');
       }
+    } catch {
+      toast.error('Erro ao carregar campanhas');
     } finally {
       setLoading(false);
     }
   }, []);
 
   const loadSchedules = useCallback(async () => {
-    const res = await fetch('/api/reports/schedules');
-    if (!res.ok) return;
-    const payload: ScheduleResponse = await res.json();
-    setSchedules(payload.schedules);
-    setDispatches(payload.dispatches);
+    try {
+      const res = await fetch('/api/reports/schedules');
+      if (!res.ok) {
+        toast.error('Erro ao carregar agendamentos');
+        return;
+      }
+      const payload: ScheduleResponse = await res.json();
+      setSchedules(payload.schedules);
+      setDispatches(payload.dispatches);
+    } catch {
+      toast.error('Erro ao carregar agendamentos');
+    } finally {
+      setIsLoadingSchedules(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -205,15 +231,19 @@ export default function RelatoriosPage() {
   );
 
   const downloadReport = useCallback(async (format: 'csv' | 'pdf') => {
-    const res = await fetch(`/api/reports/export?format=${format}&period=${period}`);
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `relatorio-campanhas-${period}d.${format}`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    try {
+      const res = await fetch(`/api/reports/export?format=${format}&period=${period}`);
+      if (!res.ok) { toast.error('Erro ao baixar relatorio'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `relatorio-campanhas-${period}d.${format}`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Erro ao baixar relatorio');
+    }
   }, [period]);
 
   const createSchedule = useCallback(async () => {
@@ -232,26 +262,41 @@ export default function RelatoriosPage() {
       });
 
       if (res.ok) {
+        toast.success('Agendamento criado');
         setScheduleForm(EMPTY_SCHEDULE_FORM);
         await loadSchedules();
+      } else {
+        toast.error('Erro ao criar agendamento');
       }
+    } catch {
+      toast.error('Erro ao criar agendamento');
     } finally {
       setSavingSchedule(false);
     }
   }, [loadSchedules, scheduleForm]);
 
   const toggleSchedule = useCallback(async (schedule: ReportSchedule) => {
-    await fetch('/api/reports/schedules', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: schedule.id, active: !(schedule.active ?? true) }),
-    });
-    await loadSchedules();
+    try {
+      await fetch('/api/reports/schedules', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: schedule.id, active: !(schedule.active ?? true) }),
+      });
+      toast.success('Agendamento atualizado');
+      await loadSchedules();
+    } catch {
+      toast.error('Erro ao atualizar agendamento');
+    }
   }, [loadSchedules]);
 
   const removeSchedule = useCallback(async (scheduleId: string) => {
-    await fetch(`/api/reports/schedules?id=${scheduleId}`, { method: 'DELETE' });
-    await loadSchedules();
+    try {
+      await fetch(`/api/reports/schedules?id=${scheduleId}`, { method: 'DELETE' });
+      toast.success('Agendamento removido');
+      await loadSchedules();
+    } catch {
+      toast.error('Erro ao remover agendamento');
+    }
   }, [loadSchedules]);
 
   return (
@@ -392,10 +437,15 @@ export default function RelatoriosPage() {
                 <Badge variant="secondary">{schedules.length}</Badge>
               </div>
               <div className="space-y-3">
-                {schedules.length === 0 && (
+                {isLoadingSchedules ? (
+                  <>
+                    <div className="h-10 animate-pulse rounded-md bg-muted" />
+                    <div className="h-10 animate-pulse rounded-md bg-muted" />
+                  </>
+                ) : schedules.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum agendamento cadastrado.</p>
-                )}
-                {schedules.map((schedule) => (
+                ) : null}
+                {!isLoadingSchedules && schedules.map((schedule) => (
                   <div key={schedule.id} className="rounded-lg border border-border p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -422,7 +472,7 @@ export default function RelatoriosPage() {
                       <Button size="sm" variant="outline" onClick={() => void toggleSchedule(schedule)}>
                         {schedule.active ? 'Pausar' : 'Reativar'}
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => void removeSchedule(schedule.id)}>
+                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => setScheduleToRemove(schedule.id)}>
                         <Trash2 className="h-4 w-4" />
                         Remover
                       </Button>
@@ -469,6 +519,26 @@ export default function RelatoriosPage() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={!!scheduleToRemove} onOpenChange={(open) => !open && setScheduleToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover Agendamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O agendamento de relatorio sera removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (scheduleToRemove) { void removeSchedule(scheduleToRemove); setScheduleToRemove(null); } }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarLayout>
   );
 }

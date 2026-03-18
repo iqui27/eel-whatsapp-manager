@@ -1,7 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -120,11 +131,16 @@ export default function AdminPage() {
         body: JSON.stringify(form),
       });
       if (res.ok) {
+        toast.success('Convite enviado');
         const newUser = await res.json();
         setUsers(prev => [newUser, ...prev]);
         setForm(EMPTY_FORM);
         setInviteOpen(false);
+      } else {
+        toast.error('Erro ao enviar convite');
       }
+    } catch {
+      toast.error('Erro ao enviar convite');
     } finally {
       setSaving(false);
     }
@@ -132,34 +148,55 @@ export default function AdminPage() {
 
   // Update role inline
   const updateRole = useCallback(async (userId: string, role: string) => {
-    const res = await fetch('/api/users', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: userId, role }),
-    });
-    if (res.ok) {
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: role as User['role'] } : u));
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userId, role }),
+      });
+      if (res.ok) {
+        toast.success('Funcao atualizada');
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: role as User['role'] } : u));
+      } else {
+        toast.error('Erro ao atualizar funcao');
+      }
+    } catch {
+      toast.error('Erro ao atualizar funcao');
     }
     setEditingRole(null);
   }, []);
 
   // Toggle enabled/disabled
   const toggleEnabled = useCallback(async (user: User) => {
-    const res = await fetch('/api/users', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: user.id, enabled: !user.enabled }),
-    });
-    if (res.ok) {
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, enabled: !u.enabled } : u));
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: user.id, enabled: !user.enabled }),
+      });
+      if (res.ok) {
+        toast.success('Status do usuario atualizado');
+        setUsers(prev => prev.map(u => u.id === user.id ? { ...u, enabled: !u.enabled } : u));
+      } else {
+        toast.error('Erro ao atualizar status');
+      }
+    } catch {
+      toast.error('Erro ao atualizar status');
     }
   }, []);
 
   // Remove user
   const removeUser = useCallback(async (user: User) => {
-    const res = await fetch(`/api/users?id=${user.id}`, { method: 'DELETE' });
-    if (res.ok) {
-      setUsers(prev => prev.filter(u => u.id !== user.id));
+    try {
+      const res = await fetch(`/api/users?id=${user.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Usuario removido');
+        setUsers(prev => prev.filter(u => u.id !== user.id));
+      } else {
+        toast.error('Erro ao remover usuario');
+      }
+    } catch {
+      toast.error('Erro ao remover usuario');
     }
     setConfirmRemove(null);
   }, []);
@@ -188,13 +225,18 @@ export default function AdminPage() {
         body: JSON.stringify({ id: permissionsUser.id, permissions: permissionsDraft }),
       });
       if (res.ok) {
+        toast.success('Permissoes salvas');
         setUsers((prev) => prev.map((user) => (
           user.id === permissionsUser.id
             ? { ...user, permissions: permissionsDraft }
             : user
         )));
         setPermissionsUser(null);
+      } else {
+        toast.error('Erro ao salvar permissoes');
       }
+    } catch {
+      toast.error('Erro ao salvar permissoes');
     } finally {
       setSaving(false);
     }
@@ -477,22 +519,25 @@ export default function AdminPage() {
       </Dialog>
 
       {/* Confirm Remove Dialog */}
-      <Dialog open={!!confirmRemove} onOpenChange={open => !open && setConfirmRemove(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar remoção</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Tem certeza que deseja remover <strong>{confirmRemove?.name}</strong>? O usuário perderá acesso imediatamente.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmRemove(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={() => confirmRemove && removeUser(confirmRemove)}>
+      <AlertDialog open={!!confirmRemove} onOpenChange={open => !open && setConfirmRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover usuario?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover <strong>{confirmRemove?.name}</strong>? O usuario perdera acesso imediatamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => confirmRemove && void removeUser(confirmRemove)}
+            >
               Remover
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarLayout>
   );
 }

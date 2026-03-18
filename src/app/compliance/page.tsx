@@ -1,7 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -148,6 +159,7 @@ export default function CompliancePage() {
   const [historyVoter, setHistoryVoter] = useState<VoterWithConsent | null>(null);
   const [voterHistory, setVoterHistory] = useState<ConsentLogWithVoter[]>([]);
   const [confirmAnon, setConfirmAnon] = useState<VoterWithConsent | null>(null);
+  const [voterToRevoke, setVoterToRevoke] = useState<VoterWithConsent | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Load stats + voters + all logs
@@ -162,6 +174,8 @@ export default function CompliancePage() {
       if (statsRes.ok) setStats(await statsRes.json());
       if (logsRes.ok) setAllLogs(await logsRes.json());
       setVoters(voters);
+    } catch {
+      toast.error('Erro ao carregar dados de compliance');
     } finally {
       setLoading(false);
     }
@@ -178,28 +192,38 @@ export default function CompliancePage() {
 
   // Revoke voter consent
   const revokeVoter = useCallback(async (voter: VoterWithConsent) => {
-    await fetch('/api/compliance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ voterId: voter.id, action: 'revoke', channel: 'admin' }),
-    });
-    setVoters(prev => prev.map(v => v.id === voter.id ? { ...v, optInStatus: 'revoked' } : v));
-    setStats(prev => ({
-      ...prev,
-      revoked: (prev.revoked ?? 0) + 1,
-      [voter.optInStatus ?? 'active']: Math.max(0, (prev[voter.optInStatus ?? 'active'] ?? 0) - 1),
-    }));
+    try {
+      await fetch('/api/compliance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voterId: voter.id, action: 'revoke', channel: 'admin' }),
+      });
+      toast.success('Consentimento revogado');
+      setVoters(prev => prev.map(v => v.id === voter.id ? { ...v, optInStatus: 'revoked' } : v));
+      setStats(prev => ({
+        ...prev,
+        revoked: (prev.revoked ?? 0) + 1,
+        [voter.optInStatus ?? 'active']: Math.max(0, (prev[voter.optInStatus ?? 'active'] ?? 0) - 1),
+      }));
+    } catch {
+      toast.error('Erro ao revogar consentimento');
+    }
   }, []);
 
   // Anonymize voter
   const anonymizeVoter = useCallback(async (voter: VoterWithConsent) => {
-    await fetch('/api/voters', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: voter.id, name: 'Eleitor Anônimo', phone: '****', cpf: '***' }),
-    });
-    setVoters(prev => prev.map(v => v.id === voter.id ? { ...v, name: 'Eleitor Anônimo', phone: '****', cpf: '***' } : v));
-    setConfirmAnon(null);
+    try {
+      await fetch('/api/voters', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: voter.id, name: 'Eleitor Anônimo', phone: '****', cpf: '***' }),
+      });
+      toast.success('Eleitor anonimizado');
+      setVoters(prev => prev.map(v => v.id === voter.id ? { ...v, name: 'Eleitor Anônimo', phone: '****', cpf: '***' } : v));
+      setConfirmAnon(null);
+    } catch {
+      toast.error('Erro ao anonimizar eleitor');
+    }
   }, []);
 
   // Filter voters for consent table
@@ -337,7 +361,7 @@ export default function CompliancePage() {
                             Histórico
                           </Button>
                           {voter.optInStatus !== 'revoked' && (
-                            <Button size="sm" variant="ghost" onClick={() => revokeVoter(voter)} className="h-7 px-2 gap-1 text-xs text-red-600 hover:text-red-700">
+                            <Button size="sm" variant="ghost" onClick={() => setVoterToRevoke(voter)} className="h-7 px-2 gap-1 text-xs text-red-600 hover:text-red-700">
                               <ShieldOff className="h-3 w-3" />
                               Revogar
                             </Button>
@@ -466,6 +490,27 @@ export default function CompliancePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Revoke Dialog */}
+      <AlertDialog open={!!voterToRevoke} onOpenChange={(open) => !open && setVoterToRevoke(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revogar Consentimento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O consentimento de <strong>{voterToRevoke?.name}</strong> sera marcado como revogado. Esta acao pode ser revertida.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (voterToRevoke) { void revokeVoter(voterToRevoke); setVoterToRevoke(null); } }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Revogar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarLayout>
   );
 }
