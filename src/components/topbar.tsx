@@ -100,10 +100,10 @@ export function Topbar({
   };
 
   return (
-    <div className="flex h-[74px] items-center gap-4 border-b border-border bg-background px-6">
+    <div className="flex h-[74px] items-center gap-2 lg:gap-4 overflow-hidden border-b border-border bg-background px-4 lg:px-6">
 
       {/* Section 1 — Global search routed to the command palette */}
-      <div className="flex flex-1 items-center max-w-[420px]">
+      <div className="flex flex-1 items-center min-w-[160px]">
         <button
           type="button"
           onClick={openCommandPalette}
@@ -113,40 +113,40 @@ export function Topbar({
           )}
         >
           <Search className="h-4 w-4 shrink-0" />
-          <span className="flex-1 truncate text-left">{searchLabel}</span>
-          <kbd className="hidden rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline-flex">
+          <span className="flex-1 truncate text-left hidden sm:block">{searchLabel}</span>
+          <kbd className="hidden rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground lg:inline-flex">
             Ctrl K
           </kbd>
         </button>
       </div>
 
-      {/* Section 2 — Current date */}
-      <div className="flex h-[42px] w-[220px] items-center gap-2 rounded-lg border border-border bg-transparent px-3 text-sm text-foreground shrink-0">
+      {/* Section 2 — Current date (hidden on small/medium screens) */}
+      <div className="hidden xl:flex h-[42px] w-auto min-w-fit items-center gap-2 rounded-lg border border-border bg-transparent px-3 text-sm text-foreground shrink-0">
         <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
         <span className="truncate text-muted-foreground capitalize">
-          {todayLabel}
+          <span className="hidden lg:inline">{todayLabel}</span>
         </span>
       </div>
 
-      {/* Section 3 — Operational status */}
+      {/* Section 3 — Operational status (icon always, text only on lg+) */}
       <div
         className={cn(
-          'flex h-[42px] w-[240px] items-center gap-2 rounded-lg border px-3 text-sm font-medium shrink-0',
+          'flex h-[42px] max-w-[240px] flex-shrink items-center gap-2 rounded-lg border px-3 text-sm font-medium',
           alertStyle.container,
         )}
       >
         <AlertIcon className="h-4 w-4 shrink-0" />
-        <span className="truncate">{alertLabel}</span>
+        <span className="hidden lg:inline truncate">{alertLabel}</span>
       </div>
 
       {/* Section 4 — Session context */}
-      <div className="flex min-w-0 w-[180px] items-center gap-2 shrink-0">
+      <div className="flex w-auto items-center gap-2 shrink-0">
         <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0">
           <Shield className="h-4 w-4" />
           <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
         </div>
-        <div className="min-w-0">
-          <p className="truncate text-xs text-muted-foreground">{pageTitle}</p>
+        <div className="min-w-0 hidden lg:block">
+          <p className="truncate text-xs text-muted-foreground hidden xl:block">{pageTitle}</p>
           <p className="truncate text-sm font-medium text-foreground">
             {sessionLabel === 'Sessão ativa' ? 'Operador Ativo' : sessionLabel}
           </p>

@@ -617,7 +617,7 @@ export default function DashboardPage() {
           </div>
 
           {/* ── Right: Command panel + Chat queue ── */}
-          <div className="lg:sticky lg:top-24 h-fit space-y-4">
+          <div className="lg:sticky lg:top-24 space-y-4 max-h-[calc(100vh-74px-48px)] overflow-y-auto pr-1 pb-4">
             <CommandPanel
               status={systemStatus}
               onWarmAll={handleWarmAll}
