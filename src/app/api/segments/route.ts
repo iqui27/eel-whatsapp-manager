@@ -11,15 +11,18 @@ import {
   or,
 } from 'drizzle-orm';
 import { db } from '@/db';
-import { campaigns, voters } from '@/db/schema';
+import { campaigns, voters, segments } from '@/db/schema';
 import { requirePermission } from '@/lib/api-auth';
 import {
   addSegment,
   deleteSegment,
+  getSegmentByTag,
   loadSegments,
   setSegmentVoters,
   updateSegment,
   updateSegmentCount,
+  validateSegmentTag,
+  generateTagFromName,
 } from '@/lib/db-segments';
 
 type FilterOperator = 'AND' | 'OR';
@@ -206,10 +209,20 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
     const requestedId = searchParams.get('id');
+    const requestedTag = searchParams.get('tag');
 
     if (action === 'filter-options') {
       const filterOptions = await loadFilterOptions();
       return NextResponse.json(filterOptions);
+    }
+
+    // Support query by tag
+    if (requestedTag) {
+      const segment = await getSegmentByTag(requestedTag);
+      if (!segment) {
+        return NextResponse.json({ error: 'Segmento nao encontrado' }, { status: 404 });
+      }
+      return NextResponse.json(segment);
     }
 
     const data = await loadSegments();
@@ -266,10 +279,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'name e filters são obrigatórios' }, { status: 400 });
     }
 
+    // Handle segmentTag
+    let segmentTag = body.segmentTag;
+    if (segmentTag) {
+      // Validate tag format
+      const validation = validateSegmentTag(segmentTag);
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.error }, { status: 400 });
+      }
+      
+      // Check for duplicate tag
+      const existing = await getSegmentByTag(segmentTag);
+      if (existing) {
+        return NextResponse.json({ error: 'Ja existe um segmento com esta tag' }, { status: 400 });
+      }
+    } else if (body.autoGenerateTag !== false) {
+      // Auto-generate tag from name if not provided
+      const baseTag = generateTagFromName(body.name);
+      let finalTag = baseTag;
+      let counter = 1;
+      
+      // Ensure uniqueness
+      while (await getSegmentByTag(finalTag)) {
+        finalTag = `${baseTag}_${counter}`;
+        counter++;
+      }
+      segmentTag = finalTag;
+    }
+
     const filters = typeof body.filters === 'string' ? body.filters : JSON.stringify(body.filters);
     const preview = await previewAudience(body.filters);
     const segment = await addSegment({
       ...body,
+      segmentTag,
       filters,
       audienceCount: preview.count,
     });
@@ -279,7 +321,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(segment, { status: 201 });
   } catch (error) {
     console.error('POST segments error:', error);
-    return NextResponse.json({ error: 'Erro ao adicionar segmento' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Erro ao adicionar segmento';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -294,6 +337,24 @@ export async function PUT(request: NextRequest) {
     }
 
     const { id, ...updates } = body;
+
+    // Handle segmentTag update
+    if (updates.segmentTag !== undefined) {
+      // Validate tag format
+      const validation = validateSegmentTag(updates.segmentTag);
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.error }, { status: 400 });
+      }
+      
+      // Check for duplicate tag (excluding current segment)
+      if (updates.segmentTag) {
+        const existing = await getSegmentByTag(updates.segmentTag);
+        if (existing && existing.id !== id) {
+          return NextResponse.json({ error: 'Ja existe um segmento com esta tag' }, { status: 400 });
+        }
+      }
+    }
+
     const preview = updates.filters ? await previewAudience(updates.filters) : null;
 
     if (updates.filters && typeof updates.filters !== 'string') {
@@ -313,7 +374,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(segment);
   } catch (error) {
     console.error('PUT segments error:', error);
-    return NextResponse.json({ error: 'Erro ao atualizar segmento' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Erro ao atualizar segmento';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
