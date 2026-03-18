@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import SidebarLayout from '@/components/SidebarLayout';
 import { SetupWizardNavCompact } from '@/components/setup-wizard-nav';
 import { Progress } from '@/components/ui/progress';
@@ -20,12 +20,11 @@ export default function WizardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
+  const pathname = usePathname();
   const [state, setState] = useState<WizardState | null>(null);
   const [loading, setLoading] = useState(true);
   
   // Extract current step from pathname
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const stepMatch = pathname.match(/\/wizard\/([^/]+)/);
   const currentStep: WizardStep = (stepMatch?.[1] as WizardStep) || 'chips';
   
