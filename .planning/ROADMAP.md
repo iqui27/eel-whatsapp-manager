@@ -22,6 +22,8 @@
 | 11 | Full-System Verification + UAT Sweep | P0 | 10 | 3/3 complete |
 | 12 | Campaign Personalization Completion | P0 | 04, 09, 11 | 3/3 complete |
 | 13 | Zero-Pendency Release Closure | P0 | 11, 12 | 5 plans |
+| 31 | Diagnostic Fixes | P0 | 30 | 5/5 complete ✅ |
+| 32 | System Logs & Observability | P1 | 31 | 3/3 complete ✅ |
 
 ---
 
@@ -771,14 +773,15 @@ Phase 23 (Layout Foundation) ──┬── Phase 24 (Operations) ────�
 - DIAG-10: Webhook detects opt-out keywords (SAIR/PARAR/CANCELAR) and revokes consent with confirmation reply
 
 **Depends on:** Phase 30
+**Status:** Complete ✅
 **Plans:** 5/5 plans complete
 
 Plans:
-- [ ] 31-01-PLAN.md — CRM Critical Fixes (inline edit bug, overflow, tags, AI card)
-- [ ] 31-02-PLAN.md — CRM Segment Display (bulk query, table column, detail card)
-- [ ] 31-03-PLAN.md — Groups UX Improvements (admin field, voter picker, API promotion)
-- [ ] 31-04-PLAN.md — Message History Enhancement (empty state, inbound support, direction filter)
-- [ ] 31-05-PLAN.md — Opt-in Automation (keyword detection, consent logging, confirmation reply)
+- [x] 31-01-PLAN.md — CRM Critical Fixes (inline edit bug, overflow, tags, AI card)
+- [x] 31-02-PLAN.md — CRM Segment Display (bulk query, table column, detail card)
+- [x] 31-03-PLAN.md — Groups UX Improvements (admin field, voter picker, API promotion)
+- [x] 31-04-PLAN.md — Message History Enhancement (empty state, inbound support, direction filter)
+- [x] 31-05-PLAN.md — Opt-in Automation (keyword detection, consent logging, confirmation reply)
 
 ### Phase 31 Wave Structure
 
@@ -789,7 +792,31 @@ Plans:
 
 ---
 
-## Technical Decisions
+### Phase 32: System Logs & Observability
+**Status:** Complete ✅
+**Goal:** Add full system observability via a structured logs page — track webhook events, Gemini AI calls, errors, and operational events with filterable UI and CSV export. Fix performance regression caused by per-call DB inserts exhausting connection pool.
+
+**Requirements:** [OBS-01, OBS-02, OBS-03, OBS-04, OBS-05]
+
+- OBS-01: system_logs table with level/category/message/meta/duration_ms columns + indexes
+- OBS-02: Batch logger library (in-memory buffer, 2s flush, SYSLOG_MIN_LEVEL env guard)
+- OBS-03: GET /api/system-logs with filters: level, category, search, from/to, limit
+- OBS-04: /logs UI page with filter pills, search, date range, expandable JSON, auto-refresh, CSV export
+- OBS-05: Webhook and Gemini instrumented; routine messages demoted to debug level
+
+**Depends on:** Phase 31
+**Plans:** 3/3 plans complete
+
+Plans:
+- [x] 32-01-PLAN.md — System Logs Infrastructure (DB table, logger lib, API, instrumentation)
+- [x] 32-02-PLAN.md — Logs UI Page (filter pills, search, table, auto-refresh, CSV export)
+- [x] 32-03-PLAN.md — Performance Fixes (batch writer, logs page debounce + appliedRef)
+
+---
+
+## 🎉 MILESTONE 4 COMPLETE — ALL 32 PHASES EXECUTED AND DEPLOYED
+
+---
 
 | Decision | Choice | Reason |
 |----------|--------|--------|

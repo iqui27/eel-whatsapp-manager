@@ -2,46 +2,52 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: "Milestone 4 — Diagnostic Fixes & Feature Gaps"
-current_phase: 31
-current_phase_name: diagnostic-fixes
-current_plan: 0
-status: planned
-stopped_at: "Phase 31 planning complete — 5 plans created across 2 waves for diagnostic fixes"
-last_updated: "2026-03-18T23:59:00.000Z"
-last_activity: 2026-03-18
+current_phase: 32
+current_phase_name: system-logs
+current_plan: 3
+status: complete
+stopped_at: "Phase 32 complete — system logs infrastructure, UI page, and performance fixes deployed"
+last_updated: "2026-03-19T00:00:00.000Z"
+last_activity: 2026-03-19
 progress:
-  total_phases: 31
-  completed_phases: 30
-  total_plans: 91
-  completed_plans: 86
-  percent: 95
+  total_phases: 32
+  completed_phases: 32
+  total_plans: 94
+  completed_plans: 94
+  percent: 100
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 23
-**Current Phase Name:** critical-layout
-**Current Plan:** 2
-**Total Phases:** 30
-**Total Plans in Phase:** 2
-**Status:** Phase complete — ready for verification
-**Progress:** [████████░░] 80% (Milestones 1-2 complete, Milestone 3 planned)
+**Current Phase:** 32
+**Current Phase Name:** system-logs
+**Current Plan:** 3
+**Total Phases:** 32
+**Total Plans in Phase:** 3
+**Status:** Phase complete — Milestone 4 complete
+**Progress:** [██████████] 100% (All milestones complete)
 **Last Activity:** 2026-03-19
-**Last Activity Description:** Milestone 3 planning complete — 17 PLAN.md files created across 8 phases (23-30)
-**Stopped At:** Completed 31-03-PLAN.md - Gemini model fix + CRM + Groups
+**Last Activity Description:** Phase 32 complete — system logs shipped with batch writer perf fix and deployed to production
+**Stopped At:** Completed 32-03 — system logger batch writer + logs UI debounce
 
-## Milestone 3 — Professional UI/UX Overhaul (Phases 23-30)
+**Phase 31 (Diagnostic Fixes) — COMPLETE** ✅
+- Plan 31-01: CRM inline edit fix, AI analysis card, Gemini model fix (gemini-2.5-flash GA) ✅
+- Plan 31-02: Voter segments shown in CRM list and detail pages ✅
+- Plan 31-03: WhatsApp group creation UX — admin phones field, voter picker, admin promotion ✅
+- Plan 31-04: Message History empty state + inbound message support ✅
+- Plan 31-05: Opt-in/out keyword detection in webhook (automatic consent automation) ✅
 
-**Wave 1:** Phase 23 — Critical Layout & Navigation Foundation (2 plans)
-**Wave 2:** Phases 24-29 — Individual page overhauls (13 plans, parallelizable)
-- Phase 24: Operations Unification (2 plans)
-- Phase 25: Conversas System Overhaul (3 plans)
-- Phase 26: Campanhas & Segmentacao UX (2 plans)
-- Phase 27: CRM Overhaul (2 plans)
-- Phase 28: Relatorios Professionalization (2 plans)
-- Phase 29: Configuracoes & Perfil (2 plans)
-**Wave 3:** Phase 30 — Header, Cleanup & Final Polish (2 plans)
+**Phase 32 (System Logs) — COMPLETE** ✅
+- Plan 32-01: system_logs table, system-logger.ts, GET /api/system-logs, webhook + Gemini instrumentation ✅
+- Plan 32-02: /logs UI page — level/category filters, search, date range, expandable JSON, auto-refresh, CSV export ✅
+- Plan 32-03: Batch writer rewrite (in-memory buffer, 2s flush, SYSLOG_MIN_LEVEL guard), logs page debounce fix ✅
+
+## 🎉 MILESTONE 4 COMPLETE — ALL 32 PHASES EXECUTED
+
+Progress: [██████████] 100%
+
+Last session: 2026-03-19T00:00:00.000Z
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -234,11 +240,23 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Plan 30-01: Command palette entity search (voters), new nav commands, topbar real alert count from API ✅
 - Plan 30-02: Deprecated redirects (/history→/historico, /contacts→/crm, /clusters→/), all sidebar accent fixes ✅
 
-## 🎉 MILESTONE 3 COMPLETE — ALL 30 PHASES EXECUTED
+**Phase 31 (Diagnostic Fixes) — COMPLETE** ✅
+- Plan 31-01: CRM inline edit fix, AI analysis card, Gemini model updated to gemini-2.5-flash (GA) ✅
+- Plan 31-02: Voter segments shown in CRM list and detail pages via bulk join query ✅
+- Plan 31-03: Group creation UX — admin phones field, voter picker dialog, API admin promotion ✅
+- Plan 31-04: Message History empty state + inbound message support (direction filter) ✅
+- Plan 31-05: Opt-in/out keyword detection in webhook (automatic LGPD consent automation) ✅
 
-Progress: [████████░░] 83% (Milestone 3 in progress)
+**Phase 32 (System Logs) — COMPLETE** ✅
+- Plan 32-01: system_logs DB table + migration, system-logger.ts, GET /api/system-logs with filters, webhook + Gemini instrumentation ✅
+- Plan 32-02: /logs UI page — level/category pills, text search, date range, expandable JSON detail, duration badge, auto-refresh, CSV export ✅
+- Plan 32-03: Batch logger rewrite (in-memory buffer → 2s batch INSERT, SYSLOG_MIN_LEVEL env guard), logs page debounce + appliedRef pattern ✅
 
-Last session: 2026-03-18T23:30:00.000Z
+## 🎉 MILESTONE 4 COMPLETE — ALL 32 PHASES EXECUTED
+
+Progress: [██████████] 100%
+
+Last session: 2026-03-19T00:00:00.000Z
 
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
@@ -334,6 +352,10 @@ Last session: 2026-03-18T23:30:00.000Z
 - [Phase 31]: Direction filter merges outbound+inbound in memory before paginating (simpler than SQL UNION)
 - [Phase 31]: Opt-in/out keyword detection only triggers for known voters (voterId not null) to avoid processing spam
 - [Phase 31]: Gemini model fixed from gemini-2.5-flash-preview-04-17 (404) to gemini-2.5-flash (GA)
+- [Phase 32]: system_logs batch writer uses in-memory buffer + 2s flush to prevent DB connection pool exhaustion
+- [Phase 32]: SYSLOG_MIN_LEVEL=warn default drops debug/info logs in production; set to 'info' to see more
+- [Phase 32]: Logs page uses appliedRef pattern to decouple filter state from fetch triggers, avoiding stale closure storms
+- [Phase 32]: system_logs table indexes on created_at, level, category for fast filter queries
 
 ## Accumulated Context
 
@@ -459,14 +481,20 @@ src/components/
 | 29-config-perfil P02 | 15 min | 2/2 | 2 files |
 | 30-header-cleanup P01 | 20 min | 1/1 | 2 files |
 | 30-header-cleanup P02 | 10 min | 2/2 | 7 files |
+| 31-diagnostic-fixes P01 | 25 min | 3/3 | 3 files |
+| 31-diagnostic-fixes P02 | 15 min | 2/2 | 4 files |
+| 31-diagnostic-fixes P03 | 20 min | 3/3 | 3 files |
+| 31-diagnostic-fixes P04 | 15 min | 2/2 | 2 files |
+| 31-diagnostic-fixes P05 | 15 min | 2/2 | 2 files |
+| 32-system-logs P01 | 20 min | 4/4 | 7 files |
+| 32-system-logs P02 | 25 min | 3/3 | 3 files |
+| 32-system-logs P03 | 20 min | 3/3 | 3 files |
 
 ## Next Actions
 
-**Phase 23 Complete — Starting Wave 2**
+**Milestone 4 Complete — All 32 Phases Executed and Deployed**
 
-Next steps:
-1. Execute Phase 24 (Operations Unification): `/gsd-execute-phase 24-operations-unification`
-2. Execute Phases 25-29 (Wave 2): Parallelizable — each touches different page files
-3. Execute Phase 30 (Wave 3): Final cleanup after all pages are polished
-4. Deploy to production
-5. User acceptance testing
+Optional next steps (if needed):
+1. Set `SYSLOG_MIN_LEVEL=info` on server `.env` to see info-level logs on `/logs` page (currently only warn/error visible)
+2. Add log retention cron: `DELETE FROM system_logs WHERE created_at < NOW() - INTERVAL '7 days'`
+3. Start new Milestone 5 planning if new features are required
