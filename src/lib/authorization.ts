@@ -118,6 +118,7 @@ export function pagePermission(pageId: string): Permission | null {
     case 'contacts':
     case 'clusters':
     case 'history':
+    case 'logs':
       return 'operations.view';
     default:
       return null;

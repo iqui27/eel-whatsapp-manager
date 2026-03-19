@@ -26,6 +26,7 @@ import {
   ChevronRight,
   Zap,
   Menu,
+  ScrollText,
 } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import { CommandPalette } from './command-palette';
@@ -51,7 +52,8 @@ type PageId =
   | 'settings'
   | 'configuracoes'
   | 'perfil'
-  | 'wizard';
+  | 'wizard'
+  | 'logs';
 
 interface SidebarLayoutProps {
   children: ReactNode;
@@ -89,6 +91,7 @@ const legacyNavItems = [
   { id: 'chips'    as PageId, label: 'Chips',          href: '/chips',        icon: Smartphone },
   { id: 'grupos'   as PageId, label: 'Grupos',         href: '/grupos',       icon: UsersRound },
   { id: 'history'  as PageId, label: 'Histórico',       href: '/historico',    icon: History },
+  { id: 'logs'     as PageId, label: 'Logs do Sistema', href: '/logs',         icon: ScrollText },
   { id: 'perfil'   as PageId, label: 'Meu Perfil',     href: '/perfil',       icon: UserCircle },
   { id: 'settings' as PageId, label: 'Configurações',  href: '/configuracoes', icon: Settings },
 ];
