@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { listGroups, createGroupRecord } from '@/lib/db-groups';
 import { loadChips } from '@/lib/db-chips';
 import { loadConfig } from '@/lib/db-config';
-import { createGroup, getInviteCode } from '@/lib/evolution';
+import { createGroup, getInviteCode, updateParticipant } from '@/lib/evolution';
 import { db } from '@/db';
 import { campaigns } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -102,6 +102,26 @@ export async function POST(request: NextRequest) {
       inviteCode = invite.inviteCode;
     } catch (e) {
       console.warn('[api/groups] Failed to get invite code:', e);
+    }
+
+    // Promote admins in WhatsApp group (before saving to DB so group is still created on failure)
+    if (admins && admins.length > 0) {
+      for (const adminPhone of admins) {
+        try {
+          await updateParticipant(
+            config.evolutionApiUrl,
+            config.evolutionApiKey,
+            instanceName,
+            created.id,
+            'promote',
+            [adminPhone],
+          );
+          console.log('[api/groups] Promoted admin:', adminPhone);
+        } catch (promoteErr) {
+          console.warn('[api/groups] Failed to promote admin:', adminPhone, promoteErr);
+          // Continue with other admins — don't fail the whole creation
+        }
+      }
     }
 
     // Store in database
