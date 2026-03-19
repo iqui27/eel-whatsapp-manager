@@ -28,6 +28,7 @@ export interface MessageHistoryRow {
   message: string;
   resolvedMessage: string;
   status: string;
+  direction?: 'outbound' | 'inbound';
   sentAt: string | null;
   deliveredAt: string | null;
   readAt: string | null;

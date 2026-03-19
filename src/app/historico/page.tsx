@@ -10,6 +10,9 @@ import {
   X,
   Calendar,
   Loader2,
+  MessageSquare,
+  Send,
+  Inbox,
 } from 'lucide-react';
 import SidebarLayout from '@/components/SidebarLayout';
 import { MessageHistoryTable, type MessageHistoryRow } from '@/components/message-history-table';
@@ -61,6 +64,7 @@ export default function HistoricoPage() {
   const [endDate, setEndDate] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [direction, setDirection] = useState<'all' | 'outbound' | 'inbound'>('all');
 
   // Filter options
   const [campaigns, setCampaigns] = useState<FilterOption[]>([]);
@@ -121,6 +125,7 @@ export default function HistoricoPage() {
       if (startDate) params.set('startDate', startDate);
       if (endDate) params.set('endDate', endDate);
       if (search) params.set('search', search);
+      params.set('direction', direction);
 
       const res = await fetch(`/api/messages/history?${params.toString()}`);
       
@@ -143,7 +148,7 @@ export default function HistoricoPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, sortBy, sortOrder, statusFilter, campaignFilter, chipFilter, startDate, endDate, search, router]);
+  }, [page, limit, sortBy, sortOrder, statusFilter, campaignFilter, chipFilter, startDate, endDate, search, direction, router]);
 
   useEffect(() => {
     fetchHistory();
@@ -307,6 +312,29 @@ export default function HistoricoPage() {
           )}
         </div>
 
+        {/* Direction toggle */}
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted w-fit">
+          {([
+            { value: 'all', label: 'Todas', icon: MessageSquare },
+            { value: 'outbound', label: 'Enviadas', icon: Send },
+            { value: 'inbound', label: 'Recebidas', icon: Inbox },
+          ] as const).map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              onClick={() => { setDirection(value); setPage(1); }}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                direction === value
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Filter panel */}
         {showFilters && (
           <motion.div
@@ -385,19 +413,62 @@ export default function HistoricoPage() {
           </motion.div>
         )}
 
+        {/* Empty state (when not loading, no data) */}
+        {!loading && data.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            {hasActiveFilters || direction !== 'all' ? (
+              <>
+                <Search className="h-10 w-10 text-muted-foreground/40 mb-4" />
+                <h3 className="text-base font-semibold text-foreground mb-1">Nenhum resultado encontrado</h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Tente ajustar os filtros ou a busca para encontrar o que procura.
+                </p>
+                <button
+                  onClick={clearFilters}
+                  className="mt-4 flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Limpar filtros
+                </button>
+              </>
+            ) : (
+              <>
+                <MessageSquare className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                <h3 className="text-base font-semibold text-foreground mb-2">Nenhuma mensagem no histórico</h3>
+                <p className="text-sm text-muted-foreground max-w-md mb-6">
+                  O histórico é preenchido automaticamente quando campanhas são enviadas ou leads respondem às suas mensagens.
+                </p>
+                <a
+                  href="/campanhas/nova"
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  Criar primeira campanha
+                </a>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Ou importe sua base de leads em{' '}
+                  <a href="/segmentacao" className="text-primary hover:underline">Segmentação → Importar</a>
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Table */}
-        <MessageHistoryTable
-          data={data}
-          total={total}
-          page={page}
-          limit={limit}
-          totalPages={totalPages}
-          loading={loading}
-          onPageChange={handlePageChange}
-          onSortChange={handleSortChange}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-        />
+        {(loading || data.length > 0) && (
+          <MessageHistoryTable
+            data={data}
+            total={total}
+            page={page}
+            limit={limit}
+            totalPages={totalPages}
+            loading={loading}
+            onPageChange={handlePageChange}
+            onSortChange={handleSortChange}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+          />
+        )}
       </div>
     </SidebarLayout>
   );
