@@ -462,7 +462,7 @@ export default function CrmPage() {
             )}
           </div>
         ) : (
-          <div className="rounded-xl border border-border overflow-hidden">
+          <div className="rounded-xl border border-border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40">
@@ -542,7 +542,7 @@ export default function CrmPage() {
                     <TableCell>
                       <EngagementBar score={voter.engagementScore} />
                     </TableCell>
-                     <TableCell>
+                     <TableCell className="whitespace-normal">
                        <div
                          className="flex items-center gap-1 flex-wrap max-w-[200px]"
                          title={(voter.tags ?? []).join(', ') || undefined}
@@ -631,10 +631,10 @@ export default function CrmPage() {
                             <Button variant="outline" size="sm" onClick={() => setEditingVoterId(null)}>Cancelar</Button>
                             <Button size="sm" onClick={async () => {
                               try {
-                                const res = await fetch(`/api/voters?id=${voter.id}`, {
+                                const res = await fetch(`/api/voters`, {
                                   method: 'PUT',
                                   headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify(editForm),
+                                  body: JSON.stringify({ id: voter.id, ...editForm }),
                                 });
                                 if (res.ok) {
                                   toast.success('Eleitor atualizado');

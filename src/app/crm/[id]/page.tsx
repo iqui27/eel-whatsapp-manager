@@ -26,6 +26,7 @@ import {
   CheckSquare,
   Square,
   Save,
+  Sparkles,
 } from 'lucide-react';
 
 // ─── Opt-in helpers ───────────────────────────────────────────────────────────
@@ -42,6 +43,33 @@ const OPT_IN_CLASSES: Record<string, string> = {
 
 const CONSENT_ACTION_LABELS: Record<string, string> = {
   opt_in: 'Opt-in registrado', opt_out: 'Opt-out', renew: 'Renovação', revoke: 'Revogado',
+};
+
+// ─── AI analysis helpers ──────────────────────────────────────────────────────
+
+const AI_TIER_LABELS: Record<string, string> = {
+  hot: 'Quente', warm: 'Morno', cold: 'Frio', dead: 'Inativo',
+};
+const AI_TIER_CLASSES: Record<string, string> = {
+  hot:  'bg-red-500/10 text-red-600 border-red-200',
+  warm: 'bg-amber-500/10 text-amber-600 border-amber-200',
+  cold: 'bg-blue-500/10 text-blue-600 border-blue-200',
+  dead: 'bg-muted text-muted-foreground border-border',
+};
+const AI_SENTIMENT_LABELS: Record<string, string> = {
+  positive: 'Positivo', neutral: 'Neutro', negative: 'Negativo',
+};
+const AI_SENTIMENT_CLASSES: Record<string, string> = {
+  positive: 'bg-green-500/10 text-green-600 border-green-200',
+  neutral:  'bg-amber-500/10 text-amber-600 border-amber-200',
+  negative: 'bg-red-500/10 text-red-600 border-red-200',
+};
+const AI_ACTION_LABELS: Record<string, string> = {
+  follow_up:    'Fazer acompanhamento',
+  send_offer:   'Enviar oferta',
+  add_to_group: 'Adicionar a grupo',
+  escalate:     'Escalar',
+  remove:       'Remover',
 };
 
 // ─── Engagement indicator ─────────────────────────────────────────────────────
@@ -468,8 +496,61 @@ export default function VoterProfilePage() {
             </Card>
           </div>
 
-          {/* Right: Checklist + Notes */}
+          {/* Right: AI Analysis + Checklist + Notes */}
           <div className="space-y-4">
+
+            {/* AI Analysis */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Análise IA (Gemini)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!voter.aiTier && !voter.aiSentiment && !voter.aiAnalysisSummary ? (
+                  <p className="text-sm text-muted-foreground italic">
+                    Este eleitor ainda não foi analisado pela IA
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Tier + Sentiment badges */}
+                    <div className="flex flex-wrap gap-2">
+                      {voter.aiTier && (
+                        <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', AI_TIER_CLASSES[voter.aiTier])}>
+                          {AI_TIER_LABELS[voter.aiTier] ?? voter.aiTier}
+                        </span>
+                      )}
+                      {voter.aiSentiment && (
+                        <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', AI_SENTIMENT_CLASSES[voter.aiSentiment])}>
+                          {AI_SENTIMENT_LABELS[voter.aiSentiment] ?? voter.aiSentiment}
+                        </span>
+                      )}
+                    </div>
+                    {/* Summary */}
+                    {voter.aiAnalysisSummary && (
+                      <p className="text-sm text-muted-foreground leading-relaxed">{voter.aiAnalysisSummary}</p>
+                    )}
+                    {/* Recommended action */}
+                    {voter.aiRecommendedAction && (
+                      <div className="text-xs">
+                        <span className="font-medium text-foreground">Ação recomendada: </span>
+                        <span className="text-muted-foreground">
+                          {AI_ACTION_LABELS[voter.aiRecommendedAction] ?? voter.aiRecommendedAction}
+                        </span>
+                      </div>
+                    )}
+                    {/* Confidence */}
+                    {/* Last analyzed */}
+                    {voter.aiLastAnalyzed && (
+                      <div className="text-xs text-muted-foreground">
+                        Última análise: {new Date(voter.aiLastAnalyzed).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Checklist */}
             <Card>
