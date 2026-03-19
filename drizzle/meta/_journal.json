@@ -8,6 +8,13 @@
       "when": 1772748708817,
       "tag": "0000_thick_blacklash",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773874018868,
+      "tag": "0001_check_schema_diff",
+      "breakpoints": true
     }
   ]
 }
