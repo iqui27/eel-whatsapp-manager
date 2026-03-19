@@ -13,6 +13,9 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { formatPhoneDisplay } from '@/lib/phone';
 import type { Voter, Conversation, ConsentLog } from '@/db/schema';
+
+// Enriched voter type with segment data from API
+type VoterWithSegments = Voter & { segments?: Array<{ id: string; name: string }> };
 import {
   ArrowLeft,
   User,
@@ -27,6 +30,7 @@ import {
   Square,
   Save,
   Sparkles,
+  Layers,
 } from 'lucide-react';
 
 // ─── Opt-in helpers ───────────────────────────────────────────────────────────
@@ -165,7 +169,7 @@ export default function VoterProfilePage() {
   const router = useRouter();
   const voterId = params.id;
 
-  const [voter, setVoter] = useState<Voter | null>(null);
+  const [voter, setVoter] = useState<VoterWithSegments | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [consentLogs, setConsentLogs] = useState<ConsentLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -201,7 +205,7 @@ export default function VoterProfilePage() {
         throw new Error('Erro ao carregar eleitor');
       }
 
-      const voterData: Voter = await voterRes.json();
+      const voterData: VoterWithSegments = await voterRes.json();
       setVoter(voterData);
       setTags(voterData.tags ?? []);
       setChecklist(CHECKLIST_ITEMS.map((item) => (voterData.crmChecklist ?? []).includes(item)));
@@ -249,7 +253,7 @@ export default function VoterProfilePage() {
         throw new Error('Erro ao salvar contexto do CRM');
       }
 
-      const updated = await res.json() as Voter;
+      const updated = await res.json() as VoterWithSegments;
       setVoter(updated);
       setChecklist(CHECKLIST_ITEMS.map((item) => (updated.crmChecklist ?? []).includes(item)));
       setNotes(updated.crmNotes ?? '');
@@ -553,6 +557,41 @@ export default function VoterProfilePage() {
             </Card>
 
             {/* Checklist */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Layers className="h-4 w-4 text-primary" />
+                  Segmentos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(voter.segments ?? []).length === 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground italic">
+                      Este eleitor não pertence a nenhum segmento
+                    </p>
+                    <Link href="/segmentacao">
+                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1 w-full justify-start">
+                        <Layers className="h-3 w-3" />
+                        Ir para Segmentação
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(voter.segments ?? []).map(seg => (
+                      <Link key={seg.id} href="/segmentacao">
+                        <span className="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted cursor-pointer transition-colors">
+                          {seg.name}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Checklist (original) */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">

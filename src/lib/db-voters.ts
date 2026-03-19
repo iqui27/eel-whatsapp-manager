@@ -4,10 +4,10 @@
  */
 import { db } from '@/db';
 import {
-  voters, segmentVoters,
+  voters, segmentVoters, segments,
   type Voter, type NewVoter,
 } from '@/db/schema';
-import { eq, desc, ilike, or } from 'drizzle-orm';
+import { eq, desc, ilike, inArray } from 'drizzle-orm';
 import { normalizePhone } from '@/lib/phone';
 
 export type { Voter, NewVoter };
@@ -100,4 +100,32 @@ export async function getVotersBySegment(segmentId: string): Promise<Voter[]> {
     .innerJoin(voters, eq(segmentVoters.voterId, voters.id))
     .where(eq(segmentVoters.segmentId, segmentId));
   return rows.map((r) => r.voter);
+}
+
+/**
+ * Bulk-fetch segment associations for a list of voter IDs.
+ * Returns a Map<voterId, Array<{id, name}>> — O(1) lookups per voter.
+ */
+export async function getSegmentsForVoterIds(
+  voterIds: string[],
+): Promise<Map<string, Array<{ id: string; name: string }>>> {
+  if (voterIds.length === 0) return new Map();
+
+  const rows = await db
+    .select({
+      voterId: segmentVoters.voterId,
+      segmentId: segments.id,
+      segmentName: segments.name,
+    })
+    .from(segmentVoters)
+    .innerJoin(segments, eq(segmentVoters.segmentId, segments.id))
+    .where(inArray(segmentVoters.voterId, voterIds));
+
+  const map = new Map<string, Array<{ id: string; name: string }>>();
+  for (const row of rows) {
+    const arr = map.get(row.voterId) ?? [];
+    arr.push({ id: row.segmentId, name: row.segmentName });
+    map.set(row.voterId, arr);
+  }
+  return map;
 }

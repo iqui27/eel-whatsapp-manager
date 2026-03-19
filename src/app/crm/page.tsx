@@ -46,6 +46,9 @@ import { cn } from '@/lib/utils';
 import type { Voter } from '@/db/schema';
 import { Users, Upload, Search, Eye, Plus, Trash2, Download } from 'lucide-react';
 
+// Extended voter type that includes enriched segment data from API
+type VoterWithSegments = Voter & { segments?: Array<{ id: string; name: string }> };
+
 // ─── Opt-in status ────────────────────────────────────────────────────────────
 
 const OPT_IN_LABELS: Record<string, string> = {
@@ -90,7 +93,7 @@ const EMPTY_FORM = {
 };
 
 type PaginatedVotersResponse = {
-  data: Voter[];
+  data: VoterWithSegments[];
   total: number;
   page: number;
   limit: number;
@@ -100,7 +103,7 @@ type PaginatedVotersResponse = {
 
 export default function CrmPage() {
   const router = useRouter();
-  const [voters, setVoters] = useState<Voter[]>([]);
+  const [voters, setVoters] = useState<VoterWithSegments[]>([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -109,14 +112,14 @@ export default function CrmPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalVoters, setTotalVoters] = useState(0);
-  const [voterToDelete, setVoterToDelete] = useState<Voter | null>(null);
+  const [voterToDelete, setVoterToDelete] = useState<VoterWithSegments | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [tierFilter, setTierFilter] = useState('all');
   const [optInFilter, setOptInFilter] = useState('all');
   const [zoneFilter, setZoneFilter] = useState('all');
   const [selectedVoterIds, setSelectedVoterIds] = useState<Set<string>>(new Set());
   const [editingVoterId, setEditingVoterId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<Voter>>({});
+  const [editForm, setEditForm] = useState<Partial<VoterWithSegments>>({});
 
   const load = useCallback(async (q: string, page: number) => {
     setIsLoading(true);
@@ -484,6 +487,7 @@ export default function CrmPage() {
                   <TableHead>Opt-in</TableHead>
                   <TableHead>Engajamento</TableHead>
                   <TableHead>Tags</TableHead>
+                  <TableHead>Segmentos</TableHead>
                   <TableHead>Último contato</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -556,8 +560,24 @@ export default function CrmPage() {
                            <span className="text-[10px] text-muted-foreground">+{(voter.tags ?? []).length - 2}</span>
                          )}
                        </div>
+                      </TableCell>
+                     <TableCell className="whitespace-normal">
+                       {(voter.segments ?? []).length === 0 ? (
+                         <span className="text-muted-foreground/40 text-xs">—</span>
+                       ) : (
+                         <div className="flex items-center gap-1 flex-wrap max-w-[180px]">
+                           {(voter.segments ?? []).slice(0, 2).map(seg => (
+                             <span key={seg.id} className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] text-muted-foreground font-medium">
+                               {seg.name}
+                             </span>
+                           ))}
+                           {(voter.segments ?? []).length > 2 && (
+                             <span className="text-[10px] text-muted-foreground">+{(voter.segments ?? []).length - 2}</span>
+                           )}
+                         </div>
+                       )}
                      </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                     <TableCell className="text-xs text-muted-foreground">
                       {voter.lastContacted
                         ? new Date(voter.lastContacted).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
                         : '—'}
@@ -583,7 +603,7 @@ export default function CrmPage() {
                   {/* Inline editor */}
                    {editingVoterId === voter.id && (
                     <TableRow key={`edit-${voter.id}`}>
-                      <TableCell colSpan={10} className="bg-muted/10 border-l-4 border-l-primary/30 p-0" onClick={e => e.stopPropagation()}>
+                       <TableCell colSpan={11} className="bg-muted/10 border-l-4 border-l-primary/30 p-0" onClick={e => e.stopPropagation()}>
                         <div className="p-4 space-y-4">
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div className="space-y-1.5">

@@ -3,6 +3,7 @@ import { requirePermission } from '@/lib/api-auth';
 import { isVoterInScope } from '@/lib/authorization';
 import {
   loadVoters, searchVoters, getVoter, addVoter, updateVoter, deleteVoter,
+  getSegmentsForVoterIds,
 } from '@/lib/db-voters';
 
 export async function GET(request: NextRequest) {
@@ -28,15 +29,22 @@ export async function GET(request: NextRequest) {
       if (!isVoterInScope(auth.actor, voter)) {
         return NextResponse.json({ error: 'Fora do seu escopo regional' }, { status: 403 });
       }
-      return NextResponse.json(voter);
+      // Enrich single voter with segment data
+      const segmentMap = await getSegmentsForVoterIds([voter.id]);
+      return NextResponse.json({ ...voter, segments: segmentMap.get(voter.id) ?? [] });
     }
 
     const allData = query ? await searchVoters(query) : await loadVoters();
     const scopedData = allData.filter((voter) => isVoterInScope(auth.actor, voter));
     const data = scopedData.slice(offset, offset + limit);
 
+    // Enrich paginated voters with segment data (single bulk query)
+    const voterIds = data.map((v) => v.id);
+    const segmentMap = await getSegmentsForVoterIds(voterIds);
+    const enriched = data.map((v) => ({ ...v, segments: segmentMap.get(v.id) ?? [] }));
+
     return NextResponse.json({
-      data,
+      data: enriched,
       total: scopedData.length,
       page,
       limit,
