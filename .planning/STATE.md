@@ -1,20 +1,20 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
-milestone_name: "Milestone 3 — Professional UI/UX Overhaul"
-current_phase: 30
-current_phase_name: header-cleanup
-current_plan: 2
-status: complete
-stopped_at: "Milestone 3 complete — all 30 phases executed, Phases 26-30 UI/UX overhaul finished"
-last_updated: "2026-03-19T06:00:00.000Z"
+milestone: v4.0
+milestone_name: "Milestone 4 — Diagnostic Fixes & Feature Gaps"
+current_phase: 31
+current_phase_name: diagnostic-fixes
+current_plan: 0
+status: planned
+stopped_at: "Phase 31 planning complete — 5 plans created across 2 waves for diagnostic fixes"
+last_updated: "2026-03-18T23:59:00.000Z"
 last_activity: 2026-03-18
 progress:
-  total_phases: 30
+  total_phases: 31
   completed_phases: 30
-  total_plans: 86
+  total_plans: 91
   completed_plans: 86
-  percent: 100
+  percent: 95
 ---
 
 # EEL Eleicao — Project State

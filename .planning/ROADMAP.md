@@ -743,6 +743,52 @@ Phase 23 (Layout Foundation) ──┬── Phase 24 (Operations) ────�
 
 ---
 
+## Milestone 4: Diagnostic Fixes & Feature Gaps
+
+> Fix critical bugs found during diagnostic sweep and close feature gaps across Groups, CRM, History, and Opt-in automation.
+
+| Phase | Name | Priority | Depends On | Plans |
+|-------|------|----------|------------|-------|
+| 31 | Diagnostic Fixes | P0 | 30 | 5 plans (2 waves) |
+
+---
+
+### Phase 31: Diagnostic Fixes
+**Status:** Planned
+**Goal:** Fix CRM critical bugs (inline edit, overflow, missing AI display, missing segments), enhance Groups UX (admin promotion, voter picker), improve Message History (empty state, inbound messages), and add opt-in automation (keyword detection in webhook).
+
+**Requirements:** [DIAG-01, DIAG-02, DIAG-03, DIAG-04, DIAG-05, DIAG-06, DIAG-07, DIAG-08, DIAG-09, DIAG-10]
+
+- DIAG-01: CRM inline edit PUT sends voter.id in request body (currently silently fails with 400)
+- DIAG-02: CRM table overflow-hidden replaced with overflow-x-auto for horizontal scroll
+- DIAG-03: CRM detail page displays AI analysis data (tier, sentiment, summary, recommended action, confidence)
+- DIAG-04: CRM voter list and detail page show segment associations per voter via bulk JOIN query
+- DIAG-05: CreateGroupDialog includes admin phones field and voter search picker for participants
+- DIAG-06: Groups API POST calls updateParticipant('promote') for admin phones after group creation
+- DIAG-07: Message History empty state shows contextual guidance with campaign CTA
+- DIAG-08: Message History API supports inbound messages from conversationMessages table with direction filter
+- DIAG-09: Webhook detects opt-in keywords (SIM/ACEITO/CONCORDO) and logs consent automatically
+- DIAG-10: Webhook detects opt-out keywords (SAIR/PARAR/CANCELAR) and revokes consent with confirmation reply
+
+**Depends on:** Phase 30
+**Plans:** 5 plans in 2 waves
+
+Plans:
+- [ ] 31-01-PLAN.md — CRM Critical Fixes (inline edit bug, overflow, tags, AI card)
+- [ ] 31-02-PLAN.md — CRM Segment Display (bulk query, table column, detail card)
+- [ ] 31-03-PLAN.md — Groups UX Improvements (admin field, voter picker, API promotion)
+- [ ] 31-04-PLAN.md — Message History Enhancement (empty state, inbound support, direction filter)
+- [ ] 31-05-PLAN.md — Opt-in Automation (keyword detection, consent logging, confirmation reply)
+
+### Phase 31 Wave Structure
+
+| Wave | Plans | Parallel | Notes |
+|------|-------|----------|-------|
+| 1 | 31-01, 31-03, 31-04, 31-05 | Yes | No file overlaps between plans |
+| 2 | 31-02 | — | Depends on 31-01 (both touch CRM files) |
+
+---
+
 ## Technical Decisions
 
 | Decision | Choice | Reason |
