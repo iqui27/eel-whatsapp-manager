@@ -15,8 +15,6 @@ const eslintConfig = defineConfig([
   // Project-level rule overrides
   {
     rules: {
-      // React compiler rules are informational — not blocking for this project
-      "react-compiler/react-compiler": "warn",
       // Unescaped entities: warn only (JSX quotes in Portuguese text)
       "react/no-unescaped-entities": "warn",
       // prefer-const is already enforced by TypeScript
