@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/api-auth';
-import { loadUsers, addUser, updateUser, deleteUser } from '@/lib/db-users';
+import { loadUsers, addUser, updateUser, deleteUser, generateInviteToken } from '@/lib/db-users';
+import { sendInviteEmail } from '@/lib/email';
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission(request, 'admin.manage', 'Somente administradores podem gerenciar usuários');
@@ -36,6 +37,29 @@ export async function POST(request: NextRequest) {
       permissions: Array.isArray(body.permissions) ? body.permissions : [],
       enabled: body.enabled ?? true,
     });
+
+    // Generate invite token and send welcome email (non-blocking — don't fail creation on email error)
+    try {
+      const { token } = await generateInviteToken(user.id);
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000';
+      const inviteUrl = `${appUrl}/accept-invite?token=${token}`;
+      const emailResult = await sendInviteEmail({
+        to: user.email,
+        name: user.name,
+        role: user.role ?? 'voluntario',
+        inviteUrl,
+      });
+      if (!emailResult.success) {
+        console.error('[api/users] Failed to send invite email:', emailResult.error);
+      } else {
+        console.log('[api/users] Invite email sent to', user.email);
+      }
+    } catch (emailErr) {
+      console.error('[api/users] Invite email exception:', emailErr);
+    }
+
     return NextResponse.json(user, { status: 201 });
   } catch (err) {
     console.error('POST users error:', err);

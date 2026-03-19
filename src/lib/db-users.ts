@@ -10,6 +10,46 @@ import {
 import { eq, desc } from 'drizzle-orm';
 import { scryptSync, randomBytes, timingSafeEqual } from 'crypto';
 
+// ─── Invite token helpers ─────────────────────────────────────────────────────
+
+const INVITE_TTL_HOURS = 72;
+
+/** Generate a secure random invite token and persist it on the user record. */
+export async function generateInviteToken(userId: string): Promise<{ token: string; expiresAt: Date }> {
+  const token = randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 60 * 60 * 1000);
+  await db.update(users).set({
+    inviteToken: token,
+    inviteExpiresAt: expiresAt,
+    inviteAcceptedAt: null,
+    updatedAt: new Date(),
+  }).where(eq(users.id, userId));
+  return { token, expiresAt };
+}
+
+/** Find a user by invite token. Returns null if expired or already accepted. */
+export async function getUserByInviteToken(token: string): Promise<User | null> {
+  const rows = await db.select().from(users).where(eq(users.inviteToken, token)).limit(1);
+  const user = rows[0] ?? null;
+  if (!user) return null;
+  if (!user.inviteExpiresAt || new Date() > user.inviteExpiresAt) return null;
+  if (user.inviteAcceptedAt) return null; // already used
+  return user;
+}
+
+/** Mark invite as accepted and set password hash. Clears token. */
+export async function acceptInvite(userId: string, passwordHash: string): Promise<User | undefined> {
+  const rows = await db.update(users).set({
+    passwordHash,
+    inviteToken: null,
+    inviteExpiresAt: null,
+    inviteAcceptedAt: new Date(),
+    enabled: true,
+    updatedAt: new Date(),
+  }).where(eq(users.id, userId)).returning();
+  return rows[0];
+}
+
 // ─── Password helpers ────────────────────────────────────────────────────────
 
 /**

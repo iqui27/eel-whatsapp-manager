@@ -40,7 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { UserPlus, Check, X, Pencil, KeyRound } from 'lucide-react';
+import { UserPlus, Check, X, Pencil, KeyRound, Mail, MailCheck, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { User } from '@/lib/db-users';
 import { PERMISSIONS as AVAILABLE_PERMISSIONS, resolvePermissions, type AppRole, type Permission } from '@/lib/authorization';
@@ -109,6 +109,7 @@ export default function AdminPage() {
   const [permissionsDraft, setPermissionsDraft] = useState<string[]>([]);
   const [passwordUser, setPasswordUser] = useState<User | null>(null);
   const [passwordValue, setPasswordValue] = useState('');
+  const [resendingInvite, setResendingInvite] = useState<string | null>(null); // userId
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -244,6 +245,28 @@ export default function AdminPage() {
     }
   }, [permissionsDraft, permissionsUser]);
 
+  // Resend invite email
+  const resendInvite = useCallback(async (user: User) => {
+    setResendingInvite(user.id);
+    try {
+      const res = await fetch('/api/users/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      if (res.ok) {
+        toast.success(`Convite reenviado para ${user.email}`);
+      } else {
+        const data = await res.json().catch(() => null) as { error?: string } | null;
+        toast.error(data?.error ?? 'Erro ao reenviar convite');
+      }
+    } catch {
+      toast.error('Erro ao reenviar convite');
+    } finally {
+      setResendingInvite(null);
+    }
+  }, []);
+
   // Set user password
   const handleSetPassword = useCallback(async () => {
     if (!passwordUser || !passwordValue) return;
@@ -301,6 +324,7 @@ export default function AdminPage() {
                     <TableHead>Função</TableHead>
                     <TableHead>Região</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Convite</TableHead>
                     <TableHead>Permissões extras</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -308,13 +332,13 @@ export default function AdminPage() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                         Carregando…
                       </TableCell>
                     </TableRow>
                   ) : users.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                         Nenhum usuário cadastrado. Use &quot;Convidar usuário&quot; para adicionar.
                       </TableCell>
                     </TableRow>
@@ -366,7 +390,23 @@ export default function AdminPage() {
                           {user.enabled ? 'Ativo' : 'Inativo'}
                         </button>
                       </TableCell>
+                      {/* Invite status */}
                       <TableCell>
+                        {user.inviteAcceptedAt ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-green-600">
+                            <MailCheck className="h-3.5 w-3.5" />
+                            Aceito
+                          </span>
+                        ) : user.inviteToken ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+                            <Mail className="h-3.5 w-3.5" />
+                            Pendente
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                       <TableCell>
                         <Button
                           size="sm"
                           variant="outline"
@@ -389,16 +429,33 @@ export default function AdminPage() {
                             <Pencil className="h-3 w-3" />
                             Editar
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-2 gap-1 text-xs text-amber-600 hover:text-amber-700"
-                            onClick={() => { setPasswordUser(user); setPasswordValue(''); }}
-                            title="Definir senha individual"
-                          >
-                            <KeyRound className="h-3 w-3" />
-                            Senha
-                          </Button>
+                           <Button
+                             size="sm"
+                             variant="ghost"
+                             className="h-7 px-2 gap-1 text-xs text-amber-600 hover:text-amber-700"
+                             onClick={() => { setPasswordUser(user); setPasswordValue(''); }}
+                             title="Definir senha individual"
+                           >
+                             <KeyRound className="h-3 w-3" />
+                             Senha
+                           </Button>
+                           {!user.inviteAcceptedAt && (
+                             <Button
+                               size="sm"
+                               variant="ghost"
+                               className="h-7 px-2 gap-1 text-xs text-blue-600 hover:text-blue-700"
+                               onClick={() => void resendInvite(user)}
+                               disabled={resendingInvite === user.id}
+                               title="Reenviar email de convite"
+                             >
+                               {resendingInvite === user.id ? (
+                                 <Loader2 className="h-3 w-3 animate-spin" />
+                               ) : (
+                                 <Mail className="h-3 w-3" />
+                               )}
+                               Convidar
+                             </Button>
+                           )}
                           <Button
                             size="sm"
                             variant="ghost"

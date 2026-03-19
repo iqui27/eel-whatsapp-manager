@@ -350,11 +350,15 @@ export const users = pgTable('users', {
   permissions: text('permissions').array().default(sql`'{}'`),
   enabled: boolean('enabled').default(true),
   passwordHash: text('password_hash'),
+  inviteToken: text('invite_token'),           // one-time setup token sent by email
+  inviteExpiresAt: timestamp('invite_expires_at', { withTimezone: true }),
+  inviteAcceptedAt: timestamp('invite_accepted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
 }, (t) => [
   index('idx_users_email').on(t.email),
   index('idx_users_role').on(t.role),
+  index('idx_users_invite_token').on(t.inviteToken),
 ]);
 
 export const reportSchedules = pgTable('report_schedules', {
