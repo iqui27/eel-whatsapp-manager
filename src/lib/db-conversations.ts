@@ -9,7 +9,7 @@ import {
   type ConversationMessage,
 } from '@/db/schema';
 import type { ConversationStreamCursorPoint, ConversationStreamFilters } from '@/lib/conversation-stream';
-import { and, asc, desc, eq, gt, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, or } from 'drizzle-orm';
 
 export type { Conversation, NewConversation, ConversationMessage };
 
@@ -137,6 +137,7 @@ export async function getMessageDeltas(
   filters: ConversationStreamFilters & {
     since?: ConversationStreamCursorPoint;
     limit?: number;
+    conversationIds?: string[];
   },
 ): Promise<ConversationMessage[]> {
   const conditions = [
@@ -145,6 +146,10 @@ export async function getMessageDeltas(
       : undefined,
     filters.conversationId ? eq(conversationMessages.conversationId, filters.conversationId) : undefined,
     filters.voterId ? eq(conversations.voterId, filters.voterId) : undefined,
+    // Allow polling messages for a set of tracked conversation IDs (queue mode)
+    filters.conversationIds && filters.conversationIds.length > 0
+      ? inArray(conversationMessages.conversationId, filters.conversationIds)
+      : undefined,
     buildSinceCondition(conversationMessages.createdAt, conversationMessages.id, filters.since),
   ].filter(Boolean);
 

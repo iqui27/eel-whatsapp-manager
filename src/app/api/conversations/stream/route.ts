@@ -137,6 +137,23 @@ export async function GET(request: NextRequest) {
                 );
                 emitted = true;
               }
+            } else if (trackedConversationIds.size > 0) {
+              // No explicit conversation/voter filter but we have tracked conversations
+              // (e.g. queue mode). Poll messages for all tracked conversations so that
+              // inbound replies surface in real time.
+              const messageDeltas = await getMessageDeltas({
+                since: cursor.messages,
+                conversationIds: Array.from(trackedConversationIds),
+              });
+
+              for (const message of messageDeltas) {
+                cursor = withMessageCursor(cursor, message);
+                push(
+                  CONVERSATION_STREAM_EVENT.messageCreated,
+                  createMessageCreatedPayload(message, cursor),
+                );
+                emitted = true;
+              }
             }
 
             const now = Date.now();
