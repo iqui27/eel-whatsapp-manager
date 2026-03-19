@@ -41,9 +41,8 @@ export async function POST(request: NextRequest) {
     // Generate invite token and send welcome email (non-blocking — don't fail creation on email error)
     try {
       const { token } = await generateInviteToken(user.id);
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : 'http://localhost:3000';
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL
+        ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
       const inviteUrl = `${appUrl}/accept-invite?token=${token}`;
       const emailResult = await sendInviteEmail({
         to: user.email,
