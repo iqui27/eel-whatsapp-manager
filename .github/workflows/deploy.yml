@@ -85,7 +85,12 @@ jobs:
           command_timeout: 5m
           script: |
             cd /opt/zap-app
-            source .env 2>/dev/null || true
+            for f in .env .env.local .env.production .env.production.local; do
+              if [ -f "$f" ]; then
+                set -a; source "$f"; set +a
+                break
+              fi
+            done
             npm run db:migrate
 
       - name: Deploy succeeded
