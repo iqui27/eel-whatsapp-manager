@@ -4,7 +4,7 @@
  */
 import { Resend } from 'resend';
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY ?? 're_QGD736N6_2r85JDKPukvcaduCKV99Edpg';
+const RESEND_API_KEY = process.env.RESEND_API_KEY ?? '';
 const FROM_ADDRESS   = 'EEL Eleitoral <noreply@iqui27.app>';
 const APP_NAME       = 'EEL Eleitoral';
 
