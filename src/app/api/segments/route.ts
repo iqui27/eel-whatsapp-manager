@@ -17,6 +17,7 @@ import {
   addSegment,
   deleteSegment,
   getSegmentByTag,
+  getSegmentVoterIds,
   loadSegments,
   setSegmentVoters,
   updateSegment,
@@ -273,6 +274,19 @@ export async function POST(request: NextRequest) {
     if (action === 'preview') {
       const preview = await previewAudience(body.filters);
       return NextResponse.json(preview);
+    }
+
+    if (action === 'add-voters') {
+      const { segmentId, voterIds } = body as { segmentId?: string; voterIds?: string[] };
+      if (!segmentId || !Array.isArray(voterIds)) {
+        return NextResponse.json({ error: 'segmentId e voterIds[] são obrigatórios' }, { status: 400 });
+      }
+      // Merge additively — keep existing + new, deduplicated
+      const existing = await getSegmentVoterIds(segmentId);
+      const merged = Array.from(new Set([...existing, ...voterIds]));
+      await setSegmentVoters(segmentId, merged);
+      await updateSegmentCount(segmentId);
+      return NextResponse.json({ added: merged.length - existing.length, total: merged.length });
     }
 
     if (!body.name || !body.filters) {
