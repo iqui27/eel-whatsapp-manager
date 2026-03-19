@@ -69,7 +69,8 @@ export default function WizardGroupsPage() {
         }
         
         if (groupsRes.ok) {
-          setExistingGroups(await groupsRes.json());
+          const groupsData = await groupsRes.json();
+          setExistingGroups(groupsData.groups ?? groupsData ?? []);
         }
       } catch (err) {
         console.error('Failed to load data:', err);
