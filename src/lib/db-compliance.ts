@@ -11,6 +11,42 @@ import { eq, desc, count } from 'drizzle-orm';
 
 export type { ConsentLog, NewConsentLog };
 
+// ─── Opt-in/out keyword detection ─────────────────────────────────────────────
+
+export const OPT_IN_KEYWORDS = ['sim', 'aceito', 'concordo', 'quero', 'aceitar', 'ok'];
+export const OPT_OUT_KEYWORDS = ['sair', 'parar', 'cancelar', 'remover', 'não quero', 'nao quero', 'pare'];
+
+export const OPT_IN_CONFIRMATION = '✅ Obrigado! Seu consentimento foi registrado. Você receberá nossas mensagens. Para cancelar a qualquer momento, responda SAIR.';
+export const OPT_OUT_CONFIRMATION = '🚫 Entendido! Você foi removido da nossa lista de mensagens. Não receberá mais comunicações. Para voltar, responda SIM.';
+
+/**
+ * Check if a message text matches opt-in or opt-out keywords.
+ * Returns 'opt_in', 'revoke', or null.
+ */
+export function detectConsentKeyword(text: string): 'opt_in' | 'revoke' | null {
+  const normalized = text.trim().toLowerCase();
+
+  // Check exact match first (single word messages like "SIM", "SAIR")
+  if (OPT_IN_KEYWORDS.includes(normalized)) return 'opt_in';
+  if (OPT_OUT_KEYWORDS.includes(normalized)) return 'revoke';
+
+  // Check if message starts with a keyword (e.g., "Sim, quero participar")
+  for (const kw of OPT_IN_KEYWORDS) {
+    if (normalized.startsWith(kw + ' ') || normalized.startsWith(kw + ',') || normalized.startsWith(kw + '.')) {
+      return 'opt_in';
+    }
+  }
+  for (const kw of OPT_OUT_KEYWORDS) {
+    if (normalized.startsWith(kw + ' ') || normalized.startsWith(kw + ',') || normalized.startsWith(kw + '.')) {
+      return 'revoke';
+    }
+  }
+
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /** Map consent action to the resulting voter opt_in_status */
 const actionToStatus: Record<NonNullable<ConsentLog['action']>, NonNullable<import('@/db/schema').Voter['optInStatus']>> = {
   opt_in: 'active',

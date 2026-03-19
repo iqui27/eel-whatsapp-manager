@@ -16,8 +16,9 @@ import {
 import { triggerAnalysis, applyAutoTags } from '@/lib/ai-analysis';
 import { isGeminiConfigured } from '@/lib/gemini';
 import { addCampaignDeliveryEvent } from '@/lib/db-campaigns';
-import { restartInstance } from '@/lib/evolution';
+import { restartInstance, sendText } from '@/lib/evolution';
 import { loadConfig } from '@/lib/db-config';
+import { logConsent, detectConsentKeyword, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from '@/lib/db-compliance';
 
 // ─── Dedup cache — prevents storing duplicate webhook deliveries ─────────────
 // Evolution API occasionally fires the same event twice within a few seconds.
@@ -246,6 +247,40 @@ export async function POST(request: NextRequest) {
           }
         } catch (replyErr) {
           console.error('[webhook] Reply correlation error:', replyErr);
+        }
+
+        // ─── Opt-in/out keyword detection (Phase 31) ────────────────────────────
+        if (voterId) {
+          const consentAction = detectConsentKeyword(messageText);
+          if (consentAction) {
+            try {
+              await logConsent(voterId, consentAction, 'whatsapp', `Keyword: "${messageText.trim().substring(0, 50)}"`);
+              console.log('[webhook] Consent recorded:', consentAction, 'for voter', voterId);
+
+              // Send confirmation reply via WhatsApp
+              try {
+                const config = await loadConfig();
+                if (config?.evolutionApiUrl && config.evolutionApiKey && instanceName) {
+                  const confirmationText = consentAction === 'opt_in'
+                    ? OPT_IN_CONFIRMATION
+                    : OPT_OUT_CONFIRMATION;
+                  await sendText(
+                    config.evolutionApiUrl,
+                    config.evolutionApiKey,
+                    instanceName,
+                    phone,
+                    confirmationText,
+                    { delay: 2000 },
+                  );
+                  console.log('[webhook] Sent consent confirmation to', phone);
+                }
+              } catch (replyErr) {
+                console.error('[webhook] Failed to send consent confirmation:', replyErr);
+              }
+            } catch (consentErr) {
+              console.error('[webhook] Consent logging error:', consentErr);
+            }
+          }
         }
 
         // ─── AI Analysis (Phase 18) ───────────────────────────────────────────
