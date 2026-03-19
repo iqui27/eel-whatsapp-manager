@@ -6,6 +6,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { syslog } from '@/lib/system-logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -91,13 +92,16 @@ export async function analyzeMessage(
   context?: AnalysisContext
 ): Promise<MessageAnalysis | null> {
   const client = getGeminiClient();
+  const modelName = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
   
   if (!client) {
     return null;
   }
+
+  const start = Date.now();
   
   try {
-    const model = client.getGenerativeModel({ model: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash' });
+    const model = client.getGenerativeModel({ model: modelName });
     
     // Build context string
     const contextParts: string[] = [];
@@ -129,10 +133,13 @@ export async function analyzeMessage(
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error('[gemini] No JSON found in response:', response);
+      syslog({ level: 'warn', category: 'gemini', message: 'analyzeMessage — JSON não encontrado na resposta', durationMs: Date.now() - start, details: { model: modelName, voter: context?.voterName } });
       return null;
     }
     
     const parsed = JSON.parse(jsonMatch[0]);
+
+    syslog({ level: 'info', category: 'gemini', message: `analyzeMessage — ${parsed.sentiment ?? '?'} / ${parsed.intent ?? '?'}`, durationMs: Date.now() - start, details: { model: modelName, voter: context?.voterName, confidence: parsed.confidence } });
     
     return {
       sentiment: parsed.sentiment || 'neutral',
@@ -143,7 +150,9 @@ export async function analyzeMessage(
       summary: parsed.summary || '',
     };
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error('[gemini] Analysis error:', error);
+    syslog({ level: 'error', category: 'gemini', message: `analyzeMessage — ERRO: ${errMsg}`, durationMs: Date.now() - start, details: { model: modelName, voter: context?.voterName, error: errMsg } });
     return null;
   }
 }
@@ -186,13 +195,16 @@ export async function profileLead(
   voterData: VoterDataForProfiling
 ): Promise<LeadProfile | null> {
   const client = getGeminiClient();
+  const modelName = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
   
   if (!client) {
     return null;
   }
+
+  const start = Date.now();
   
   try {
-    const model = client.getGenerativeModel({ model: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash' });
+    const model = client.getGenerativeModel({ model: modelName });
     
     // Build voter data string
     const dataParts: string[] = [];
@@ -224,10 +236,13 @@ export async function profileLead(
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error('[gemini] No JSON found in response:', response);
+      syslog({ level: 'warn', category: 'gemini', message: `profileLead — JSON não encontrado: ${voterData.name}`, durationMs: Date.now() - start, details: { model: modelName, voter: voterData.name } });
       return null;
     }
     
     const parsed = JSON.parse(jsonMatch[0]);
+
+    syslog({ level: 'info', category: 'gemini', message: `profileLead — ${voterData.name}: tier=${parsed.tier ?? '?'} engagement=${parsed.engagementPrediction ?? '?'}%`, durationMs: Date.now() - start, details: { model: modelName, voter: voterData.name, tier: parsed.tier, engagement: parsed.engagementPrediction } });
     
     return {
       tier: parsed.tier || 'cold',
@@ -237,7 +252,9 @@ export async function profileLead(
       summary: parsed.summary || '',
     };
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error('[gemini] Profiling error:', error);
+    syslog({ level: 'error', category: 'gemini', message: `profileLead — ERRO: ${voterData.name}: ${errMsg}`, durationMs: Date.now() - start, details: { model: modelName, voter: voterData.name, error: errMsg } });
     return null;
   }
 }

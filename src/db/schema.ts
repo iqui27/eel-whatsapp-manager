@@ -560,3 +560,28 @@ export const groupMessages = pgTable('group_messages', {
 
 export type GroupMessage = typeof groupMessages.$inferSelect;
 export type NewGroupMessage = typeof groupMessages.$inferInsert;
+
+// ─── System Logs ─────────────────────────────────────────────────────────────
+
+export const systemLogs = pgTable(
+  'system_logs',
+  {
+    id:         uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    level:      text('level', { enum: ['debug', 'info', 'warn', 'error'] }).notNull().default('info'),
+    category:   text('category', {
+                  enum: ['gemini', 'webhook', 'campaign', 'crm', 'grupos', 'auth', 'cron', 'system'],
+                }).notNull().default('system'),
+    message:    text('message').notNull(),
+    details:    jsonb('details'),          // any extra context (model, voter id, error stack, etc.)
+    durationMs: integer('duration_ms'),    // for timed operations (Gemini calls, etc.)
+    createdAt:  timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+  },
+  (t) => [
+    index('idx_system_logs_created_at').on(t.createdAt),
+    index('idx_system_logs_level').on(t.level),
+    index('idx_system_logs_category').on(t.category),
+  ],
+);
+
+export type SystemLog    = typeof systemLogs.$inferSelect;
+export type NewSystemLog = typeof systemLogs.$inferInsert;

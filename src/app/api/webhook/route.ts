@@ -19,6 +19,7 @@ import { addCampaignDeliveryEvent } from '@/lib/db-campaigns';
 import { restartInstance, sendText } from '@/lib/evolution';
 import { loadConfig } from '@/lib/db-config';
 import { logConsent, detectConsentKeyword, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from '@/lib/db-compliance';
+import { syslogInfo, syslogWarn, syslogError } from '@/lib/system-logger';
 
 // ─── Dedup cache — prevents storing duplicate webhook deliveries ─────────────
 // Evolution API occasionally fires the same event twice within a few seconds.
@@ -85,22 +86,26 @@ export async function POST(request: NextRequest) {
           // Logged out — must re-scan QR, cannot auto-recover
           await updateChipHealth(chip.id, { healthStatus: 'disconnected' });
           console.warn('[webhook] Chip', instanceName, 'logged out (statusReason 401) — QR re-scan required');
+          syslogWarn('webhook', `Chip ${instanceName} desconectado — QR re-scan necessário`, { instance: instanceName, statusReason: 401 });
 
         } else if (statusReason === 403) {
           // Banned by WhatsApp — permanent, number is unusable
           await updateChipHealth(chip.id, { healthStatus: 'banned', bannedAt: new Date() });
           await updateChip(chip.id, { status: 'disconnected', enabled: false });
           console.error('[webhook] Chip', instanceName, 'BANNED (statusReason 403)');
+          syslogError('webhook', `Chip ${instanceName} BANIDO pelo WhatsApp`, { instance: instanceName, statusReason: 403 });
 
         } else if (statusReason === 405) {
           // Already logged in on another device — mark disconnected
           await updateChipHealth(chip.id, { healthStatus: 'disconnected' });
           console.warn('[webhook] Chip', instanceName, 'connected on another device (statusReason 405)');
+          syslogWarn('webhook', `Chip ${instanceName} conectado em outro dispositivo`, { instance: instanceName, statusReason: 405 });
 
         } else if ([408, 428, 500, 515].includes(statusReason ?? -1)) {
           // Transient errors — safe to auto-restart
           console.warn('[webhook] Chip', instanceName, 'transient error (statusReason', statusReason, ') — auto-restarting');
           await updateChipHealth(chip.id, { healthStatus: 'degraded', errorCount: (chip.errorCount ?? 0) + 1 });
+          syslogWarn('webhook', `Chip ${instanceName} erro transitório — reiniciando automaticamente`, { instance: instanceName, statusReason });
           try {
             const config = await loadConfig();
             if (config?.evolutionApiUrl && config.evolutionApiKey) {
@@ -111,12 +116,14 @@ export async function POST(request: NextRequest) {
             }
           } catch (restartErr) {
             console.error('[webhook] Auto-restart failed for', instanceName, ':', restartErr);
+            syslogError('webhook', `Falha ao reiniciar chip ${instanceName}`, { instance: instanceName, error: String(restartErr) });
           }
 
         } else if (state === 'open') {
           // Healthy connection established (or re-established)
           await updateChipHealth(chip.id, { healthStatus: 'healthy', errorCount: 0 });
           console.log('[webhook] Chip', instanceName, 'connected and healthy');
+          syslogInfo('webhook', `Chip ${instanceName} conectado e saudável`, { instance: instanceName });
         }
 
         console.log('[webhook] connection.update for', instanceName, '→', newStatus, 'statusReason:', statusReason ?? 'none');
@@ -288,6 +295,7 @@ export async function POST(request: NextRequest) {
           await addMessage(existingConv.id, 'voter', messageText);
           conversationId = existingConv.id;
           console.log('[webhook] Stored inbound from', phone, 'on', instanceName, '→ conv', existingConv.id);
+          syslogInfo('webhook', `Mensagem recebida de ${voterName}`, { phone, instance: instanceName, conversationId: existingConv.id, messageLength: messageText.length });
         } else {
           // Create a new conversation
           const newConv = await addConversation({
@@ -300,6 +308,7 @@ export async function POST(request: NextRequest) {
           await addMessage(newConv.id, 'voter', messageText);
           conversationId = newConv.id;
           console.log('[webhook] Created conversation for', phone, 'on', instanceName, '→ conv', newConv.id);
+          syslogInfo('webhook', `Nova conversa iniciada com ${voterName}`, { phone, instance: instanceName, conversationId: newConv.id });
         }
 
         // ─── Reply correlation (Phase 17 + Phase 21-02) ───────────────────────────
@@ -345,6 +354,7 @@ export async function POST(request: NextRequest) {
             try {
               await logConsent(voterId, consentAction, 'whatsapp', `Keyword: "${messageText.trim().substring(0, 50)}"`);
               console.log('[webhook] Consent recorded:', consentAction, 'for voter', voterId);
+              syslogInfo('webhook', `Consentimento registrado: ${consentAction === 'opt_in' ? 'opt-in' : 'opt-out'} para ${voterName}`, { voterId, phone, action: consentAction });
 
               // Send confirmation reply via WhatsApp
               try {
@@ -488,11 +498,13 @@ export async function POST(request: NextRequest) {
           // Log warning if near capacity
           if (newSize >= group.maxSize * 0.9 && newSize < group.maxSize) {
             console.warn('[webhook] Group', group.name, 'at', Math.round(newSize / group.maxSize * 100), '% capacity - overflow recommended');
+            syslogWarn('webhook', `Grupo "${group.name}" próximo da capacidade máxima (${Math.round(newSize / group.maxSize * 100)}%)`, { groupId: group.id, groupJid, currentSize: newSize, maxSize: group.maxSize });
           }
           
           // Log if full
           if (newStatus === 'full') {
             console.warn('[webhook] Group', group.name, 'is now FULL at', newSize, 'members');
+            syslogWarn('webhook', `Grupo "${group.name}" está CHEIO (${newSize} membros)`, { groupId: group.id, groupJid, size: newSize });
           }
 
           // ─── Group join conversion tracking (Phase 17) ─────────────────────────
@@ -511,6 +523,7 @@ export async function POST(request: NextRequest) {
                   );
                   if (result.updated) {
                     console.log('[webhook] Recorded group join for campaign', group.campaignId, 'from', normalizedPhone);
+                    syslogInfo('webhook', `Entrada em grupo registrada para campanha`, { campaignId: group.campaignId, phone: normalizedPhone, groupJid });
                   }
                 }
               } catch (joinErr) {
