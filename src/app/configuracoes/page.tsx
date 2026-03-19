@@ -166,10 +166,10 @@ function Field({
 // ─── GEMINI_MODELS ────────────────────────────────────────────────────────────
 
 const GEMINI_MODELS = [
-  { value: 'gemini-2.5-flash-preview-04-17', label: 'Gemini 2.5 Flash (recomendado)' },
-  { value: 'gemini-2.5-pro-preview-03-25',   label: 'Gemini 2.5 Pro (mais capaz, mais lento)' },
-  { value: 'gemini-1.5-flash',               label: 'Gemini 1.5 Flash (legado)' },
-  { value: 'gemini-1.5-pro',                 label: 'Gemini 1.5 Pro (legado)' },
+  { value: 'gemini-2.5-flash',        label: 'Gemini 2.5 Flash (recomendado)' },
+  { value: 'gemini-2.5-pro',          label: 'Gemini 2.5 Pro (mais capaz, mais lento)' },
+  { value: 'gemini-3.1-pro-preview',       label: 'Gemini 3.1 Pro Preview (mais novo)' },
+  { value: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite Preview (mais rápido)' },
 ];
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -374,7 +374,7 @@ export default function ConfiguracoesPage() {
                   placeholder="AIzaSy..." />
               </Field>
               <Field label="GEMINI_MODEL" hint="Modelo usado em todas as análises de IA">
-                <Select value={env.GEMINI_MODEL || 'gemini-2.5-flash-preview-04-17'}
+                <Select value={env.GEMINI_MODEL || 'gemini-2.5-flash'}
                   onValueChange={v => setEnv(p => ({ ...p, GEMINI_MODEL: v }))}>
                   <SelectTrigger className="font-mono text-sm">
                     <SelectValue />
