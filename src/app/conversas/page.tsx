@@ -1,6 +1,6 @@
 'use client';
 
-import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
@@ -132,7 +132,8 @@ type VoterContext = Pick<Voter, 'id' | 'name' | 'phone'>;
 
 // ─── Queue Item ───────────────────────────────────────────────────────────────
 
-function QueueItem({
+// eslint-disable-next-line react/display-name
+const QueueItem = memo(({
   conv,
   selected,
   onClick,
@@ -140,7 +141,7 @@ function QueueItem({
   conv: Conversation;
   selected: boolean;
   onClick: () => void;
-}) {
+}) => {
   return (
     <button
       type="button"
@@ -170,11 +171,11 @@ function QueueItem({
       </div>
     </button>
   );
-}
+});
 
 // ─── Chat Bubble ──────────────────────────────────────────────────────────────
 
-function ChatBubble({ msg, pending = false }: { msg: ConversationMessage; pending?: boolean }) {
+const ChatBubble = memo(({ msg, pending = false }: { msg: ConversationMessage; pending?: boolean }) => {
   const isAgent = msg.sender === 'agent';
   const isBot   = msg.sender === 'bot';
   return (
@@ -210,7 +211,7 @@ function ChatBubble({ msg, pending = false }: { msg: ConversationMessage; pendin
       </div>
     </div>
   );
-}
+});
 
 // ─── New Conversation Dialog ──────────────────────────────────────────────────
 
@@ -475,12 +476,20 @@ export default function ConversasPage() {
   const [pendingMsgId, setPendingMsgId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
+  const [newInboundCount, setNewInboundCount] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queueBootstrapRef = useRef<Conversation[]>([]);
   const messageBootstrapRef = useRef<ConversationMessage[]>([]);
   const [streamInitialCursor, setStreamInitialCursor] = useState<string | null>(null);
+  // Keep selectedId in a ref so SSE callbacks always see the current value (no stale closure)
+  const selectedIdRef = useRef<string | null>(null);
 
   const selectedConv = conversations.find(c => c.id === selectedId) ?? null;
+
+  // Keep selectedIdRef in sync
+  useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
 
   const refreshStreamCursorSeed = useCallback(() => {
     setStreamInitialCursor(
@@ -595,11 +604,33 @@ export default function ConversasPage() {
     refreshStreamCursorSeed();
   }, [refreshStreamCursorSeed, selectedId]);
 
-  // Scroll to bottom when messages change
-  // Use 'auto' (instant) so sent messages snap immediately; 'smooth' would lag
+  // Track whether the user is near the bottom of the chat
+  const handleChatScroll = useCallback(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isAtBottomRef.current = distFromBottom < 80;
+    if (isAtBottomRef.current) setNewInboundCount(0);
+  }, []);
+
+  // Scroll to bottom only when user is already at the bottom OR when messages first load
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    if (isAtBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      setNewInboundCount(0);
+    }
   }, [messages]);
+
+  // Always scroll to bottom when conversation changes (new selection)
+  useEffect(() => {
+    isAtBottomRef.current = true;
+    setNewInboundCount(0);
+    // Small delay to let messages render first
+    const t = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    }, 50);
+    return () => clearTimeout(t);
+  }, [selectedId]);
 
   // Reset handoffReason when selection changes
   useEffect(() => {
@@ -618,9 +649,14 @@ export default function ConversasPage() {
       });
     },
     onMessageCreated: (message) => {
-      if (message.conversationId !== selectedId) return;
+      // Use ref instead of closure value — avoids stale selectedId during stream reconnect
+      if (message.conversationId !== selectedIdRef.current) return;
       startTransition(() => {
         setMessages((prev) => appendUniqueMessage(prev, message));
+        // If user has scrolled up, track new inbound messages for the pill
+        if (!isAtBottomRef.current && message.sender !== 'agent') {
+          setNewInboundCount((n) => n + 1);
+        }
       });
     },
   });
@@ -678,6 +714,9 @@ export default function ConversasPage() {
     }
 
     // Optimistic message — shown immediately with a temp id
+    // Force scroll to bottom when user sends (they always want to see their own message)
+    isAtBottomRef.current = true;
+    setNewInboundCount(0);
     const tempId = `pending-${Date.now()}`;
     setPendingMsgId(tempId);
     const optimisticMsg: ConversationMessage = {
@@ -1050,18 +1089,40 @@ export default function ConversasPage() {
               </div>
 
               {/* Messages */}
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-3">
-                  {messages.length === 0 ? (
-                    <div className="flex justify-center py-8 text-xs text-muted-foreground italic">
-                      Nenhuma mensagem ainda
-                    </div>
-                  ) : (
-                    messages.map(msg => <ChatBubble key={msg.id} msg={msg} pending={msg.id === pendingMsgId} />)
-                  )}
-                  <div ref={messagesEndRef} />
+              <div className="relative flex-1 min-h-0">
+                <div
+                  ref={chatScrollRef}
+                  onScroll={handleChatScroll}
+                  className="h-full overflow-y-auto p-4 scroll-smooth"
+                >
+                  <div className="space-y-3">
+                    {messages.length === 0 ? (
+                      <div className="flex justify-center py-8 text-xs text-muted-foreground italic">
+                        Nenhuma mensagem ainda
+                      </div>
+                    ) : (
+                      messages.map(msg => (
+                        <ChatBubble key={msg.id} msg={msg} pending={msg.id === pendingMsgId} />
+                      ))
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
                 </div>
-              </ScrollArea>
+                {/* New-message pill — shown when user scrolled up and new messages arrive */}
+                {newInboundCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      isAtBottomRef.current = true;
+                      setNewInboundCount(0);
+                      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
+                  >
+                    {newInboundCount} nova{newInboundCount > 1 ? 's' : ''} mensagem{newInboundCount > 1 ? 's' : ''} ↓
+                  </button>
+                )}
+              </div>
 
               {/* Reply bar */}
               <div className="border-t border-border p-3">

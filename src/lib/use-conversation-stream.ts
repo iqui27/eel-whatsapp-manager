@@ -243,14 +243,28 @@ export function useConversationStream({
       disconnect();
       startTransition(() => setStreamStatus('offline'));
     };
+
+    // Visibility change — reconnect when tab comes back to foreground
+    // (browser may have silently killed the SSE connection while hidden)
+    const handleVisibilityChange = () => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      // Only reconnect if connection appears stale (not actively live)
+      if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
+        reconnectAttemptsRef.current = 0;
+        connect();
+      }
+    };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       cancelled = true;
       window.clearTimeout(resetTimer);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       disconnect();
     };
   }, [conversationId, disconnect, clearHeartbeatTimer, enabled, initialCursor, status, voterId]);
