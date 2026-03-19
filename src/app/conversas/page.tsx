@@ -258,7 +258,8 @@ function NewConvDialog({
         }
         const allChips: Chip[] = await res.json();
         if (!cancelled) {
-          setChips(allChips.filter((chip) => chip.status === 'connected'));
+          // Show all enabled chips (not just connected) so the user can pick any
+          setChips(allChips.filter((chip) => chip.enabled !== false));
         }
       } catch {
         if (!cancelled) {

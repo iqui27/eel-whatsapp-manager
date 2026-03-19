@@ -16,6 +16,37 @@ import {
 } from '@/lib/db-segments';
 import { normalizePhone } from '@/lib/phone';
 
+// ─── Name normalization ───────────────────────────────────────────────────────
+// Converts ALL CAPS or all lowercase names to Title Case
+// Handles Brazilian particles: de, da, do, das, dos, e
+const PARTICLES = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'em', 'para', 'com']);
+
+function toTitleCase(name: string): string {
+  if (!name) return name;
+  const words = name.trim().split(/\s+/);
+  return words
+    .map((word, i) => {
+      const lower = word.toLowerCase();
+      // Keep particles lowercase unless they're the first word
+      if (i > 0 && PARTICLES.has(lower)) return lower;
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(' ');
+}
+
+function normalizeName(name: string): string {
+  if (!name) return name;
+  // Only normalize if the name appears to be ALL CAPS or all lowercase
+  const trimmed = name.trim();
+  const upper = trimmed.toUpperCase();
+  const lower = trimmed.toLowerCase();
+  if (trimmed === upper || trimmed === lower) {
+    return toTitleCase(trimmed);
+  }
+  // Mixed case — already normalized, leave it
+  return trimmed;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface EnrichmentOptions {
@@ -89,6 +120,8 @@ export async function POST(request: NextRequest) {
     // ── Apply enrichment to each row ─────────────────────────────────────────
     const globalTags = enrichment.tags ?? [];
     const enrichedRows: NewVoter[] = newRows.map((row) => {
+      // Normalize name from ALL CAPS / all lowercase to Title Case
+      if (row.name) row = { ...row, name: normalizeName(row.name) };
       // Merge tags (row CSV tags + global import tags)
       const rowTags = Array.isArray(row.tags) ? row.tags : [];
       const mergedTags = Array.from(new Set([...rowTags, ...globalTags]));

@@ -235,6 +235,8 @@ export default function CrmPage() {
   const [selectedVoterIds, setSelectedVoterIds] = useState<Set<string>>(new Set());
   const [editingVoterId, setEditingVoterId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<VoterWithSegments>>({});
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [editTagInput, setEditTagInput] = useState('');
   // Add-to-segment bulk action
   const [isSegmentDialogOpen, setIsSegmentDialogOpen] = useState(false);
   const [segments, setSegments] = useState<SegmentOption[]>([]);
@@ -769,7 +771,9 @@ export default function CrmPage() {
                         setEditingVoterId(null);
                       } else {
                         setEditingVoterId(voter.id);
-                        setEditForm({ name: voter.name, phone: voter.phone, zone: voter.zone ?? '', section: voter.section ?? '', optInStatus: voter.optInStatus ?? 'pending', crmNotes: voter.crmNotes ?? '' });
+                        setEditTags(voter.tags ?? []);
+                        setEditTagInput('');
+                        setEditForm({ name: voter.name, phone: voter.phone, zone: voter.zone ?? '', section: voter.section ?? '', optInStatus: voter.optInStatus ?? 'pending', crmNotes: voter.crmNotes ?? '', address: voter.address ?? '', projectName: voter.projectName ?? '', subsecretaria: voter.subsecretaria ?? '' });
                       }
                     }}
                   >
@@ -930,15 +934,53 @@ export default function CrmPage() {
                                 <Input className="h-9 w-full" value={editForm.eventDate ?? ''} onChange={e => setEditForm(prev => ({ ...prev, eventDate: e.target.value }))} placeholder="DD/MM/AAAA" />
                               </div>
                              <div className="flex flex-col gap-1.5">
-                                <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Notas</label>
-                                <textarea
-                                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[38px] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 resize-y"
-                                  value={editForm.crmNotes ?? ''}
-                                  onChange={e => setEditForm(prev => ({ ...prev, crmNotes: e.target.value }))}
-                                  placeholder="Observações sobre o eleitor..."
-                                />
-                              </div>
-                            </div>
+                                 <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Notas</label>
+                                 <textarea
+                                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[38px] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 resize-y"
+                                   value={editForm.crmNotes ?? ''}
+                                   onChange={e => setEditForm(prev => ({ ...prev, crmNotes: e.target.value }))}
+                                   placeholder="Observações sobre o eleitor..."
+                                 />
+                               </div>
+                               {/* Tags inline editor */}
+                               <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
+                                 <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Tags</label>
+                                 <div className="flex flex-wrap gap-1.5 min-h-[36px] rounded-md border border-input bg-background px-3 py-2 cursor-text focus-within:ring-2 focus-within:ring-ring"
+                                   onClick={() => document.getElementById(`tag-input-${voter.id}`)?.focus()}>
+                                   {editTags.map(t => (
+                                     <span key={t} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary font-medium">
+                                       {t}
+                                       <button type="button" onClick={() => setEditTags(prev => prev.filter(x => x !== t))}>
+                                         <X className="h-3 w-3" />
+                                       </button>
+                                     </span>
+                                   ))}
+                                   <input
+                                     id={`tag-input-${voter.id}`}
+                                     value={editTagInput}
+                                     onChange={e => setEditTagInput(e.target.value)}
+                                     onKeyDown={e => {
+                                       if (e.key === 'Enter' || e.key === ',') {
+                                         e.preventDefault();
+                                         const t = editTagInput.trim().toLowerCase().replace(/\s+/g, '_');
+                                         if (t && !editTags.includes(t)) setEditTags(prev => [...prev, t]);
+                                         setEditTagInput('');
+                                       }
+                                       if (e.key === 'Backspace' && !editTagInput && editTags.length) {
+                                         setEditTags(prev => prev.slice(0, -1));
+                                       }
+                                     }}
+                                     onBlur={() => {
+                                       const t = editTagInput.trim().toLowerCase().replace(/\s+/g, '_');
+                                       if (t && !editTags.includes(t)) setEditTags(prev => [...prev, t]);
+                                       setEditTagInput('');
+                                     }}
+                                     placeholder={editTags.length === 0 ? 'Adicionar tag...' : ''}
+                                     className="flex-1 min-w-[80px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+                                   />
+                                 </div>
+                               </div>
+                             </div>
                           <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
                             <Button variant="ghost" size="sm" onClick={() => router.push(`/crm/${voter.id}`)}>
                               <Eye className="mr-1.5 h-3.5 w-3.5" /> Ver perfil
@@ -949,7 +991,7 @@ export default function CrmPage() {
                                 const res = await fetch(`/api/voters`, {
                                   method: 'PUT',
                                   headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ id: voter.id, ...editForm }),
+                                   body: JSON.stringify({ id: voter.id, ...editForm, tags: editTags }),
                                 });
                                 if (res.ok) {
                                   toast.success('Eleitor atualizado');
