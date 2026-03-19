@@ -14,6 +14,7 @@ import {
   updateSegmentCount,
   generateTagFromName,
 } from '@/lib/db-segments';
+import { normalizePhone } from '@/lib/phone';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,16 +61,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Deduplicate ───────────────────────────────────────────────────────────
-    const incomingPhones = scopedRows.map((r) => r.phone).filter(Boolean);
+    // ── Deduplicate — normalize phones BEFORE comparing with DB ──────────────
+    // The DB stores E.164-normalized phones (e.g. "11999999999").
+    // The CSV may have "(11) 99999-9999" or "+55 11 99999-9999", etc.
+    // Without normalization, the same person re-imports as a new record every time.
+    const normalizedScopedRows = scopedRows.map((r) => ({
+      ...r,
+      phone: normalizePhone(r.phone),
+    }));
+
+    const incomingPhones = normalizedScopedRows.map((r) => r.phone).filter(Boolean);
     const existingRecords = await db
       .select({ phone: voters.phone })
       .from(voters)
       .where(inArray(voters.phone, incomingPhones));
     const existingPhones = new Set(existingRecords.map((e) => e.phone));
 
-    const newRows = scopedRows.filter((r) => !existingPhones.has(r.phone));
-    const duplicateCount = scopedRows.length - newRows.length;
+    // Also deduplicate within the batch itself (same phone appearing multiple times)
+    const seenInBatch = new Set<string>();
+    const newRows = normalizedScopedRows.filter((r) => {
+      if (existingPhones.has(r.phone) || seenInBatch.has(r.phone)) return false;
+      seenInBatch.add(r.phone);
+      return true;
+    });
+    const duplicateCount = normalizedScopedRows.length - newRows.length;
 
     // ── Apply enrichment to each row ─────────────────────────────────────────
     const globalTags = enrichment.tags ?? [];

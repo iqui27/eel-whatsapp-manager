@@ -7,7 +7,7 @@ import {
   voters, segmentVoters, segments,
   type Voter, type NewVoter,
 } from '@/db/schema';
-import { eq, desc, ilike, inArray } from 'drizzle-orm';
+import { eq, desc, ilike, inArray, and, or, sql } from 'drizzle-orm';
 import { normalizePhone } from '@/lib/phone';
 
 export type { Voter, NewVoter };
@@ -65,6 +65,68 @@ export async function bulkInsertVoters(
     phone: normalizePhone(v.phone),
   }));
   return db.insert(voters).values(normalizedData).returning();
+}
+
+export interface VoterFilters {
+  search?: string;
+  tag?: string;
+  segmentId?: string;
+  optInStatus?: string;
+  aiTier?: string;
+  zone?: string;
+  projectName?: string;
+  subsecretaria?: string;
+}
+
+/**
+ * Filter voters with server-side conditions.
+ * Returns all matching voters (caller handles pagination/scope).
+ */
+export async function filterVoters(filters: VoterFilters): Promise<Voter[]> {
+  const conditions = [];
+
+  if (filters.search) {
+    const q = `%${filters.search}%`;
+    conditions.push(
+      or(ilike(voters.name, q), ilike(voters.phone, q)),
+    );
+  }
+  if (filters.optInStatus && filters.optInStatus !== 'all') {
+    conditions.push(sql`${voters.optInStatus} = ${filters.optInStatus}`);
+  }
+  if (filters.aiTier && filters.aiTier !== 'all') {
+    conditions.push(sql`${voters.aiTier} = ${filters.aiTier}`);
+  }
+  if (filters.zone && filters.zone !== 'all') {
+    conditions.push(eq(voters.zone, filters.zone));
+  }
+  if (filters.projectName) {
+    conditions.push(ilike(voters.projectName, `%${filters.projectName}%`));
+  }
+  if (filters.subsecretaria) {
+    conditions.push(ilike(voters.subsecretaria, `%${filters.subsecretaria}%`));
+  }
+  // Tag filter — Postgres array contains
+  if (filters.tag) {
+    conditions.push(sql`${voters.tags} @> ARRAY[${filters.tag}]::text[]`);
+  }
+
+  // Segment filter — join via segmentVoters
+  if (filters.segmentId) {
+    const voterIdsInSegment = await db
+      .select({ voterId: segmentVoters.voterId })
+      .from(segmentVoters)
+      .where(eq(segmentVoters.segmentId, filters.segmentId));
+    const ids = voterIdsInSegment.map((r) => r.voterId);
+    if (ids.length === 0) return []; // segment exists but empty
+    conditions.push(inArray(voters.id, ids));
+  }
+
+  const query = db.select().from(voters).orderBy(desc(voters.createdAt));
+  if (conditions.length > 0) {
+    return query.where(and(...conditions));
+  }
+  return query;
 }
 
 export async function searchVoters(query: string): Promise<Voter[]> {

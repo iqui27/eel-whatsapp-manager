@@ -35,6 +35,7 @@ import {
   X,
   Plus,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -86,6 +87,7 @@ interface ImportResult {
   duplicates: number;
   total: number;
   segmentName?: string;
+  error?: string;
 }
 
 // ─── Voter Fields ─────────────────────────────────────────────────────────────
@@ -358,10 +360,11 @@ export default function ImportarPage() {
   }, [rawRows, mapping]);
 
   const runImport = useCallback(async () => {
-    if (!validationResult) return;
+    if (!validationResult || isProcessing) return; // guard double-click
     setIsProcessing(true);
     setProgress(0);
-    const interval = setInterval(() => setProgress(p => Math.min(p + 8, 90)), 150);
+    setStep('processamento'); // move to processing screen immediately — prevents double submit
+    const interval = setInterval(() => setProgress(p => Math.min(p + 5, 88)), 200);
     try {
       const response = await fetch('/api/voters/import', {
         method: 'POST',
@@ -374,17 +377,27 @@ export default function ImportarPage() {
         const result = await response.json() as ImportResult;
         setImportResult(result);
       } else {
-        setImportResult({ imported: 0, duplicates: 0, total: validationResult.validRows.length });
+        const errData = await response.json().catch(() => null) as { error?: string } | null;
+        setImportResult({
+          imported: 0,
+          duplicates: 0,
+          total: validationResult.validRows.length,
+          error: errData?.error ?? 'Erro ao importar',
+        });
       }
-    } catch {
+    } catch (err) {
       clearInterval(interval);
       setProgress(100);
-      setImportResult({ imported: 0, duplicates: 0, total: validationResult.validRows.length });
+      setImportResult({
+        imported: 0,
+        duplicates: 0,
+        total: validationResult.validRows.length,
+        error: err instanceof Error ? err.message : 'Erro de conexão',
+      });
     } finally {
       setIsProcessing(false);
-      setStep('processamento');
     }
-  }, [validationResult, enrichment]);
+  }, [validationResult, enrichment, isProcessing]);
 
   const reset = () => {
     setStep('upload');
@@ -908,10 +921,17 @@ export default function ImportarPage() {
             )}
 
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setStep('enriquecimento')}>Voltar</Button>
-              <Button onClick={runImport} disabled={validationResult.validRows.length === 0} className="flex-1">
-                Importar {validationResult.validRows.length} registros
-                <ArrowRight className="ml-2 h-4 w-4" />
+              <Button variant="outline" onClick={() => setStep('enriquecimento')} disabled={isProcessing}>Voltar</Button>
+              <Button
+                onClick={runImport}
+                disabled={validationResult.validRows.length === 0 || isProcessing}
+                className="flex-1"
+              >
+                {isProcessing ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Importando...</>
+                ) : (
+                  <>Importar {validationResult.validRows.length} registros <ArrowRight className="ml-2 h-4 w-4" /></>
+                )}
               </Button>
             </div>
           </div>
@@ -923,11 +943,31 @@ export default function ImportarPage() {
             <CardContent className="pt-8 pb-8 text-center space-y-6">
               {isProcessing ? (
                 <>
-                  <div className="text-base font-medium">Importando...</div>
-                  <div className="space-y-2">
-                    <Progress value={progress} className="h-2" />
-                    <p className="text-xs text-muted-foreground">{progress}% concluído</p>
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mx-auto">
+                    <Loader2 className="h-8 w-8 text-primary animate-spin" />
                   </div>
+                  <div>
+                    <p className="text-base font-medium">Importando {validationResult?.validRows.length ?? 0} registros…</p>
+                    <p className="text-sm text-muted-foreground mt-1">Não feche esta página</p>
+                  </div>
+                  <div className="space-y-2 max-w-sm mx-auto">
+                    <Progress value={progress} className="h-2" />
+                    <p className="text-xs text-muted-foreground">{progress}%</p>
+                  </div>
+                </>
+              ) : importResult?.error ? (
+                <>
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10 mx-auto">
+                    <AlertTriangle className="h-8 w-8 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-red-600">Erro na importação</h2>
+                    <p className="text-sm text-muted-foreground mt-1">{importResult.error}</p>
+                  </div>
+                  <Button onClick={reset} variant="outline">
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Tentar novamente
+                  </Button>
                 </>
               ) : importResult ? (
                 <>
@@ -949,8 +989,8 @@ export default function ImportarPage() {
                       <div className="text-2xl font-bold text-green-600">{importResult.imported}</div>
                       <div className="text-xs text-muted-foreground">Importados</div>
                     </div>
-                    <div className="rounded-lg bg-muted p-3">
-                      <div className="text-2xl font-bold text-muted-foreground">{importResult.duplicates}</div>
+                    <div className="rounded-lg bg-amber-500/10 p-3">
+                      <div className="text-2xl font-bold text-amber-600">{importResult.duplicates}</div>
                       <div className="text-xs text-muted-foreground">Duplicatas</div>
                     </div>
                     <div className="rounded-lg bg-muted p-3">

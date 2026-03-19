@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/api-auth';
 import { isVoterInScope } from '@/lib/authorization';
 import {
-  loadVoters, searchVoters, getVoter, addVoter, updateVoter, deleteVoter,
+  filterVoters, getVoter, addVoter, updateVoter, deleteVoter,
   getSegmentsForVoterIds,
 } from '@/lib/db-voters';
 
@@ -34,7 +34,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ...voter, segments: segmentMap.get(voter.id) ?? [] });
     }
 
-    const allData = query ? await searchVoters(query) : await loadVoters();
+    const allData = await filterVoters({
+      search: query ?? undefined,
+      tag: searchParams.get('tag') ?? undefined,
+      segmentId: searchParams.get('segmentId') ?? undefined,
+      optInStatus: searchParams.get('optIn') ?? undefined,
+      aiTier: searchParams.get('tier') ?? undefined,
+      zone: searchParams.get('zone') ?? undefined,
+      projectName: searchParams.get('projectName') ?? undefined,
+      subsecretaria: searchParams.get('subsecretaria') ?? undefined,
+    });
     const scopedData = allData.filter((voter) => isVoterInScope(auth.actor, voter));
     const data = scopedData.slice(offset, offset + limit);
 

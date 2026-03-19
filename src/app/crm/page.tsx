@@ -45,7 +45,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import type { Voter } from '@/db/schema';
-import { Users, Upload, Search, Eye, Plus, Trash2, Download, Tag, X, Loader2 } from 'lucide-react';
+import { Users, Upload, Search, Eye, Plus, Trash2, Download, Tag, X, Loader2, Layers } from 'lucide-react';
 
 // Extended voter type that includes enriched segment data from API
 type VoterWithSegments = Voter & { segments?: Array<{ id: string; name: string }> };
@@ -226,6 +226,12 @@ export default function CrmPage() {
   const [tierFilter, setTierFilter] = useState('all');
   const [optInFilter, setOptInFilter] = useState('all');
   const [zoneFilter, setZoneFilter] = useState('all');
+  const [tagFilter, setTagFilter] = useState('');
+  const [segmentFilter, setSegmentFilter] = useState('all');
+  const [projectFilter, setProjectFilter] = useState('');
+  const [subsecretariaFilter, setSubsecretariaFilter] = useState('');
+  const [filterSegments, setFilterSegments] = useState<SegmentOption[]>([]);
+  const [filterTags, setFilterTags] = useState<string[]>([]);
   const [selectedVoterIds, setSelectedVoterIds] = useState<Set<string>>(new Set());
   const [editingVoterId, setEditingVoterId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<VoterWithSegments>>({});
@@ -236,6 +242,18 @@ export default function CrmPage() {
   const [isAddingToSegment, setIsAddingToSegment] = useState(false);
   const [isLoadingSegments, setIsLoadingSegments] = useState(false);
 
+  // Load filter options once on mount
+  useEffect(() => {
+    fetch('/api/segments')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: SegmentOption[]) => setFilterSegments(Array.isArray(data) ? data : []))
+      .catch(() => {});
+    fetch('/api/segments?action=filter-options')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.tags) setFilterTags(d.tags); })
+      .catch(() => {});
+  }, []);
+
   const load = useCallback(async (q: string, page: number) => {
     setIsLoading(true);
     try {
@@ -243,9 +261,14 @@ export default function CrmPage() {
         page: String(page),
         limit: String(PAGE_LIMIT),
       });
-      if (q) {
-        params.set('search', q);
-      }
+      if (q) params.set('search', q);
+      if (tierFilter !== 'all') params.set('tier', tierFilter);
+      if (optInFilter !== 'all') params.set('optIn', optInFilter);
+      if (zoneFilter !== 'all') params.set('zone', zoneFilter);
+      if (tagFilter) params.set('tag', tagFilter);
+      if (segmentFilter !== 'all') params.set('segmentId', segmentFilter);
+      if (projectFilter) params.set('projectName', projectFilter);
+      if (subsecretariaFilter) params.set('subsecretaria', subsecretariaFilter);
 
       const res = await fetch(`/api/voters?${params.toString()}`);
       if (res.status === 401) {
@@ -265,16 +288,20 @@ export default function CrmPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [router]);
+  }, [router, tierFilter, optInFilter, zoneFilter, tagFilter, segmentFilter, projectFilter, subsecretariaFilter]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setCurrentPage(1);
       setDebouncedSearch(search.trim());
     }, 300);
-
     return () => clearTimeout(timeoutId);
   }, [search]);
+
+  // Reset to page 1 when any filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [tierFilter, optInFilter, zoneFilter, tagFilter, segmentFilter, projectFilter, subsecretariaFilter]);
 
   useEffect(() => {
     void load(debouncedSearch, currentPage);
@@ -311,20 +338,22 @@ export default function CrmPage() {
     await load(debouncedSearch, page);
   };
 
-  // Client-side filters (applied on top of server-side search)
-  const filteredVoters = useMemo(() => {
-    let result = [...voters];
-    if (tierFilter !== 'all') result = result.filter(v => v.aiTier === tierFilter);
-    if (optInFilter !== 'all') result = result.filter(v => v.optInStatus === optInFilter);
-    if (zoneFilter !== 'all') result = result.filter(v => v.zone === zoneFilter);
-    return result;
-  }, [voters, tierFilter, optInFilter, zoneFilter]);
+  // All filtering is now server-side — voters from API are already filtered
+  const filteredVoters = voters;
 
   const availableZones = useMemo(() => {
     const zones = new Set<string>();
     voters.forEach(v => { if (v.zone) zones.add(v.zone); });
     return Array.from(zones).sort();
   }, [voters]);
+
+  const hasActiveFilters = tierFilter !== 'all' || optInFilter !== 'all' || zoneFilter !== 'all'
+    || !!tagFilter || segmentFilter !== 'all' || !!projectFilter || !!subsecretariaFilter;
+
+  const clearAllFilters = () => {
+    setTierFilter('all'); setOptInFilter('all'); setZoneFilter('all');
+    setTagFilter(''); setSegmentFilter('all'); setProjectFilter(''); setSubsecretariaFilter('');
+  };
 
   const handleBulkDelete = async () => {
     try {
@@ -526,6 +555,7 @@ export default function CrmPage() {
 
         {/* Filter bar */}
         <div className="flex flex-wrap gap-2">
+          {/* Tier IA */}
           <Select value={tierFilter} onValueChange={setTierFilter}>
             <SelectTrigger className="w-[120px] h-8 text-xs">
               <SelectValue placeholder="Tier IA" />
@@ -538,6 +568,8 @@ export default function CrmPage() {
               <SelectItem value="dead">Inativo</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Opt-in */}
           <Select value={optInFilter} onValueChange={setOptInFilter}>
             <SelectTrigger className="w-[130px] h-8 text-xs">
               <SelectValue placeholder="Opt-in" />
@@ -550,6 +582,8 @@ export default function CrmPage() {
               <SelectItem value="revoked">Revogado</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Zona */}
           <Select value={zoneFilter} onValueChange={setZoneFilter}>
             <SelectTrigger className="w-[120px] h-8 text-xs">
               <SelectValue placeholder="Zona" />
@@ -561,8 +595,67 @@ export default function CrmPage() {
               ))}
             </SelectContent>
           </Select>
-          {(tierFilter !== 'all' || optInFilter !== 'all' || zoneFilter !== 'all') && (
-            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setTierFilter('all'); setOptInFilter('all'); setZoneFilter('all'); }}>
+
+          {/* Segmento */}
+          <Select value={segmentFilter} onValueChange={setSegmentFilter}>
+            <SelectTrigger className="w-[160px] h-8 text-xs gap-1">
+              <Layers className="h-3 w-3 text-muted-foreground shrink-0" />
+              <SelectValue placeholder="Segmento" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos segmentos</SelectItem>
+              {filterSegments.map(s => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Tag */}
+          <Select value={tagFilter || 'all'} onValueChange={v => setTagFilter(v === 'all' ? '' : v)}>
+            <SelectTrigger className="w-[140px] h-8 text-xs gap-1">
+              <Tag className="h-3 w-3 text-muted-foreground shrink-0" />
+              <SelectValue placeholder="Tag" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas tags</SelectItem>
+              {filterTags.map(t => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Projeto */}
+          {projectFilter ? (
+            <div className="flex items-center gap-1 h-8 rounded-md border border-primary/30 bg-primary/5 px-2 text-xs text-primary">
+              <span>Projeto: {projectFilter}</span>
+              <button onClick={() => setProjectFilter('')}><X className="h-3 w-3" /></button>
+            </div>
+          ) : (
+            <Input
+              placeholder="Filtrar projeto..."
+              value={projectFilter}
+              onChange={e => setProjectFilter(e.target.value)}
+              className="h-8 w-[150px] text-xs"
+            />
+          )}
+
+          {/* Subsecretaria */}
+          {subsecretariaFilter ? (
+            <div className="flex items-center gap-1 h-8 rounded-md border border-primary/30 bg-primary/5 px-2 text-xs text-primary">
+              <span>Subsec: {subsecretariaFilter.slice(0, 20)}{subsecretariaFilter.length > 20 ? '…' : ''}</span>
+              <button onClick={() => setSubsecretariaFilter('')}><X className="h-3 w-3" /></button>
+            </div>
+          ) : (
+            <Input
+              placeholder="Filtrar subsecretaria..."
+              value={subsecretariaFilter}
+              onChange={e => setSubsecretariaFilter(e.target.value)}
+              className="h-8 w-[170px] text-xs"
+            />
+          )}
+
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearAllFilters}>
               Limpar filtros
             </Button>
           )}
