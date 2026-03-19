@@ -31,7 +31,7 @@ export async function triggerAnalysis(
   }
 
   // Get voter if not provided
-  let voter = options?.voterId 
+  const voter = options?.voterId 
     ? await getVoterById(options.voterId)
     : await getVoterByPhone(voterPhone);
 
