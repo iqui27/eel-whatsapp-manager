@@ -189,6 +189,13 @@ const EMPTY_FORM = {
   zone: '',
   section: '',
   neighborhood: '',
+  address: '',
+  cep: '',
+  eventLocation: '',
+  eventCep: '',
+  eventDate: '',
+  projectName: '',
+  subsecretaria: '',
 };
 
 type PaginatedVotersResponse = {
@@ -336,9 +343,11 @@ export default function CrmPage() {
     const votersToExport = selectedVoterIds.size > 0
       ? voters.filter(v => selectedVoterIds.has(v.id))
       : filteredVoters;
-    const headers = ['Nome','Telefone','CPF','Zona','Seção','Bairro','Tags','Engajamento','Opt-in','Último Contato','Tier IA','Sentimento IA','Resumo IA','Ação IA','Notas CRM','Criado em'];
+    const headers = ['Nome','Telefone','CPF','Zona','Seção','Bairro','Endereço','CEP','Local do Evento','CEP Evento','Data Evento','Projeto','Subsecretaria','Tags','Engajamento','Opt-in','Último Contato','Tier IA','Sentimento IA','Resumo IA','Ação IA','Notas CRM','Criado em'];
     const rows = votersToExport.map(v => [
       v.name, v.phone, v.cpf ?? '', v.zone ?? '', v.section ?? '', v.neighborhood ?? '',
+      v.address ?? '', v.cep ?? '', v.eventLocation ?? '', v.eventCep ?? '', v.eventDate ?? '',
+      v.projectName ?? '', v.subsecretaria ?? '',
       (v.tags ?? []).join('; '), String(v.engagementScore ?? 0), v.optInStatus ?? '',
       v.lastContacted ? new Date(v.lastContacted).toISOString() : '',
       v.aiTier ?? '', v.aiSentiment ?? '', v.aiAnalysisSummary ?? '', v.aiRecommendedAction ?? '',
@@ -800,15 +809,43 @@ export default function CrmPage() {
                                </Select>
                              </div>
                              <div className="flex flex-col gap-1.5">
-                               <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Notas</label>
-                               <textarea
-                                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[38px] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 resize-y"
-                                 value={editForm.crmNotes ?? ''}
-                                 onChange={e => setEditForm(prev => ({ ...prev, crmNotes: e.target.value }))}
-                                 placeholder="Observações sobre o eleitor..."
-                               />
-                             </div>
-                           </div>
+                                <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Endereço</label>
+                                <Input className="h-9 w-full" value={editForm.address ?? ''} onChange={e => setEditForm(prev => ({ ...prev, address: e.target.value }))} placeholder="Rua, número..." />
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">CEP</label>
+                                <Input className="h-9 w-full" value={editForm.cep ?? ''} onChange={e => setEditForm(prev => ({ ...prev, cep: e.target.value }))} placeholder="00000-000" />
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Local do Evento</label>
+                                <Input className="h-9 w-full" value={editForm.eventLocation ?? ''} onChange={e => setEditForm(prev => ({ ...prev, eventLocation: e.target.value }))} placeholder="Local de realização" />
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">CEP do Evento</label>
+                                <Input className="h-9 w-full" value={editForm.eventCep ?? ''} onChange={e => setEditForm(prev => ({ ...prev, eventCep: e.target.value }))} placeholder="00000-000" />
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Projeto</label>
+                                <Input className="h-9 w-full" value={editForm.projectName ?? ''} onChange={e => setEditForm(prev => ({ ...prev, projectName: e.target.value }))} placeholder="Nome do projeto" />
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Subsecretaria</label>
+                                <Input className="h-9 w-full" value={editForm.subsecretaria ?? ''} onChange={e => setEditForm(prev => ({ ...prev, subsecretaria: e.target.value }))} placeholder="Subsecretaria responsável" />
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Data do Evento</label>
+                                <Input className="h-9 w-full" value={editForm.eventDate ?? ''} onChange={e => setEditForm(prev => ({ ...prev, eventDate: e.target.value }))} placeholder="DD/MM/AAAA" />
+                              </div>
+                             <div className="flex flex-col gap-1.5">
+                                <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Notas</label>
+                                <textarea
+                                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[38px] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 resize-y"
+                                  value={editForm.crmNotes ?? ''}
+                                  onChange={e => setEditForm(prev => ({ ...prev, crmNotes: e.target.value }))}
+                                  placeholder="Observações sobre o eleitor..."
+                                />
+                              </div>
+                            </div>
                           <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
                             <Button variant="ghost" size="sm" onClick={() => router.push(`/crm/${voter.id}`)}>
                               <Eye className="mr-1.5 h-3.5 w-3.5" /> Ver perfil
@@ -953,6 +990,90 @@ export default function CrmPage() {
                   value={form.neighborhood}
                   onChange={(event) => updateForm('neighborhood', event.target.value)}
                   placeholder="Centro"
+                />
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <label htmlFor="voter-address" className="text-sm font-medium text-foreground">
+                  Endereço Individual
+                </label>
+                <Input
+                  id="voter-address"
+                  value={form.address}
+                  onChange={(event) => updateForm('address', event.target.value)}
+                  placeholder="Rua das Flores, 123"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="voter-cep" className="text-sm font-medium text-foreground">
+                  CEP Individual
+                </label>
+                <Input
+                  id="voter-cep"
+                  value={form.cep}
+                  onChange={(event) => updateForm('cep', event.target.value)}
+                  placeholder="00000-000"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="voter-event-date" className="text-sm font-medium text-foreground">
+                  Data do Evento
+                </label>
+                <Input
+                  id="voter-event-date"
+                  value={form.eventDate}
+                  onChange={(event) => updateForm('eventDate', event.target.value)}
+                  placeholder="15/03/2025"
+                />
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <label htmlFor="voter-event-location" className="text-sm font-medium text-foreground">
+                  Local de Realização do Evento
+                </label>
+                <Input
+                  id="voter-event-location"
+                  value={form.eventLocation}
+                  onChange={(event) => updateForm('eventLocation', event.target.value)}
+                  placeholder="Nome do local ou endereço do evento"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="voter-event-cep" className="text-sm font-medium text-foreground">
+                  CEP do Evento
+                </label>
+                <Input
+                  id="voter-event-cep"
+                  value={form.eventCep}
+                  onChange={(event) => updateForm('eventCep', event.target.value)}
+                  placeholder="00000-000"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="voter-project" className="text-sm font-medium text-foreground">
+                  Nome do Projeto
+                </label>
+                <Input
+                  id="voter-project"
+                  value={form.projectName}
+                  onChange={(event) => updateForm('projectName', event.target.value)}
+                  placeholder="Nome do projeto"
+                />
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <label htmlFor="voter-subsecretaria" className="text-sm font-medium text-foreground">
+                  Subsecretaria Responsável
+                </label>
+                <Input
+                  id="voter-subsecretaria"
+                  value={form.subsecretaria}
+                  onChange={(event) => updateForm('subsecretaria', event.target.value)}
+                  placeholder="Nome da subsecretaria"
                 />
               </div>
 

@@ -164,6 +164,14 @@ export const voters = pgTable('voters', {
   section: text('section'),
   city: text('city'),
   neighborhood: text('neighborhood'),
+  // Address fields (from event/lead spreadsheets)
+  address: text('address'),                        // ENDEREÇO INDIVIDUAL
+  cep: text('cep'),                                // CEP individual
+  eventLocation: text('event_location'),           // LOCAL DE REALIZAÇÃO DO EVENTO
+  eventCep: text('event_cep'),                     // CEP do evento
+  eventDate: text('event_date'),                   // DATA do evento (texto livre — ex: "15/03/2025")
+  projectName: text('project_name'),               // NOME DO PROJETO
+  subsecretaria: text('subsecretaria'),            // SUBSECRETARIA RESPONSÁVEL
   tags: text('tags').array().default(sql`'{}'`),
   engagementScore: integer('engagement_score').default(0),
   optInStatus: text('opt_in_status', { enum: ['active', 'expired', 'revoked', 'pending'] }).default('pending'),
