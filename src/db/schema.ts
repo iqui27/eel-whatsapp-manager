@@ -520,3 +520,29 @@ export const aiAnalyses = pgTable('ai_analyses', {
 
 export type AiAnalysis = typeof aiAnalyses.$inferSelect;
 export type NewAiAnalysis = typeof aiAnalyses.$inferInsert;
+
+// ─── Group Messages (Group Chat History) ───────────────────────────────────────
+export const groupMessages = pgTable('group_messages', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  groupId: uuid('group_id').references(() => whatsappGroups.id, { onDelete: 'cascade' }).notNull(),
+  groupJid: text('group_jid').notNull(),
+  senderJid: text('sender_jid'),          // null = sent by us
+  senderName: text('sender_name'),
+  text: text('text').notNull(),
+  fromMe: boolean('from_me').default(false).notNull(),
+  evolutionMessageId: text('evolution_message_id'),
+  // Gemini analysis
+  aiSentiment: text('ai_sentiment', { enum: ['positive', 'neutral', 'negative'] }),
+  aiIntent: text('ai_intent'),
+  aiSuggestedTags: text('ai_suggested_tags').array(),
+  aiAlert: text('ai_alert'),              // non-null = Gemini raised an alert
+  aiSummary: text('ai_summary'),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_group_messages_group').on(t.groupId),
+  index('idx_group_messages_created').on(t.createdAt),
+  index('idx_group_messages_sender').on(t.senderJid),
+]);
+
+export type GroupMessage = typeof groupMessages.$inferSelect;
+export type NewGroupMessage = typeof groupMessages.$inferInsert;

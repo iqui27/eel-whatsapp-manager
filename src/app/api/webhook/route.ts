@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { conversations, campaigns } from '@/db/schema';
+import { conversations, campaigns, groupMessages } from '@/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { loadChips, updateChip, updateChipHealth } from '@/lib/db-chips';
 import { addConversation, addMessage } from '@/lib/db-conversations';
@@ -14,7 +14,7 @@ import {
   recordGroupJoin 
 } from '@/lib/conversion-tracking';
 import { triggerAnalysis, applyAutoTags } from '@/lib/ai-analysis';
-import { isGeminiConfigured } from '@/lib/gemini';
+import { analyzeMessage, isGeminiConfigured } from '@/lib/gemini';
 import { addCampaignDeliveryEvent } from '@/lib/db-campaigns';
 import { restartInstance, sendText } from '@/lib/evolution';
 import { loadConfig } from '@/lib/db-config';
@@ -137,11 +137,94 @@ export async function POST(request: NextRequest) {
         const remoteJid = key.remoteJid as string | undefined;
         if (!remoteJid) continue;
 
-        // Skip group chats — only handle 1:1 conversations
-        if (remoteJid.includes('@g.us')) continue;
-
-        // Dedup — skip if we've already processed this message ID
         const msgId = key.id as string | undefined;
+
+        // Extract message text early (needed for both group and 1:1 paths)
+        const msgContent = msg.message as Record<string, unknown> | undefined;
+        if (!msgContent) continue;
+        const groupMsgText: string =
+          (msgContent.conversation as string) ||
+          ((msgContent.extendedTextMessage as Record<string, unknown>)?.text as string) ||
+          '';
+
+        // ─── Group messages — store + Gemini analysis ─────────────────────────
+        if (remoteJid.includes('@g.us')) {
+          if (!groupMsgText.trim()) continue;
+          try {
+            const group = await getGroupByJid(remoteJid);
+            if (!group) continue; // Unknown group — skip
+
+            // Extract sender from participant field (group messages carry this)
+            const participantJid = (msg.participant as string | undefined) ?? '';
+            const senderPhone = participantJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+
+            // Look up sender name via voter DB
+            let senderName: string | null = null;
+            if (senderPhone) {
+              const normalizedSender = normalizePhone(senderPhone);
+              if (normalizedSender) {
+                const matchedVoters = await searchVoters(normalizedSender);
+                const voter = matchedVoters.find((v) => v.phone === normalizedSender);
+                if (voter) senderName = voter.name;
+              }
+            }
+
+            // Persist message
+            const [savedMsg] = await db.insert(groupMessages).values({
+              groupId: group.id,
+              groupJid: remoteJid,
+              senderJid: participantJid || null,
+              senderName: senderName ?? (senderPhone ? `+${senderPhone}` : null),
+              text: groupMsgText,
+              fromMe: false,
+              evolutionMessageId: msgId ?? null,
+            }).returning();
+
+            // Gemini analysis (non-blocking — fire and forget)
+            if (isGeminiConfigured() && savedMsg) {
+              void (async () => {
+                try {
+                  const analysis = await analyzeMessage(groupMsgText, {
+                    voterName: senderName ?? undefined,
+                    campaignContext: `Grupo WhatsApp: ${group.name}`,
+                  });
+
+                  if (analysis) {
+                    // Detect alert conditions
+                    let aiAlert: string | null = null;
+                    if (analysis.sentiment === 'negative') {
+                      aiAlert = `Mensagem negativa: "${groupMsgText.slice(0, 80)}"`;
+                    }
+                    if (/\b(sair|saio|bloqueio|denunci[ao]|spam|golpe|fraude|ódio|racis)\b/i.test(groupMsgText)) {
+                      aiAlert = `Possível problema detectado: "${groupMsgText.slice(0, 80)}"`;
+                    }
+
+                    await db.update(groupMessages)
+                      .set({
+                        aiSentiment: analysis.sentiment,
+                        aiIntent: analysis.intent,
+                        aiSuggestedTags: analysis.suggestedTags,
+                        aiSummary: analysis.summary,
+                        aiAlert,
+                      })
+                      .where(eq(groupMessages.id, savedMsg.id));
+
+                    if (aiAlert) {
+                      console.warn('[webhook] Group alert on', group.name, ':', aiAlert);
+                    }
+                  }
+                } catch (aiErr) {
+                  console.error('[webhook] Group Gemini analysis error:', aiErr);
+                }
+              })();
+            }
+          } catch (groupErr) {
+            console.error('[webhook] Group message processing error:', groupErr);
+          }
+          continue;
+        }
+
+        // ── 1:1 conversation path below ────────────────────────────────────────
         if (msgId) {
           if (processedMessageIds.has(msgId)) {
             console.log('[webhook] Skipping duplicate message', msgId);
@@ -163,15 +246,9 @@ export async function POST(request: NextRequest) {
         const phone = normalizePhone(rawPhone);
         if (!phone) continue;
 
-        // Extract message text
-        const msgContent = msg.message as Record<string, unknown> | undefined;
-        if (!msgContent) continue; // Protocol messages, reactions — skip silently
-
-        const messageText: string =
-          (msgContent.conversation as string) ||
-          ((msgContent.extendedTextMessage as Record<string, unknown>)?.text as string) ||
-          '';
-
+        // Message text was already extracted above (groupMsgText)
+        // Reuse for 1:1 path
+        const messageText = groupMsgText;
         if (!messageText.trim()) continue; // Empty/media-only messages
 
         // Look up voter by phone number (already normalized)

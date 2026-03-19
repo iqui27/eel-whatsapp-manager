@@ -15,6 +15,13 @@
       "when": 1773874018868,
       "tag": "0001_check_schema_diff",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773930212749,
+      "tag": "0002_group_messages",
+      "breakpoints": true
     }
   ]
 }
