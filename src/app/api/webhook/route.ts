@@ -130,8 +130,9 @@ export async function POST(request: NextRequest) {
         const key = msg.key as Record<string, unknown> | undefined;
         if (!key) continue;
 
-        // Only handle inbound (not sent by us)
-        if (key.fromMe !== false) continue;
+        // Only handle inbound (not sent by us).
+        // Use strict === true to avoid skipping messages where fromMe is undefined.
+        if (key.fromMe === true) continue;
 
         const remoteJid = key.remoteJid as string | undefined;
         if (!remoteJid) continue;
