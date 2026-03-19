@@ -97,7 +97,7 @@ export async function analyzeMessage(
   }
   
   try {
-    const model = client.getGenerativeModel({ model: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash-preview-04-17' });
+    const model = client.getGenerativeModel({ model: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash' });
     
     // Build context string
     const contextParts: string[] = [];
@@ -192,7 +192,7 @@ export async function profileLead(
   }
   
   try {
-    const model = client.getGenerativeModel({ model: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash-preview-04-17' });
+    const model = client.getGenerativeModel({ model: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash' });
     
     // Build voter data string
     const dataParts: string[] = [];
