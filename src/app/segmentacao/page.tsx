@@ -133,7 +133,7 @@ function createFilterId() {
  * Generate a slugified tag from a name
  */
 function slugifyForTag(name: string): string {
-  return name
+  const slug = name
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
@@ -142,6 +142,9 @@ function slugifyForTag(name: string): string {
     .replace(/_+/g, '_')              // Collapse consecutive underscores
     .substring(0, 50)                 // Limit length
     || 'segmento';
+
+  // Tag must start with a letter — prefix 'seg_' if it starts with a digit
+  return /^[0-9]/.test(slug) ? `seg_${slug}`.substring(0, 50) : slug;
 }
 
 /**
@@ -548,7 +551,11 @@ export default function SegmentacaoPage() {
     setSegmentName(name);
     // Only auto-generate if not editing or tag is empty
     if (!segmentBeingEdited && !segmentTag) {
-      setSegmentTag(slugifyForTag(name));
+      const generatedTag = slugifyForTag(name);
+      setSegmentTag(generatedTag);
+      // Validate the auto-generated tag so button state stays correct
+      const validation = validateTag(generatedTag);
+      setTagError(validation.valid ? null : validation.error ?? null);
     }
   };
 
@@ -783,11 +790,24 @@ export default function SegmentacaoPage() {
                           </div>
                           {filterDefs
                             .filter((filterDef) => filterDef.category === category)
-                            .map((filterDef) => (
-                              <SelectItem key={filterDef.key} value={filterDef.key}>
-                                {filterDef.label}
-                              </SelectItem>
-                            ))}
+                            .map((filterDef) => {
+                              const hasNoOptions = (filterDef.type === 'select' || filterDef.type === 'multiselect')
+                                && filterDef.options !== undefined
+                                && filterDef.options.length === 0;
+                              return (
+                                <SelectItem
+                                  key={filterDef.key}
+                                  value={filterDef.key}
+                                  disabled={hasNoOptions}
+                                  className={hasNoOptions ? 'opacity-40' : undefined}
+                                >
+                                  {filterDef.label}
+                                  {hasNoOptions && (
+                                    <span className="ml-2 text-[10px] text-muted-foreground">(sem dados)</span>
+                                  )}
+                                </SelectItem>
+                              );
+                            })}
                         </div>
                       ))}
                     </SelectContent>
