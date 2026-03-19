@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { conversations, campaigns, groupMessages } from '@/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, desc } from 'drizzle-orm';
 import { loadChips, updateChip, updateChipHealth } from '@/lib/db-chips';
 import { addConversation, addMessage } from '@/lib/db-conversations';
 import { searchVoters } from '@/lib/db-voters';
@@ -35,8 +35,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const event = body.event as string | undefined;
+  // Normalize event name — Evolution API may send uppercase (MESSAGES_UPSERT)
+  // or lowercase with dots (messages.upsert). Normalize to lowercase+dots.
+  const rawEvent = (body.event as string | undefined) ?? '';
+  const event = rawEvent.toLowerCase().replace(/_/g, '.');
   const instanceName = body.instance as string | undefined;
+
+  // Log every event type for diagnostics (rate-limited to non-connection events)
+  if (event !== 'connection.update') {
+    console.log('[webhook] event:', rawEvent, '→', event, '| instance:', instanceName);
+  }
 
   // ─── Track lastWebhookEvent on EVERY event for health monitoring ────────────
   if (instanceName) {
@@ -259,6 +267,8 @@ export async function POST(request: NextRequest) {
         const voterName = voter?.name ?? `+${phone}`;
 
         // Check if an active conversation already exists for this phone
+        // ORDER BY last_message_at DESC so we always pick the most recent active conversation
+        // when multiple exist for the same number (avoids routing to stale/old conversations)
         const existingConvs = await db
           .select()
           .from(conversations)
@@ -268,6 +278,7 @@ export async function POST(request: NextRequest) {
               inArray(conversations.status, ['open', 'bot', 'waiting', 'assigned']),
             ),
           )
+          .orderBy(desc(conversations.lastMessageAt))
           .limit(1);
 
         const existingConv = existingConvs[0];
