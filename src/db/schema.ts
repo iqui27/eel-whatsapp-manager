@@ -26,6 +26,8 @@ export const config = pgTable('config', {
   candidateOffice: text('candidate_office'),
   candidateParty: text('candidate_party'),
   candidateRegion: text('candidate_region'),
+  sendWindowStart: text('send_window_start').default('08:00'),
+  sendWindowEnd: text('send_window_end').default('20:00'),
   lastCronRun: timestamp('last_cron_run', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
