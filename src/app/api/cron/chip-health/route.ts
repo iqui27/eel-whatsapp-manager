@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     const instanceName = chip.instanceName!;
 
     try {
-      let { status: connStatus, instanceExists } = await getConnectionState(
+      const { status: connStatus, instanceExists } = await getConnectionState(
         evolutionApiUrl, 
         evolutionApiKey, 
         instanceName

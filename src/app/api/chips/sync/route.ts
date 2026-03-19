@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       const instanceName = chip.instanceName!;
 
       try {
-        let { status: state, instanceExists } = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+        const { status: state, instanceExists } = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
 
         // Instance doesn't exist
         if (!instanceExists) {
