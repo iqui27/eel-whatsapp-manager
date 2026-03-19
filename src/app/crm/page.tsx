@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { formatPhoneDisplay, normalizePhone } from '@/lib/phone';
+import { Badge } from '@/components/ui/badge';
+import { formatPhoneDisplay } from '@/lib/phone';
 import {
   Dialog,
   DialogContent,
@@ -44,10 +45,16 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import type { Voter } from '@/db/schema';
-import { Users, Upload, Search, Eye, Plus, Trash2, Download } from 'lucide-react';
+import { Users, Upload, Search, Eye, Plus, Trash2, Download, Tag, X, Loader2 } from 'lucide-react';
 
 // Extended voter type that includes enriched segment data from API
 type VoterWithSegments = Voter & { segments?: Array<{ id: string; name: string }> };
+
+interface SegmentOption {
+  id: string;
+  name: string;
+  audienceCount: number;
+}
 
 // ─── Opt-in status ────────────────────────────────────────────────────────────
 
@@ -80,6 +87,99 @@ function EngagementBar({ score }: { score: number | null }) {
   );
 }
 
+// ─── Tag Picker ───────────────────────────────────────────────────────────────
+
+interface TagPickerProps {
+  selected: string[];
+  onChange: (tags: string[]) => void;
+  suggestions: string[];
+}
+
+function TagPicker({ selected, onChange, suggestions }: TagPickerProps) {
+  const [inputValue, setInputValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const addTag = (tag: string) => {
+    const trimmed = tag.trim().toLowerCase().replace(/\s+/g, '_');
+    if (!trimmed || selected.includes(trimmed)) return;
+    onChange([...selected, trimmed]);
+    setInputValue('');
+  };
+
+  const removeTag = (tag: string) => {
+    onChange(selected.filter((t) => t !== tag));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(inputValue);
+    } else if (e.key === 'Backspace' && !inputValue && selected.length > 0) {
+      removeTag(selected[selected.length - 1]);
+    }
+  };
+
+  const filteredSuggestions = useMemo(() => {
+    const q = inputValue.trim().toLowerCase();
+    return suggestions
+      .filter((s) => !selected.includes(s) && (q === '' || s.includes(q)))
+      .slice(0, 8);
+  }, [inputValue, selected, suggestions]);
+
+  return (
+    <div className="space-y-2">
+      {/* Selected chips + input */}
+      <div
+        className="flex flex-wrap gap-1.5 min-h-[38px] rounded-md border border-input bg-background px-3 py-2 cursor-text focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1"
+        onClick={() => inputRef.current?.focus()}
+      >
+        {selected.map((tag) => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary font-medium"
+          >
+            {tag}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); removeTag(tag); }}
+              className="hover:text-destructive transition-colors"
+              aria-label={`Remover tag ${tag}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={() => { if (inputValue.trim()) addTag(inputValue); }}
+          placeholder={selected.length === 0 ? 'Digite uma tag e pressione Enter ou vírgula...' : ''}
+          className="flex-1 min-w-[120px] text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+
+      {/* Suggestions */}
+      {filteredSuggestions.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {filteredSuggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => addTag(s)}
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors"
+            >
+              <Tag className="h-2.5 w-2.5" />
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const PAGE_LIMIT = 50;
 
 const EMPTY_FORM = {
@@ -89,7 +189,6 @@ const EMPTY_FORM = {
   zone: '',
   section: '',
   neighborhood: '',
-  tags: '',
 };
 
 type PaginatedVotersResponse = {
@@ -114,12 +213,21 @@ export default function CrmPage() {
   const [totalVoters, setTotalVoters] = useState(0);
   const [voterToDelete, setVoterToDelete] = useState<VoterWithSegments | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  // Tags managed separately as string[] for the TagPicker
+  const [formTags, setFormTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [tierFilter, setTierFilter] = useState('all');
   const [optInFilter, setOptInFilter] = useState('all');
   const [zoneFilter, setZoneFilter] = useState('all');
   const [selectedVoterIds, setSelectedVoterIds] = useState<Set<string>>(new Set());
   const [editingVoterId, setEditingVoterId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<VoterWithSegments>>({});
+  // Add-to-segment bulk action
+  const [isSegmentDialogOpen, setIsSegmentDialogOpen] = useState(false);
+  const [segments, setSegments] = useState<SegmentOption[]>([]);
+  const [selectedSegmentId, setSelectedSegmentId] = useState('');
+  const [isAddingToSegment, setIsAddingToSegment] = useState(false);
+  const [isLoadingSegments, setIsLoadingSegments] = useState(false);
 
   const load = useCallback(async (q: string, page: number) => {
     setIsLoading(true);
@@ -164,6 +272,29 @@ export default function CrmPage() {
   useEffect(() => {
     void load(debouncedSearch, currentPage);
   }, [currentPage, debouncedSearch, load]);
+
+  // Load available tags when add-voter dialog opens
+  useEffect(() => {
+    if (!isAddDialogOpen) return;
+    fetch('/api/segments?action=filter-options')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data?.tags) setAvailableTags(data.tags); })
+      .catch(() => {});
+  }, [isAddDialogOpen]);
+
+  // Load segments when add-to-segment dialog opens
+  useEffect(() => {
+    if (!isSegmentDialogOpen) return;
+    setIsLoadingSegments(true);
+    setSelectedSegmentId('');
+    fetch('/api/segments')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: SegmentOption[]) => {
+        setSegments(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setSegments([]))
+      .finally(() => setIsLoadingSegments(false));
+  }, [isSegmentDialogOpen]);
 
   const totalPages = Math.max(Math.ceil(totalVoters / PAGE_LIMIT), 1);
   const startIndex = totalVoters === 0 ? 0 : (currentPage - 1) * PAGE_LIMIT + 1;
@@ -224,12 +355,40 @@ export default function CrmPage() {
     toast.success(`${votersToExport.length} eleitor(es) exportado(s)`);
   };
 
+  const handleAddToSegment = async () => {
+    if (!selectedSegmentId) return;
+    setIsAddingToSegment(true);
+    try {
+      const res = await fetch('/api/segments?action=add-voters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          segmentId: selectedSegmentId,
+          voterIds: Array.from(selectedVoterIds),
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json() as { added: number; total: number };
+      const seg = segments.find((s) => s.id === selectedSegmentId);
+      toast.success(
+        `${data.added} eleitor(es) adicionado(s) ao segmento "${seg?.name ?? ''}"`,
+      );
+      setIsSegmentDialogOpen(false);
+      setSelectedVoterIds(new Set());
+    } catch {
+      toast.error('Erro ao adicionar ao segmento');
+    } finally {
+      setIsAddingToSegment(false);
+    }
+  };
+
   const updateForm = (field: keyof typeof EMPTY_FORM, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
+    setFormTags([]);
   };
 
   const handleAddVoter = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -249,10 +408,7 @@ export default function CrmPage() {
         zone: form.zone.trim() || null,
         section: form.section.trim() || null,
         neighborhood: form.neighborhood.trim() || null,
-        tags: form.tags
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean),
+        tags: formTags,
       };
 
       const res = await fetch('/api/voters', {
@@ -407,7 +563,16 @@ export default function CrmPage() {
         {selectedVoterIds.size > 0 && (
           <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2">
             <span className="text-xs font-medium">{selectedVoterIds.size} selecionado(s)</span>
-            <div className="flex items-center gap-1.5 ml-auto">
+            <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => setIsSegmentDialogOpen(true)}
+              >
+                <Tag className="h-3 w-3" />
+                Adicionar ao segmento
+              </Button>
               <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleBulkExport}>
                 Exportar CSV
               </Button>
@@ -705,7 +870,8 @@ export default function CrmPage() {
         </div>
       </div>
 
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      {/* ── Add voter dialog ──────────────────────────────────────────────── */}
+      <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) resetForm(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Adicionar eleitor</DialogTitle>
@@ -778,7 +944,7 @@ export default function CrmPage() {
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <label htmlFor="voter-neighborhood" className="text-sm font-medium text-foreground">
                   Bairro
                 </label>
@@ -790,16 +956,18 @@ export default function CrmPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label htmlFor="voter-tags" className="text-sm font-medium text-foreground">
+              <div className="space-y-2 sm:col-span-2">
+                <label className="text-sm font-medium text-foreground">
                   Tags
                 </label>
-                <Input
-                  id="voter-tags"
-                  value={form.tags}
-                  onChange={(event) => updateForm('tags', event.target.value)}
-                  placeholder="lideranca, apoiador, visita"
+                <TagPicker
+                  selected={formTags}
+                  onChange={setFormTags}
+                  suggestions={availableTags}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Pressione Enter ou vírgula para adicionar. Clique nas sugestões para reutilizar tags existentes.
+                </p>
               </div>
             </div>
 
@@ -815,6 +983,77 @@ export default function CrmPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Add to segment dialog ─────────────────────────────────────────── */}
+      <Dialog open={isSegmentDialogOpen} onOpenChange={setIsSegmentDialogOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar ao segmento</DialogTitle>
+            <DialogDescription>
+              Selecione o segmento para associar os {selectedVoterIds.size} eleitor(es) selecionado(s).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {isLoadingSegments ? (
+              <div className="flex items-center justify-center py-8 text-sm text-muted-foreground gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando segmentos...
+              </div>
+            ) : segments.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-sm text-muted-foreground mb-3">Nenhum segmento encontrado.</p>
+                <Link href="/segmentacao">
+                  <Button variant="outline" size="sm" onClick={() => setIsSegmentDialogOpen(false)}>
+                    Criar segmento
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                {segments.map((seg) => (
+                  <button
+                    key={seg.id}
+                    type="button"
+                    onClick={() => setSelectedSegmentId(seg.id)}
+                    className={cn(
+                      'w-full flex items-center justify-between rounded-lg border px-3 py-2.5 text-left transition-colors',
+                      selectedSegmentId === seg.id
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-border hover:bg-muted/50',
+                    )}
+                  >
+                    <span className="font-medium text-sm">{seg.name}</span>
+                    <Badge variant="secondary" className="text-xs shrink-0">
+                      {seg.audienceCount ?? 0} eleitores
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSegmentDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAddToSegment}
+              disabled={!selectedSegmentId || isAddingToSegment}
+            >
+              {isAddingToSegment ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Adicionando...
+                </>
+              ) : (
+                'Adicionar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete confirmation ───────────────────────────────────────────── */}
       <AlertDialog open={Boolean(voterToDelete)} onOpenChange={(open) => { if (!open && !isDeleting) setVoterToDelete(null); }}>
         <AlertDialogContent className="sm:max-w-[425px]">
           <AlertDialogHeader>
