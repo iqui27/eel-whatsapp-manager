@@ -16,7 +16,9 @@ name: Deploy to Production
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - integration-evolution-wizard   # current production branch
   workflow_dispatch:
 
 # Prevent overlapping deploys — queue, don't cancel
