@@ -5,7 +5,7 @@
 import { Resend } from 'resend';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? '';
-const FROM_ADDRESS   = 'EEL Eleitoral <noreply@iqui27.app>';
+const FROM_ADDRESS   = 'EEL Eleitoral <equipe@iqui27.app>';
 const APP_NAME       = 'EEL Eleitoral';
 
 let _resend: Resend | null = null;
