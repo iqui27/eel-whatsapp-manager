@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   Search,
@@ -438,16 +439,16 @@ export default function HistoricoPage() {
                 <p className="text-sm text-muted-foreground max-w-md mb-6">
                   O histórico é preenchido automaticamente quando campanhas são enviadas ou leads respondem às suas mensagens.
                 </p>
-                <a
+                <Link
                   href="/campanhas/nova"
                   className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                   <Send className="h-3.5 w-3.5" />
                   Criar primeira campanha
-                </a>
+                </Link>
                 <p className="mt-3 text-xs text-muted-foreground">
                   Ou importe sua base de leads em{' '}
-                  <a href="/segmentacao" className="text-primary hover:underline">Segmentação → Importar</a>
+                  <Link href="/segmentacao" className="text-primary hover:underline">Segmentação → Importar</Link>
                 </p>
               </>
             )}
