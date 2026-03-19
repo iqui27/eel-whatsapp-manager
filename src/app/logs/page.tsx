@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -50,10 +49,20 @@ interface SystemLog {
   createdAt:  string;
 }
 
+interface AppliedFilters {
+  levels:     Set<LogLevel>;
+  categories: Set<LogCategory>;
+  search:     string;
+  fromDate:   string;
+  toDate:     string;
+  limit:      string;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const LEVELS: LogLevel[] = ['debug', 'info', 'warn', 'error'];
+const LEVELS:     LogLevel[]    = ['debug', 'info', 'warn', 'error'];
 const CATEGORIES: LogCategory[] = ['gemini', 'webhook', 'campaign', 'crm', 'grupos', 'auth', 'cron', 'system'];
+const SEARCH_DEBOUNCE_MS = 400;
 
 const LEVEL_CONFIG: Record<LogLevel, { label: string; icon: React.FC<{ className?: string }>; classes: string; dotClass: string }> = {
   debug: { label: 'Debug',  icon: Bug,           classes: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',  dotClass: 'bg-slate-400' },
@@ -118,6 +127,17 @@ function exportCsv(logs: SystemLog[]) {
   URL.revokeObjectURL(url);
 }
 
+function buildParams(f: AppliedFilters): URLSearchParams {
+  const p = new URLSearchParams();
+  if (f.levels.size > 0)     p.set('level',    [...f.levels].join(','));
+  if (f.categories.size > 0) p.set('category', [...f.categories].join(','));
+  if (f.search.trim())       p.set('search',   f.search.trim());
+  if (f.fromDate)            p.set('from',     f.fromDate);
+  if (f.toDate)              p.set('to',       f.toDate);
+  p.set('limit', f.limit);
+  return p;
+}
+
 // ─── Details Expander ─────────────────────────────────────────────────────────
 
 function DetailsCell({ details }: { details: Record<string, unknown> | null }) {
@@ -144,33 +164,42 @@ function DetailsCell({ details }: { details: Record<string, unknown> | null }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function LogsPage() {
-  const [logs, setLogs]             = useState<SystemLog[]>([]);
-  const [loading, setLoading]       = useState(true);
+  const [logs, setLogs]               = useState<SystemLog[]>([]);
+  const [loading, setLoading]         = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Filters
-  const [selectedLevels, setSelectedLevels]         = useState<Set<LogLevel>>(new Set());
-  const [selectedCategories, setSelectedCategories] = useState<Set<LogCategory>>(new Set());
-  const [search, setSearch]                         = useState('');
-  const [fromDate, setFromDate]                     = useState('');
-  const [toDate, setToDate]                         = useState('');
-  const [limit, setLimit]                           = useState('200');
+  // ── Editing filter state (UI controls, not yet applied) ──────────────────────
+  const [editLevels, setEditLevels]         = useState<Set<LogLevel>>(new Set());
+  const [editCategories, setEditCategories] = useState<Set<LogCategory>>(new Set());
+  const [editSearch, setEditSearch]         = useState('');
+  const [editFrom, setEditFrom]             = useState('');
+  const [editTo, setEditTo]                 = useState('');
+  const [editLimit, setEditLimit]           = useState('100');
 
-  // ─── Fetch ──────────────────────────────────────────────────────────────────
+  // ── Applied filter state (what the last/current fetch uses) ─────────────────
+  // Stored in a ref so the auto-refresh interval always reads the latest values
+  // without needing to be recreated when filters change.
+  const appliedRef = useRef<AppliedFilters>({
+    levels:     new Set(),
+    categories: new Set(),
+    search:     '',
+    fromDate:   '',
+    toDate:     '',
+    limit:      '100',
+  });
 
-  const fetchLogs = useCallback(async () => {
+  // ── Debounce timer for search ─────────────────────────────────────────────────
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Auto-refresh interval ─────────────────────────────────────────────────────
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ─── Core fetch (reads from appliedRef — stable identity) ────────────────────
+  const doFetch = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (selectedLevels.size > 0)     params.set('level',    [...selectedLevels].join(','));
-      if (selectedCategories.size > 0) params.set('category', [...selectedCategories].join(','));
-      if (search.trim())               params.set('search',   search.trim());
-      if (fromDate)                    params.set('from',     fromDate);
-      if (toDate)                      params.set('to',       toDate);
-      params.set('limit', limit);
-
+      const params = buildParams(appliedRef.current);
       const res = await fetch(`/api/system-logs?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch logs');
       const data = await res.json() as { logs: SystemLog[] };
@@ -181,50 +210,118 @@ export default function LogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedLevels, selectedCategories, search, fromDate, toDate, limit]);
+  }, []); // stable — never changes
 
-  // Initial load
-  useEffect(() => {
-    void fetchLogs();
-  }, [fetchLogs]);
+  // ── Apply filters and fetch ───────────────────────────────────────────────────
+  const applyAndFetch = useCallback(() => {
+    appliedRef.current = {
+      levels:     editLevels,
+      categories: editCategories,
+      search:     editSearch,
+      fromDate:   editFrom,
+      toDate:     editTo,
+      limit:      editLimit,
+    };
+    void doFetch();
+  }, [editLevels, editCategories, editSearch, editFrom, editTo, editLimit, doFetch]);
 
-  // Auto-refresh
+  // ── Initial load ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    void doFetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // mount only
+
+  // ── Auto-refresh — stable interval, reads appliedRef directly ────────────────
+  useEffect(() => {
+    if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
     if (autoRefresh) {
-      timerRef.current = setInterval(() => void fetchLogs(), 10_000);
+      autoRefreshRef.current = setInterval(() => void doFetch(), 10_000);
     }
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
     };
-  }, [autoRefresh, fetchLogs]);
+  }, [autoRefresh, doFetch]); // doFetch is stable, so this only runs when autoRefresh toggles
 
-  // ─── Filter toggles ─────────────────────────────────────────────────────────
-
+  // ─── Filter toggles (pills apply immediately) ─────────────────────────────────
   function toggleLevel(level: LogLevel) {
-    setSelectedLevels((prev) => {
+    setEditLevels((prev) => {
       const next = new Set(prev);
       next.has(level) ? next.delete(level) : next.add(level);
+      // Apply immediately for pill toggles — fast, user expects instant feedback
+      appliedRef.current = { ...appliedRef.current, levels: next };
       return next;
     });
+    // Schedule fetch after state update settles
+    setTimeout(() => void doFetch(), 0);
   }
 
   function toggleCategory(cat: LogCategory) {
-    setSelectedCategories((prev) => {
+    setEditCategories((prev) => {
       const next = new Set(prev);
       next.has(cat) ? next.delete(cat) : next.add(cat);
+      appliedRef.current = { ...appliedRef.current, categories: next };
       return next;
     });
+    setTimeout(() => void doFetch(), 0);
   }
 
-  // ─── Counts for header badges ────────────────────────────────────────────────
+  // ── Search: debounced 400ms ───────────────────────────────────────────────────
+  function handleSearchChange(value: string) {
+    setEditSearch(value);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      appliedRef.current = { ...appliedRef.current, search: value };
+      void doFetch();
+    }, SEARCH_DEBOUNCE_MS);
+  }
 
+  // ── Date/limit change: debounced ─────────────────────────────────────────────
+  function handleFromChange(value: string) {
+    setEditFrom(value);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      appliedRef.current = { ...appliedRef.current, fromDate: value };
+      void doFetch();
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  function handleToChange(value: string) {
+    setEditTo(value);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      appliedRef.current = { ...appliedRef.current, toDate: value };
+      void doFetch();
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  function handleLimitChange(value: string) {
+    setEditLimit(value);
+    appliedRef.current = { ...appliedRef.current, limit: value };
+    void doFetch();
+  }
+
+  // ── Clear all filters ────────────────────────────────────────────────────────
+  function clearFilters() {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    const cleared: AppliedFilters = { levels: new Set(), categories: new Set(), search: '', fromDate: '', toDate: '', limit: editLimit };
+    setEditLevels(new Set());
+    setEditCategories(new Set());
+    setEditSearch('');
+    setEditFrom('');
+    setEditTo('');
+    appliedRef.current = cleared;
+    void doFetch();
+  }
+
+  const hasFilters = editLevels.size > 0 || editCategories.size > 0 || editSearch || editFrom || editTo;
+
+  // ─── Counts for header badges ─────────────────────────────────────────────────
   const levelCounts = logs.reduce<Record<LogLevel, number>>((acc, l) => {
     acc[l.level] = (acc[l.level] ?? 0) + 1;
     return acc;
   }, { debug: 0, info: 0, warn: 0, error: 0 });
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <SidebarLayout currentPage="logs" pageTitle="Logs do Sistema">
@@ -271,7 +368,7 @@ export default function LogsPage() {
             </Button>
 
             {/* Manual refresh */}
-            <Button variant="outline" size="sm" onClick={() => void fetchLogs()} disabled={loading} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => void applyAndFetch()} disabled={loading} className="gap-1.5">
               <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
               Atualizar
             </Button>
@@ -287,12 +384,12 @@ export default function LogsPage() {
         {/* ── Filters ── */}
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
 
-          {/* Level pills */}
+          {/* Level pills — apply immediately on click */}
           <div className="flex flex-wrap gap-1.5">
             <span className="text-xs font-medium text-muted-foreground self-center mr-1">Nível:</span>
             {LEVELS.map((level) => {
               const cfg = LEVEL_CONFIG[level];
-              const active = selectedLevels.has(level);
+              const active = editLevels.has(level);
               return (
                 <button
                   key={level}
@@ -309,11 +406,11 @@ export default function LogsPage() {
             })}
           </div>
 
-          {/* Category chips */}
+          {/* Category chips — apply immediately on click */}
           <div className="flex flex-wrap gap-1.5">
             <span className="text-xs font-medium text-muted-foreground self-center mr-1">Categoria:</span>
             {CATEGORIES.map((cat) => {
-              const active = selectedCategories.has(cat);
+              const active = editCategories.has(cat);
               return (
                 <button
                   key={cat}
@@ -329,33 +426,39 @@ export default function LogsPage() {
             })}
           </div>
 
-          {/* Search + date range + limit */}
+          {/* Search + date range + limit — debounced */}
           <div className="flex flex-wrap gap-2">
             <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <Input
-                placeholder="Buscar na mensagem…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && void fetchLogs()}
+                placeholder="Buscar na mensagem… (400ms debounce)"
+                value={editSearch}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+                    appliedRef.current = { ...appliedRef.current, search: editSearch };
+                    void doFetch();
+                  }
+                }}
                 className="pl-8 h-8 text-sm"
               />
             </div>
             <Input
               type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
+              value={editFrom}
+              onChange={(e) => handleFromChange(e.target.value)}
               className="h-8 text-sm w-36"
               title="Data inicial"
             />
             <Input
               type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
+              value={editTo}
+              onChange={(e) => handleToChange(e.target.value)}
               className="h-8 text-sm w-36"
               title="Data final"
             />
-            <Select value={limit} onValueChange={setLimit}>
+            <Select value={editLimit} onValueChange={handleLimitChange}>
               <SelectTrigger className="h-8 w-28 text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -364,21 +467,14 @@ export default function LogsPage() {
                 <SelectItem value="100">100 linhas</SelectItem>
                 <SelectItem value="200">200 linhas</SelectItem>
                 <SelectItem value="500">500 linhas</SelectItem>
-                <SelectItem value="1000">1000 linhas</SelectItem>
               </SelectContent>
             </Select>
-            {(selectedLevels.size > 0 || selectedCategories.size > 0 || search || fromDate || toDate) && (
+            {hasFilters && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 text-xs text-muted-foreground"
-                onClick={() => {
-                  setSelectedLevels(new Set());
-                  setSelectedCategories(new Set());
-                  setSearch('');
-                  setFromDate('');
-                  setToDate('');
-                }}
+                onClick={clearFilters}
               >
                 Limpar filtros
               </Button>
@@ -400,7 +496,6 @@ export default function LogsPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                /* Skeleton rows */
                 Array.from({ length: 8 }).map((_, i) => (
                   <TableRow key={i} className="border-border">
                     <TableCell><div className="h-5 w-14 animate-pulse rounded bg-muted" /></TableCell>
@@ -417,7 +512,12 @@ export default function LogsPage() {
                       <ScrollText className="h-10 w-10 opacity-30" />
                       <div>
                         <p className="font-medium text-sm">Nenhum log encontrado</p>
-                        <p className="text-xs mt-1">Ajuste os filtros ou aguarde novos eventos do sistema.</p>
+                        <p className="text-xs mt-1">
+                          Por padrão apenas alertas e erros são registrados.
+                          Para ver mais eventos, defina{' '}
+                          <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">SYSLOG_MIN_LEVEL=info</code>
+                          {' '}no servidor.
+                        </p>
                       </div>
                     </div>
                   </TableCell>
@@ -427,7 +527,7 @@ export default function LogsPage() {
                   const lvl = LEVEL_CONFIG[log.level];
                   const LevelIcon = lvl.icon;
                   return (
-                    <TableRow key={log.id} className="border-border align-top group hover:bg-muted/30">
+                    <TableRow key={log.id} className="border-border align-top hover:bg-muted/30">
 
                       {/* Level */}
                       <TableCell className="pt-3">
@@ -488,7 +588,7 @@ export default function LogsPage() {
         {!loading && logs.length > 0 && (
           <p className="text-center text-xs text-muted-foreground">
             Mostrando {logs.length} registro{logs.length !== 1 ? 's' : ''} mais recentes.
-            {logs.length >= parseInt(limit) && ' Refine os filtros para ver mais resultados.'}
+            {logs.length >= parseInt(editLimit) && ' Refine os filtros ou reduza o limite para melhor performance.'}
           </p>
         )}
       </div>

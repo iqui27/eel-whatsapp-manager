@@ -19,7 +19,7 @@ import { addCampaignDeliveryEvent } from '@/lib/db-campaigns';
 import { restartInstance, sendText } from '@/lib/evolution';
 import { loadConfig } from '@/lib/db-config';
 import { logConsent, detectConsentKeyword, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from '@/lib/db-compliance';
-import { syslogInfo, syslogWarn, syslogError } from '@/lib/system-logger';
+import { syslogInfo, syslogWarn, syslogError, syslogDebug } from '@/lib/system-logger';
 
 // ─── Dedup cache — prevents storing duplicate webhook deliveries ─────────────
 // Evolution API occasionally fires the same event twice within a few seconds.
@@ -295,7 +295,8 @@ export async function POST(request: NextRequest) {
           await addMessage(existingConv.id, 'voter', messageText);
           conversationId = existingConv.id;
           console.log('[webhook] Stored inbound from', phone, 'on', instanceName, '→ conv', existingConv.id);
-          syslogInfo('webhook', `Mensagem recebida de ${voterName}`, { phone, instance: instanceName, conversationId: existingConv.id, messageLength: messageText.length });
+          // debug: routine message — only visible when SYSLOG_MIN_LEVEL=debug
+          syslogDebug('webhook', `Mensagem recebida de ${voterName}`, { phone, instance: instanceName, conversationId: existingConv.id, messageLength: messageText.length });
         } else {
           // Create a new conversation
           const newConv = await addConversation({
@@ -308,6 +309,7 @@ export async function POST(request: NextRequest) {
           await addMessage(newConv.id, 'voter', messageText);
           conversationId = newConv.id;
           console.log('[webhook] Created conversation for', phone, 'on', instanceName, '→ conv', newConv.id);
+          // info: new conversation is worth noting if SYSLOG_MIN_LEVEL=info
           syslogInfo('webhook', `Nova conversa iniciada com ${voterName}`, { phone, instance: instanceName, conversationId: newConv.id });
         }
 
