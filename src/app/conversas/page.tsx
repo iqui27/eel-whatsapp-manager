@@ -697,8 +697,17 @@ export default function ConversasPage() {
       });
       if (res.ok) {
         const msg: ConversationMessage = await res.json();
-        // Replace optimistic msg with real one from server
-        setMessages(prev => prev.map(m => m.id === tempId ? msg : m));
+        // Replace optimistic msg with real one from server.
+        // Also filter out any SSE copy that may have already arrived with the
+        // real ID — avoids duplicate entries when SSE fires before this runs.
+        setMessages(prev => {
+          const withoutBoth = prev.filter(m => m.id !== tempId && m.id !== msg.id);
+          return [...withoutBoth, msg].sort((a, b) => {
+            const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return ta !== tb ? ta - tb : a.id.localeCompare(b.id);
+          });
+        });
       } else {
         // Remove optimistic msg on failure
         setMessages(prev => prev.filter(m => m.id !== tempId));
