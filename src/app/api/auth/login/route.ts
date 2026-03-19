@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/db-config';
 import { createSession } from '@/lib/db-auth';
-import { loadEnabledUsers, getUserByEmail } from '@/lib/db-users';
+import { loadEnabledUsers, getUserByEmail, verifyPassword } from '@/lib/db-users';
 
 export async function GET() {
   const config = await loadConfig();
@@ -16,6 +16,7 @@ export async function GET() {
       email: user.email,
       role: user.role,
       regionScope: user.regionScope,
+      hasOwnPassword: Boolean(user.passwordHash),
     })),
   });
 }
@@ -27,10 +28,6 @@ export async function POST(request: NextRequest) {
 
     if (!config) {
       return NextResponse.json({ error: 'Sistema não configurado' }, { status: 401 });
-    }
-
-    if (body.password !== config.authPassword) {
-      return NextResponse.json({ error: 'Senha incorreta' }, { status: 401 });
     }
 
     const enabledUsers = await loadEnabledUsers();
@@ -47,6 +44,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Operador não encontrado ou desativado' }, { status: 401 });
       }
 
+      // Per-user password takes priority; fall back to global password for users without one
+      const passwordOk = user.passwordHash
+        ? verifyPassword(String(body.password ?? ''), user.passwordHash)
+        : String(body.password ?? '') === config.authPassword;
+
+      if (!passwordOk) {
+        return NextResponse.json({ error: 'Senha incorreta' }, { status: 401 });
+      }
+
       token = await createSession({
         userId: user.id,
         name: user.name,
@@ -55,6 +61,11 @@ export async function POST(request: NextRequest) {
         regionScope: user.regionScope ?? null,
       });
     } else {
+      // Bootstrap mode — no users in DB yet, use global password
+      if (body.password !== config.authPassword) {
+        return NextResponse.json({ error: 'Senha incorreta' }, { status: 401 });
+      }
+
       token = await createSession({
         name: 'Administrador bootstrap',
         email: null,

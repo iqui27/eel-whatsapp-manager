@@ -40,7 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { UserPlus, Check, X, Pencil } from 'lucide-react';
+import { UserPlus, Check, X, Pencil, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { User } from '@/lib/db-users';
 import { PERMISSIONS as AVAILABLE_PERMISSIONS, resolvePermissions, type AppRole, type Permission } from '@/lib/authorization';
@@ -107,6 +107,8 @@ export default function AdminPage() {
   const [confirmRemove, setConfirmRemove] = useState<User | null>(null);
   const [permissionsUser, setPermissionsUser] = useState<User | null>(null);
   const [permissionsDraft, setPermissionsDraft] = useState<string[]>([]);
+  const [passwordUser, setPasswordUser] = useState<User | null>(null);
+  const [passwordValue, setPasswordValue] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -242,6 +244,31 @@ export default function AdminPage() {
     }
   }, [permissionsDraft, permissionsUser]);
 
+  // Set user password
+  const handleSetPassword = useCallback(async () => {
+    if (!passwordUser || !passwordValue) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/users/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: passwordUser.id, password: passwordValue }),
+      });
+      if (res.ok) {
+        toast.success(`Senha de ${passwordUser.name} atualizada`);
+        setPasswordUser(null);
+        setPasswordValue('');
+      } else {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error ?? 'Erro ao definir senha');
+      }
+    } catch {
+      toast.error('Erro ao definir senha');
+    } finally {
+      setSaving(false);
+    }
+  }, [passwordUser, passwordValue]);
+
   return (
     <SidebarLayout currentPage="admin">
       <div className="flex flex-col gap-6 p-6">
@@ -351,7 +378,7 @@ export default function AdminPage() {
                             : 'Configurar'}
                         </Button>
                       </TableCell>
-                      <TableCell>
+                       <TableCell>
                         <div className="flex justify-end gap-1">
                           <Button
                             size="sm"
@@ -361,6 +388,16 @@ export default function AdminPage() {
                           >
                             <Pencil className="h-3 w-3" />
                             Editar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 gap-1 text-xs text-amber-600 hover:text-amber-700"
+                            onClick={() => { setPasswordUser(user); setPasswordValue(''); }}
+                            title="Definir senha individual"
+                          >
+                            <KeyRound className="h-3 w-3" />
+                            Senha
                           </Button>
                           <Button
                             size="sm"
@@ -513,6 +550,46 @@ export default function AdminPage() {
             <Button variant="outline" onClick={() => setPermissionsUser(null)}>Cancelar</Button>
             <Button onClick={savePermissions} disabled={saving}>
               {saving ? 'Salvando…' : 'Salvar permissões'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Set Password Dialog */}
+      <Dialog
+        open={!!passwordUser}
+        onOpenChange={open => { if (!open) { setPasswordUser(null); setPasswordValue(''); } }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Definir senha — {passwordUser?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              Defina uma senha individual para este usuário. Ela substituirá a senha global para este login.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="set-password-input">Nova senha</Label>
+              <Input
+                id="set-password-input"
+                type="password"
+                placeholder="mínimo 4 caracteres"
+                value={passwordValue}
+                onChange={e => setPasswordValue(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !saving && passwordValue.length >= 4 && void handleSetPassword()}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPasswordUser(null); setPasswordValue(''); }}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => void handleSetPassword()}
+              disabled={saving || passwordValue.length < 4}
+            >
+              {saving ? 'Salvando…' : 'Salvar senha'}
             </Button>
           </DialogFooter>
         </DialogContent>

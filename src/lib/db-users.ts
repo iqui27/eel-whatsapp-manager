@@ -8,6 +8,34 @@ import {
   type User, type NewUser,
 } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { scryptSync, randomBytes, timingSafeEqual } from 'crypto';
+
+// ─── Password helpers ────────────────────────────────────────────────────────
+
+/**
+ * Hash a plain-text password using scrypt.
+ * Returns a "salt:hash" string safe to store in DB.
+ */
+export function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex');
+  const hash = scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+/**
+ * Verify a plain-text password against a stored "salt:hash" string.
+ */
+export function verifyPassword(password: string, stored: string): boolean {
+  try {
+    const [salt, hash] = stored.split(':');
+    if (!salt || !hash) return false;
+    const candidate = scryptSync(password, salt, 64);
+    const expected = Buffer.from(hash, 'hex');
+    return candidate.length === expected.length && timingSafeEqual(candidate, expected);
+  } catch {
+    return false;
+  }
+}
 
 export type { User, NewUser };
 

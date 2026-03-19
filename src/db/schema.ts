@@ -349,6 +349,7 @@ export const users = pgTable('users', {
   regionScope: text('region_scope'),
   permissions: text('permissions').array().default(sql`'{}'`),
   enabled: boolean('enabled').default(true),
+  passwordHash: text('password_hash'),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
 }, (t) => [
