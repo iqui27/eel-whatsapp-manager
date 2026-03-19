@@ -57,7 +57,8 @@ export async function GET(request: NextRequest) {
     const instanceName = chip.instanceName!;
 
     try {
-      const { status: connStatus, instanceExists } = await getConnectionState(
+      // eslint-disable-next-line prefer-const
+      let { status: connStatus, instanceExists } = await getConnectionState(
         evolutionApiUrl, 
         evolutionApiKey, 
         instanceName

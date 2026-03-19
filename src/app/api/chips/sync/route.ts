@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
       const instanceName = chip.instanceName!;
 
       try {
-        const { status: state, instanceExists } = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+        // eslint-disable-next-line prefer-const
+        let { status: state, instanceExists } = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
 
         // Instance doesn't exist
         if (!instanceExists) {
