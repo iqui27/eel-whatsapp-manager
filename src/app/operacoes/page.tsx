@@ -310,11 +310,28 @@ export default function OperacoesPage() {
           </div>
         )}
 
-        {/* Main Grid: Status + Actions | KPIs */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* KPIs de Conversão (full width) */}
+        {kpiData && (
+          <div data-tooltip="kpis-section">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Activity className="h-4 w-4" />
+                  KPIs de Conversão
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ConversionKPIs data={kpiData} />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Main Grid: Status + Actions | Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column: Status + Next Actions */}
           <div className="space-y-6">
-            <div data-tooltip="kpis-section">
+            <div data-tooltip="system-status">
               <SystemStatusCard 
                 status={systemStatus}
                 onRefresh={() => fetchOperations(true)}
@@ -326,7 +343,7 @@ export default function OperacoesPage() {
             <NextActionsPanel systemState={systemState} />
           </div>
 
-          {/* Middle Column: Quick Actions + Help */}
+          {/* Right Column: Quick Actions */}
           <div className="space-y-6">
             <QuickActionsPanel systemContext={{
               chipsOffline: opsData?.chips?.filter(c => c.healthStatus === 'offline' || c.healthStatus === 'disconnected').length ?? 0,
@@ -335,24 +352,6 @@ export default function OperacoesPage() {
               groupCount: groupsData?.length ?? 0,
               campaignCount: opsData?.campaigns?.length ?? 0,
             }} />
-            <HelpPanel />
-          </div>
-
-          {/* Right Column: Conversion KPIs */}
-          <div data-tooltip="kpis-section">
-            {kpiData && (
-              <Card className="h-full">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Activity className="h-4 w-4" />
-                    KPIs de Conversão
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ConversionKPIs data={kpiData} />
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
 
@@ -427,6 +426,9 @@ export default function OperacoesPage() {
             </div>
           </div>
         </div>
+
+        {/* Help Section (collapsed by default) */}
+        <HelpPanel />
 
         {/* Onboarding Tooltips */}
         <OnboardingTooltips />

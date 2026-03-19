@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Check, Lock, Minus, Shield, User } from 'lucide-react';
+import { Camera, Check, Lock, Mail, Minus, Shield, User } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +61,77 @@ const PERMISSION_GROUPS = [
   { label: 'Admin', perms: ['admin.manage'] },
 ];
 
+const AVATAR_STORAGE_KEY = 'eel_user_avatar';
+
+// ─── Avatar Component ─────────────────────────────────────────────────────────
+
+function ProfileAvatar({
+  name,
+  avatarUrl,
+  onPhotoUpload,
+}: {
+  name: string;
+  avatarUrl: string | null;
+  onPhotoUpload: (dataUrl: string) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const initials = name
+    ? name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+    : '?';
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Apenas imagens são permitidas');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Imagem deve ter no máximo 2 MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      onPhotoUpload(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="relative group">
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={name}
+          className="h-16 w-16 rounded-full object-cover border-2 border-border"
+        />
+      ) : (
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary text-xl font-bold border-2 border-border">
+          {initials}
+        </div>
+      )}
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+      >
+        <Camera className="h-5 w-5 text-white" />
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PerfilPage() {
@@ -68,7 +139,9 @@ export default function PerfilPage() {
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [displayName, setDisplayName] = useState('');
-  const [isSavingName, setIsSavingName] = useState(false);
+  const [email, setEmail] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // Password change
   const [currentPassword, setCurrentPassword] = useState('');
@@ -84,6 +157,7 @@ export default function PerfilPage() {
         const data: SessionResponse = await res.json();
         setSession(data);
         setDisplayName(data.actor.name);
+        setEmail(data.actor.email ?? '');
       }
     } catch {
       toast.error('Erro ao carregar perfil');
@@ -94,22 +168,52 @@ export default function PerfilPage() {
 
   useEffect(() => { void loadSession(); }, [loadSession]);
 
-  const handleSaveName = async () => {
+  // Load saved avatar from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem(AVATAR_STORAGE_KEY);
+    if (saved) setAvatarUrl(saved);
+  }, []);
+
+  const handleSaveProfile = async () => {
     if (!displayName.trim()) return;
-    setIsSavingName(true);
+    setIsSaving(true);
     try {
-      const res = await fetch('/api/users', {
+      const body: Record<string, string> = { name: displayName.trim() };
+      if (email.trim() && email.trim() !== session?.actor.email) {
+        body.email = email.trim();
+      }
+
+      const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: session?.actor.userId, name: displayName.trim() }),
+        body: JSON.stringify(body),
       });
-      if (res.ok) toast.success('Nome atualizado');
-      else toast.error('Erro ao atualizar nome');
+
+      if (res.ok) {
+        toast.success('Perfil atualizado');
+        // Reload session to reflect changes
+        void loadSession();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Erro ao atualizar perfil');
+      }
     } catch {
-      toast.error('Erro ao atualizar nome');
+      toast.error('Erro ao atualizar perfil');
     } finally {
-      setIsSavingName(false);
+      setIsSaving(false);
     }
+  };
+
+  const handlePhotoUpload = (dataUrl: string) => {
+    setAvatarUrl(dataUrl);
+    localStorage.setItem(AVATAR_STORAGE_KEY, dataUrl);
+    toast.success('Foto atualizada');
+  };
+
+  const handleRemovePhoto = () => {
+    setAvatarUrl(null);
+    localStorage.removeItem(AVATAR_STORAGE_KEY);
+    toast.success('Foto removida');
   };
 
   const handleChangePassword = async () => {
@@ -139,9 +243,8 @@ export default function PerfilPage() {
   };
 
   const actor = session?.actor;
-  const initials = actor?.name
-    ? actor.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
-    : '?';
+  const isBootstrap = actor?.source === 'bootstrap';
+  const hasChanges = displayName !== actor?.name || (email && email !== (actor?.email ?? ''));
 
   if (isLoading) {
     return (
@@ -173,18 +276,28 @@ export default function PerfilPage() {
               <CardTitle className="text-base">Informações</CardTitle>
               <CardDescription>Seus dados de acesso ao sistema</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
               {/* Avatar + role */}
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary text-xl font-bold">
-                  {initials}
-                </div>
-                <div>
+                <ProfileAvatar
+                  name={displayName || actor?.name || ''}
+                  avatarUrl={avatarUrl}
+                  onPhotoUpload={handlePhotoUpload}
+                />
+                <div className="space-y-1">
                   <Badge variant="outline" className={cn('text-xs', ROLE_CLASSES[actor?.role ?? 'voluntario'])}>
                     {ROLE_LABELS[actor?.role ?? 'voluntario']}
                   </Badge>
                   {actor?.regionScope && (
-                    <p className="text-xs text-muted-foreground mt-1">{actor.regionScope}</p>
+                    <p className="text-xs text-muted-foreground">{actor.regionScope}</p>
+                  )}
+                  {avatarUrl && (
+                    <button
+                      onClick={handleRemovePhoto}
+                      className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      Remover foto
+                    </button>
                   )}
                 </div>
               </div>
@@ -199,28 +312,45 @@ export default function PerfilPage() {
                   id="display-name"
                   value={displayName}
                   onChange={e => setDisplayName(e.target.value)}
+                  placeholder="Seu nome de exibição"
                 />
               </div>
 
-              {/* Email (read-only) */}
+              {/* Email (editable) */}
               <div className="space-y-1.5">
-                <Label className="flex items-center gap-1">
-                  <Lock className="h-3.5 w-3.5" />
+                <Label htmlFor="profile-email">
+                  <Mail className="inline h-3.5 w-3.5 mr-1" />
                   Email
                 </Label>
-                <div className="flex h-10 items-center rounded-md border border-border bg-muted/40 px-3 text-sm text-muted-foreground">
-                  {actor?.email ?? 'bootstrap (sem email)'}
-                </div>
+                {isBootstrap ? (
+                  <div className="flex h-10 items-center rounded-md border border-border bg-muted/40 px-3 text-sm text-muted-foreground">
+                    <Lock className="h-3.5 w-3.5 mr-2 shrink-0" />
+                    Sessão bootstrap (sem email)
+                  </div>
+                ) : (
+                  <Input
+                    id="profile-email"
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="email@exemplo.com"
+                  />
+                )}
               </div>
 
               {/* Session indicator */}
               <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 Sessão ativa
+                {isBootstrap && <span className="text-xs">(bootstrap)</span>}
               </div>
 
-              <Button size="sm" disabled={isSavingName || !displayName.trim()} onClick={() => void handleSaveName()}>
-                {isSavingName ? 'Salvando...' : 'Salvar nome'}
+              <Button
+                size="sm"
+                disabled={isSaving || !displayName.trim() || !hasChanges}
+                onClick={() => void handleSaveProfile()}
+              >
+                {isSaving ? 'Salvando...' : 'Salvar alterações'}
               </Button>
             </CardContent>
           </Card>
@@ -231,7 +361,7 @@ export default function PerfilPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Alterar Senha</CardTitle>
-                <CardDescription>Mínimo de 4 caracteres</CardDescription>
+                <CardDescription>Senha de acesso ao sistema (mínimo 4 caracteres)</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-1.5">

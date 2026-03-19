@@ -30,9 +30,9 @@ interface KPICardProps {
 
 function KPICard({ label, value, trend, color }: KPICardProps) {
   return (
-    <div className="rounded-lg border bg-card p-3 text-center">
-      <div className="text-xs text-muted-foreground mb-1">{label}</div>
-      <div className={`text-xl font-bold ${color}`}>{value}</div>
+    <div className="rounded-lg border bg-card p-3 text-center min-w-0">
+      <div className="text-xs text-muted-foreground mb-1 truncate">{label}</div>
+      <div className={`text-lg font-bold ${color} truncate`}>{value}</div>
       {trend !== undefined && (
         <div className="flex items-center justify-center gap-0.5 mt-1 text-xs">
           {trend > 0 ? (
@@ -101,8 +101,20 @@ export function ConversionKPIs({ data, loading }: ConversionKPIsProps) {
     },
   ];
 
+  // Show "no data" state when everything is zero
+  const hasData = data.totalSent > 0;
+
+  if (!hasData) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <p className="text-sm text-muted-foreground">Nenhuma campanha enviada ainda</p>
+        <p className="text-xs text-muted-foreground mt-1">KPIs serão exibidos após o primeiro envio</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
       {kpis.map((kpi) => (
         <KPICard key={kpi.label} {...kpi} />
       ))}

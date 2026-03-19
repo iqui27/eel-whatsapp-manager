@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Flame, Trash2, Smartphone, Loader2, X, RefreshCw,
   RotateCcw, AlertTriangle, Wifi, WifiOff, Clock, ChevronDown, Layers,
+  Pencil, Check,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -215,6 +216,10 @@ export default function ChipsPage() {
     dailyLimit: '200', hourlyLimit: '25',
     assignedSegments: [] as string[],
   });
+  // Segment editing state for existing chips
+  const [editingSegmentsId, setEditingSegmentsId] = useState<string | null>(null);
+  const [editingSegments, setEditingSegments] = useState<string[]>([]);
+  const [savingSegments, setSavingSegments] = useState(false);
 
   // ─── Data loading ──────────────────────────────────────────────────────────
 
@@ -385,6 +390,38 @@ export default function ChipsPage() {
       toast.error('Erro ao aquecer chip');
     } finally {
       setWarmingId(null);
+    }
+  };
+
+  const handleOpenSegmentEdit = (chip: Chip) => {
+    setEditingSegmentsId(chip.id);
+    setEditingSegments(chip.assignedSegments ?? []);
+  };
+
+  const handleSaveSegments = async (chipId: string) => {
+    setSavingSegments(true);
+    try {
+      const res = await fetch('/api/chips', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: chipId,
+          updates: {
+            assignedSegments: editingSegments.length > 0 ? editingSegments : null,
+          },
+        }),
+      });
+      if (res.ok) {
+        toast.success('Segmentos atualizados');
+        setEditingSegmentsId(null);
+        fetchChips(true);
+      } else {
+        toast.error('Erro ao salvar segmentos');
+      }
+    } catch {
+      toast.error('Erro ao salvar segmentos');
+    } finally {
+      setSavingSegments(false);
     }
   };
 
@@ -743,18 +780,103 @@ export default function ChipsPage() {
                     </p>
                   )}
 
-                  {/* Assigned segments */}
-                  {chip.assignedSegments && chip.assignedSegments.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <Layers className="h-3 w-3 text-muted-foreground shrink-0" />
-                      {chip.assignedSegments.map((tag) => (
-                        <code
-                          key={tag}
-                          className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground"
+                  {/* Assigned segments — display or edit mode */}
+                  {editingSegmentsId === chip.id ? (
+                    <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                          <Layers className="h-3 w-3" />
+                          Segmentos atribuídos
+                        </span>
+                        <button
+                          onClick={() => setEditingSegmentsId(null)}
+                          className="text-muted-foreground hover:text-foreground"
                         >
-                          {tag}
-                        </code>
-                      ))}
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {segments.length === 0 ? (
+                          <span className="text-xs text-muted-foreground">
+                            Nenhum segmento criado ainda
+                          </span>
+                        ) : (
+                          segments.map((seg) => {
+                            const isSelected = editingSegments.includes(seg.id);
+                            return (
+                              <button
+                                key={seg.id}
+                                type="button"
+                                onClick={() => {
+                                  setEditingSegments((prev) =>
+                                    isSelected
+                                      ? prev.filter((id) => id !== seg.id)
+                                      : [...prev, seg.id],
+                                  );
+                                }}
+                                className={cn(
+                                  'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                                  isSelected
+                                    ? 'border-primary bg-primary text-primary-foreground'
+                                    : 'border-border bg-background text-muted-foreground hover:border-primary/50',
+                                )}
+                              >
+                                {seg.name}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          onClick={() => setEditingSegmentsId(null)}
+                          className="rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => void handleSaveSegments(chip.id)}
+                          disabled={savingSegments}
+                          className="flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                        >
+                          {savingSegments
+                            ? <Loader2 className="h-3 w-3 animate-spin" />
+                            : <Check className="h-3 w-3" />
+                          }
+                          Salvar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 flex-wrap group/seg">
+                      <Layers className="h-3 w-3 text-muted-foreground shrink-0" />
+                      {chip.assignedSegments && chip.assignedSegments.length > 0 ? (
+                        <>
+                          {chip.assignedSegments.map((segId) => {
+                            const seg = segments.find((s) => s.id === segId);
+                            return (
+                              <span
+                                key={segId}
+                                className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
+                              >
+                                {seg?.name ?? segId}
+                              </span>
+                            );
+                          })}
+                        </>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground italic">
+                          Sem segmento — atende todos
+                        </span>
+                      )}
+                      <button
+                        onClick={() => handleOpenSegmentEdit(chip)}
+                        title="Editar segmentos"
+                        className="ml-auto opacity-0 group-hover/seg:opacity-100 flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+                      >
+                        <Pencil className="h-2.5 w-2.5" />
+                        Editar
+                      </button>
                     </div>
                   )}
 

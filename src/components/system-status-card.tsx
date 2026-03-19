@@ -244,25 +244,27 @@ export function SystemStatusCard({
         </div>
 
         {/* Section Status Cards */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-2">
           {/* Chips */}
           <button
             onClick={onNavigateToChips}
-            className="flex flex-col items-start p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+            className="flex items-center gap-3 w-full p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors text-left"
           >
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Smartphone className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Chips</span>
             </div>
-            <TrafficLightIndicator status={status.chips} />
+            <div className="flex-1">
+              <TrafficLightIndicator status={status.chips} />
+            </div>
           </button>
 
           {/* Groups */}
           <button
             onClick={onNavigateToGroups}
-            className="flex flex-col items-start p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+            className="flex items-center gap-3 w-full p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors text-left"
           >
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Grupos</span>
             </div>
@@ -281,9 +283,9 @@ export function SystemStatusCard({
           {/* Campaigns */}
           <button
             onClick={onNavigateToCampaigns}
-            className="flex flex-col items-start p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+            className="flex items-center gap-3 w-full p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors text-left"
           >
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Send className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Campanhas</span>
             </div>

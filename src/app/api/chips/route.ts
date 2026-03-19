@@ -33,6 +33,9 @@ export async function POST(request: NextRequest) {
       warmCount: 0,
       dailyLimit: body.dailyLimit ?? 200,
       hourlyLimit: body.hourlyLimit ?? 25,
+      assignedSegments: Array.isArray(body.assignedSegments) && body.assignedSegments.length > 0
+        ? body.assignedSegments
+        : null,
     });
     return NextResponse.json(chip, { status: 201 });
   } catch (error) {
