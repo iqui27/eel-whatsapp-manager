@@ -605,45 +605,45 @@ export default function CrmPage() {
                     <TableRow key={`edit-${voter.id}`}>
                        <TableCell colSpan={11} className="bg-muted/10 border-l-4 border-l-primary/30 p-0" onClick={e => e.stopPropagation()}>
                         <div className="p-4 space-y-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nome</label>
-                              <Input className="h-9" value={editForm.name ?? ''} onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))} />
-                            </div>
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Telefone</label>
-                              <Input className="h-9" value={editForm.phone ?? ''} onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))} />
-                            </div>
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Zona</label>
-                              <Input className="h-9" value={editForm.zone ?? ''} onChange={e => setEditForm(prev => ({ ...prev, zone: e.target.value }))} />
-                            </div>
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Seção</label>
-                              <Input className="h-9" value={editForm.section ?? ''} onChange={e => setEditForm(prev => ({ ...prev, section: e.target.value }))} />
-                            </div>
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Opt-in</label>
-                              <Select value={editForm.optInStatus ?? 'pending'} onValueChange={v => setEditForm(prev => ({ ...prev, optInStatus: v as 'active' | 'pending' | 'expired' | 'revoked' }))}>
-                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="active">Ativo</SelectItem>
-                                  <SelectItem value="pending">Pendente</SelectItem>
-                                  <SelectItem value="expired">Expirado</SelectItem>
-                                  <SelectItem value="revoked">Revogado</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notas</label>
-                              <textarea
-                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[38px] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 resize-y"
-                                value={editForm.crmNotes ?? ''}
-                                onChange={e => setEditForm(prev => ({ ...prev, crmNotes: e.target.value }))}
-                                placeholder="Observações sobre o eleitor..."
-                              />
-                            </div>
-                          </div>
+                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                             <div className="flex flex-col gap-1.5">
+                               <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Nome</label>
+                               <Input className="h-9 w-full" value={editForm.name ?? ''} onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))} />
+                             </div>
+                             <div className="flex flex-col gap-1.5">
+                               <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Telefone</label>
+                               <Input className="h-9 w-full" value={editForm.phone ?? ''} onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))} />
+                             </div>
+                             <div className="flex flex-col gap-1.5">
+                               <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Zona</label>
+                               <Input className="h-9 w-full" value={editForm.zone ?? ''} onChange={e => setEditForm(prev => ({ ...prev, zone: e.target.value }))} />
+                             </div>
+                             <div className="flex flex-col gap-1.5">
+                               <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Seção</label>
+                               <Input className="h-9 w-full" value={editForm.section ?? ''} onChange={e => setEditForm(prev => ({ ...prev, section: e.target.value }))} />
+                             </div>
+                             <div className="flex flex-col gap-1.5">
+                               <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Opt-in</label>
+                               <Select value={editForm.optInStatus ?? 'pending'} onValueChange={v => setEditForm(prev => ({ ...prev, optInStatus: v as 'active' | 'pending' | 'expired' | 'revoked' }))}>
+                                 <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                                 <SelectContent>
+                                   <SelectItem value="active">Ativo</SelectItem>
+                                   <SelectItem value="pending">Pendente</SelectItem>
+                                   <SelectItem value="expired">Expirado</SelectItem>
+                                   <SelectItem value="revoked">Revogado</SelectItem>
+                                 </SelectContent>
+                               </Select>
+                             </div>
+                             <div className="flex flex-col gap-1.5">
+                               <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wide">Notas</label>
+                               <textarea
+                                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[38px] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 resize-y"
+                                 value={editForm.crmNotes ?? ''}
+                                 onChange={e => setEditForm(prev => ({ ...prev, crmNotes: e.target.value }))}
+                                 placeholder="Observações sobre o eleitor..."
+                               />
+                             </div>
+                           </div>
                           <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
                             <Button variant="ghost" size="sm" onClick={() => router.push(`/crm/${voter.id}`)}>
                               <Eye className="mr-1.5 h-3.5 w-3.5" /> Ver perfil
