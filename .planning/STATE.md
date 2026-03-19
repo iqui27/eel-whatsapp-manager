@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 23
 **Current Phase Name:** critical-layout
-**Current Plan:** 0 (planning complete, ready to execute)
+**Current Plan:** 2
 **Total Phases:** 30
 **Total Plans in Phase:** 2
-**Status:** Planning Complete — Ready to Execute
+**Status:** Ready to execute
 **Progress:** [████████░░] 80% (Milestones 1-2 complete, Milestone 3 planned)
-**Last Activity:** 2026-03-18
+**Last Activity:** 2026-03-19
 **Last Activity Description:** Milestone 3 planning complete — 17 PLAN.md files created across 8 phases (23-30)
-**Stopped At:** Milestone 3 planning complete — 17 plans across 8 phases created
+**Stopped At:** Completed 31-05-PLAN.md - Phase 31 all 5 plans complete
 
 ## Milestone 3 — Professional UI/UX Overhaul (Phases 23-30)
 
@@ -331,6 +331,8 @@ Last session: 2026-03-18T23:30:00.000Z
 - [Phase 21]: Keyboard shortcuts follow common patterns (single letters for nav, Ctrl+key for actions)
 - [Phase 21]: Created wizard at /wizard instead of /setup to avoid conflict with existing system setup page
 - [Phase 21]: Used localStorage for wizard progress persistence (MVP approach, DB sync can be added later)
+- [Phase 31]: Direction filter merges outbound+inbound in memory before paginating (simpler than SQL UNION)
+- [Phase 31]: Opt-in/out keyword detection only triggers for known voters (voterId not null) to avoid processing spam
 
 ## Accumulated Context
 

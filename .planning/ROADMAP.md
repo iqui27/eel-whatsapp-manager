@@ -749,7 +749,7 @@ Phase 23 (Layout Foundation) ──┬── Phase 24 (Operations) ────�
 
 | Phase | Name | Priority | Depends On | Plans |
 |-------|------|----------|------------|-------|
-| 31 | Diagnostic Fixes | P0 | 30 | 5 plans (2 waves) |
+| 31 | 2/5 | In Progress|  | 5 plans (2 waves) |
 
 ---
 
@@ -771,7 +771,7 @@ Phase 23 (Layout Foundation) ──┬── Phase 24 (Operations) ────�
 - DIAG-10: Webhook detects opt-out keywords (SAIR/PARAR/CANCELAR) and revokes consent with confirmation reply
 
 **Depends on:** Phase 30
-**Plans:** 5 plans in 2 waves
+**Plans:** 2/5 plans executed
 
 Plans:
 - [ ] 31-01-PLAN.md — CRM Critical Fixes (inline edit bug, overflow, tags, AI card)
