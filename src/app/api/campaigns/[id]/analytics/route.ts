@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { campaigns, campaignDeliveryEvents, chips, messageQueue } from '@/db/schema';
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, sql, desc } from 'drizzle-orm';
 import type { FunnelData } from '../funnel/route';
+import { analyzeCampaignPerformance, type CampaignPerformanceAnalysis } from '@/lib/gemini';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -30,7 +31,20 @@ interface AnalyticsData {
   timeline: typeof campaignDeliveryEvents.$inferSelect[];
   chipBreakdown: ChipBreakdownItem[];
   alerts: Alert[];
+  ai?: CampaignPerformanceAnalysis;
 }
+
+// ─── AI analysis cache ─────────────────────────────────────────────────────────
+// Key: `${campaignId}:${totalSent}` — invalidates when stats change
+// TTL: 5 minutes
+
+interface AiCacheEntry {
+  analysis: CampaignPerformanceAnalysis;
+  expiresAt: number;
+}
+
+const aiCache = new Map<string, AiCacheEntry>();
+const AI_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * GET /api/campaigns/[id]/analytics
@@ -39,6 +53,7 @@ interface AnalyticsData {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+    const wantAi = request.nextUrl.searchParams.get('ai') === 'true';
 
     // Get campaign
     const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, id)).limit(1);
@@ -167,12 +182,43 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    // ─── AI analysis (opt-in via ?ai=true) ────────────────────────────────────
+    let aiAnalysis: CampaignPerformanceAnalysis | undefined;
+
+    if (wantAi) {
+      const cacheKey = `${id}:${sent}`;
+      const cached = aiCache.get(cacheKey);
+
+      if (cached && cached.expiresAt > Date.now()) {
+        aiAnalysis = cached.analysis;
+      } else {
+        // Derive totalBlocked from failed (campaigns table doesn't have a separate blocked counter)
+        // Use totalFailed as proxy — circuit breaker trips on block-related failures
+        const result = await analyzeCampaignPerformance({
+          campaignName: campaign.name,
+          totalSent: sent,
+          totalDelivered: delivered,
+          totalRead: read,
+          totalReplied: campaign.totalReplied || 0,
+          totalFailed: failed,
+          totalBlocked: 0, // no separate blocked counter in schema
+          messageTemplate: campaign.template || '',
+        });
+
+        if (result) {
+          aiCache.set(cacheKey, { analysis: result, expiresAt: Date.now() + AI_CACHE_TTL_MS });
+          aiAnalysis = result;
+        }
+      }
+    }
+
     const analyticsData: AnalyticsData = {
       campaign,
       funnel,
       timeline,
       chipBreakdown,
       alerts,
+      ...(aiAnalysis !== undefined ? { ai: aiAnalysis } : {}),
     };
 
     return NextResponse.json(analyticsData);

@@ -433,6 +433,122 @@ Retorne APENAS o JSON, sem formatação adicional.`;
   }
 }
 
+// ─── Campaign Performance Analysis ───────────────────────────────────────────
+
+export interface CampaignPerformanceAnalysis {
+  overallScore: number;       // 0-100 performance score
+  summary: string;            // "Campanha com bom desempenho, taxa de leitura acima da média"
+  insights: string[];         // ["Taxa de resposta 15% acima da média para este segmento", ...]
+  recommendations: string[];  // ["Considere enviar follow-up para quem leu mas não respondeu", ...]
+  riskFactors: string[];      // ["Taxa de bloqueio alta (>3%), reduzir velocidade de envio", ...]
+}
+
+const CAMPAIGN_ANALYSIS_SYSTEM_PROMPT = `Você é um analista de campanhas eleitorais via WhatsApp.
+Analise os dados da campanha e forneça um JSON com:
+1. "overallScore": número de 0 a 100 — score geral baseado em taxas de entrega, leitura, resposta e bloqueio
+2. "summary": string — resumo executivo em 1-2 frases
+3. "insights": string[] — insights específicos sobre o desempenho (até 4 itens)
+4. "recommendations": string[] — recomendações acionáveis para melhorar resultados (até 4 itens)
+5. "riskFactors": string[] — fatores de risco que precisam atenção (até 3 itens, vazio se não houver)
+
+Benchmarks de referência (WhatsApp político):
+- Taxa de entrega: >95% é bom, <90% é preocupante
+- Taxa de leitura: >70% é bom, <50% é preocupante
+- Taxa de resposta: >10% é bom, >20% é excelente
+- Taxa de bloqueio: <1% é aceitável, >3% é crítico
+
+Retorne APENAS o JSON, sem formatação adicional.`;
+
+/**
+ * Analyze campaign performance using Gemini
+ */
+export async function analyzeCampaignPerformance(params: {
+  campaignName: string;
+  totalSent: number;
+  totalDelivered: number;
+  totalRead: number;
+  totalReplied: number;
+  totalFailed: number;
+  totalBlocked: number;
+  messageTemplate: string;
+  segmentDescription?: string;
+  duration?: string;
+}): Promise<CampaignPerformanceAnalysis | null> {
+  const client = getGeminiClient();
+  const modelName = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+
+  if (!client) return null;
+
+  const start = Date.now();
+  const {
+    campaignName,
+    totalSent,
+    totalDelivered,
+    totalRead,
+    totalReplied,
+    totalFailed,
+    totalBlocked,
+    messageTemplate,
+    segmentDescription,
+    duration,
+  } = params;
+
+  const deliveryRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0;
+  const readRate = totalDelivered > 0 ? Math.round((totalRead / totalDelivered) * 100) : 0;
+  const replyRate = totalSent > 0 ? Math.round((totalReplied / totalSent) * 100) : 0;
+  const blockRate = totalSent > 0 ? Math.round((totalBlocked / totalSent) * 100) : 0;
+  const failureRate = totalSent > 0 ? Math.round((totalFailed / totalSent) * 100) : 0;
+
+  const dataLines: string[] = [
+    `Campanha: ${campaignName}`,
+    `Total enviado: ${totalSent}`,
+    `Entregue: ${totalDelivered} (${deliveryRate}%)`,
+    `Lido: ${totalRead} (${readRate}% dos entregues)`,
+    `Respondido: ${totalReplied} (${replyRate}% dos enviados)`,
+    `Falhou: ${totalFailed} (${failureRate}%)`,
+    `Bloqueado: ${totalBlocked} (${blockRate}%)`,
+  ];
+
+  if (segmentDescription) dataLines.push(`Segmento: ${segmentDescription}`);
+  if (duration) dataLines.push(`Duração: ${duration}`);
+  if (messageTemplate) {
+    const preview = messageTemplate.slice(0, 200) + (messageTemplate.length > 200 ? '...' : '');
+    dataLines.push(`Template (prévia): ${preview}`);
+  }
+
+  const userPrompt = `${CAMPAIGN_ANALYSIS_SYSTEM_PROMPT}
+
+Dados da campanha:
+${dataLines.join('\n')}`;
+
+  try {
+    const model = client.getGenerativeModel({ model: modelName });
+    const result = await model.generateContent(userPrompt);
+    const response = result.response.text();
+
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      syslog({ level: 'warn', category: 'gemini', message: `analyzeCampaignPerformance — JSON não encontrado: ${campaignName}`, durationMs: Date.now() - start, details: { model: modelName, campaign: campaignName } });
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    syslog({ level: 'info', category: 'gemini', message: `analyzeCampaignPerformance — score=${parsed.overallScore ?? '?'}: ${campaignName}`, durationMs: Date.now() - start, details: { model: modelName, campaign: campaignName, score: parsed.overallScore } });
+
+    return {
+      overallScore: typeof parsed.overallScore === 'number' ? Math.min(100, Math.max(0, parsed.overallScore)) : 50,
+      summary: parsed.summary || '',
+      insights: Array.isArray(parsed.insights) ? parsed.insights : [],
+      recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
+      riskFactors: Array.isArray(parsed.riskFactors) ? parsed.riskFactors : [],
+    };
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    syslog({ level: 'error', category: 'gemini', message: `analyzeCampaignPerformance — ERRO: ${campaignName}: ${errMsg}`, durationMs: Date.now() - start, details: { model: modelName, campaign: campaignName, error: errMsg } });
+    return null;
+  }
+}
+
 /**
  * Rewrite message in a completely different style
  */
