@@ -29,7 +29,7 @@ progress:
 **Progress:** [██████████] 101%
 **Last Activity:** 2026-03-20
 **Last Activity Description:** Milestone 6 planning — 10 plan files created across 6 phases (36-41) covering Dashboard Polish, Operações Layout, Chip Profiles, WhatsApp Foundation, Editor Overhaul, Campaign Management
-**Stopped At:** Completed 39-campanhas-whatsapp-foundation 39-01-PLAN.md
+**Stopped At:** Completed 38-01-PLAN.md — chip profile management backend
 
 **Milestone 6 Execution Plan:**
 - Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
@@ -411,6 +411,9 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 39-campanhas-whatsapp-foundation]: Tokenizer uses priority-based span-coverage to prevent overlapping format markers; codeblocks claimed first
 - [Phase 39-campanhas-whatsapp-foundation]: WhatsAppPreview uses SVG check marks (no emoji) for delivery status indicators
 - [Phase 39-campanhas-whatsapp-foundation]: Link preview card shows domain only (not full OG preview) matching plan spec for simplicity
+- [Phase 38-chip-profile-management]: Evolution API profile endpoints use /chat/ namespace: fetchProfilePictureUrl (POST), updateProfileName (POST), updateProfilePicture (POST), fetchProfile (GET)
+- [Phase 38-chip-profile-management]: Profile sync in health cron rate-limited via chip.updatedAt — skips chips updated within last hour to avoid excessive API calls
+- [Phase 38-chip-profile-management]: updateProfile action added to existing PUT /api/chips handler — consistent with restart action pattern from Phase 14
 
 ## Accumulated Context
 

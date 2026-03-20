@@ -26,7 +26,7 @@
 | 32 | System Logs & Observability | P1 | 31 | 3/3 complete ✅ |
 | 36 | 1/1 | Complete   | 2026-03-20 | 1 plan |
 | 37 | Operações Layout & Data | P1 | — | 1 plan |
-| 38 | Chip Profile Management | P1 | — | 2 plans |
+| 38 | 1/2 | In Progress|  | 2 plans |
 | 39 | 1/2 | In Progress|  | 2 plans |
 | 40 | Campanhas Editor Overhaul | P0 | 39, 40-01 | 2 plans |
 | 41 | Campanhas Management & Analytics | P0 | 39, 40, 41-01 | 2 plans |
@@ -1024,7 +1024,7 @@ Plans:
 - CHIP-PROF-05: Profile changes are saved to both Evolution API and the local DB
 
 **Depends on:** —
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 38-01-PLAN.md — Evolution API profile wrappers + DB schema extension + API endpoint
