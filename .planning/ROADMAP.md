@@ -820,7 +820,7 @@ Plans:
 
 | Phase | Name | Priority | Depends On | Plans |
 |-------|------|----------|------------|-------|
-| 33 | Performance Optimization | P0 | 32 | 4 plans (2 waves) |
+| 33 | 4/4 | Complete   | 2026-03-20 | 4 plans (2 waves) |
 
 ---
 
@@ -844,7 +844,7 @@ Plans:
 - PERF-12: /api/voters uses SQL pagination instead of JS slice of full table
 
 **Depends on:** Phase 32
-**Plans:** 4 plans in 2 waves
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 33-01-PLAN.md — Config, Bundle & Dead Code Cleanup (next.config, dead deps, framer-motion, recharts lazy)
