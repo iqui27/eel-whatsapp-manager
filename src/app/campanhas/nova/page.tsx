@@ -39,13 +39,15 @@ import {
   isCandidateProfileConfigured,
   resolveCampaignTemplate,
   SUPPORTED_CAMPAIGN_VARIABLES,
-  type CampaignVariableKey,
   type CandidateProfileContext,
   validateCampaignTemplates,
 } from '@/lib/campaign-variables';
 import { SendConfigPanel, DEFAULT_SEND_CONFIG, type SendConfigValue } from '@/components/SendConfigPanel';
+import { WhatsAppPreview } from '@/components/whatsapp-preview';
+import { WhatsAppFormatToolbar } from '@/components/whatsapp-format-toolbar';
+import { GeminiMessageAssistant } from '@/components/gemini-message-assistant';
 
-// ─── WhatsApp Preview ─────────────────────────────────────────────────────────
+// ─── Candidate profile empty state ────────────────────────────────────────────
 
 const EMPTY_CANDIDATE_PROFILE: CandidateProfileContext = {
   candidateDisplayName: '',
@@ -53,68 +55,6 @@ const EMPTY_CANDIDATE_PROFILE: CandidateProfileContext = {
   candidateParty: '',
   candidateRegion: '',
 };
-
-function WhatsAppPreview({
-  message,
-  previewContext,
-}: {
-  message: string;
-  previewContext: Partial<Record<CampaignVariableKey, string>>;
-}) {
-  const preview = resolveCampaignTemplate(message, previewContext);
-  const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-  return (
-    <div className="flex flex-col h-full rounded-2xl overflow-hidden border border-border shadow-sm">
-      {/* WA top bar */}
-      <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#128C7E' }}>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white text-sm font-bold shrink-0">
-          EE
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-white leading-tight">EEL Eleição</div>
-          <div className="text-xs text-white/70">online</div>
-        </div>
-        <Smartphone className="h-4 w-4 text-white/60" />
-      </div>
-
-      {/* WA chat area */}
-      <div
-        className="flex-1 overflow-y-auto p-4 space-y-2 min-h-[200px]"
-        style={{ backgroundColor: '#ECE5DD' }}
-      >
-        {preview.trim() ? (
-          <div className="flex justify-start">
-            <div
-              className="relative max-w-[280px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl bg-white px-3.5 py-2.5 shadow-sm"
-            >
-              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{preview}</p>
-              <div className="flex items-center justify-end gap-1 mt-1.5">
-                <span className="text-[10px] text-gray-400">{now}</span>
-                <svg className="h-3 w-3 text-blue-500" viewBox="0 0 16 11" fill="currentColor">
-                  <path d="M11.071.653a.75.75 0 0 1 .05 1.059L5.64 8.24a.75.75 0 0 1-1.089.03L1.43 5.15a.75.75 0 1 1 1.06-1.062l2.578 2.578L10.012.704a.75.75 0 0 1 1.059-.05z"/>
-                  <path d="M14.571.653a.75.75 0 0 1 .05 1.059L9.14 8.24a.75.75 0 0 1-1.058.05.75.75 0 0 0 1.03-.02l5.4-6.558a.75.75 0 0 1 1.059-.059z"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400 italic pt-8">
-            Digite uma mensagem para ver a prévia
-          </div>
-        )}
-      </div>
-
-      {/* WA footer */}
-      <div className="flex items-center justify-center gap-1.5 px-4 py-2 bg-white border-t border-gray-200">
-        <svg className="h-3 w-3 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
-        </svg>
-        <span className="text-[10px] text-gray-400">Mensagens protegidas com criptografia de ponta a ponta</span>
-      </div>
-    </div>
-  );
-}
 
 // ─── Quality checks ───────────────────────────────────────────────────────────
 
@@ -181,10 +121,16 @@ export default function NovaCampanhaPage() {
   const [allChips, setAllChips] = useState<Chip[]>([]);
   const [selectedChipId, setSelectedChipId] = useState('auto');
   const [sendConfig, setSendConfig] = useState<SendConfigValue>(DEFAULT_SEND_CONFIG);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [prefilledSegmentName, setPrefilledSegmentName] = useState<string | null>(null);
   const [isBootstrappingSegment, setIsBootstrappingSegment] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [candidateProfile, setCandidateProfile] = useState<CandidateProfileContext>(EMPTY_CANDIDATE_PROFILE);
+  const [selectedChipProfile, setSelectedChipProfile] = useState<{
+    profileName?: string;
+    profilePictureUrl?: string;
+  } | null>(null);
 
   // Load segments for selector
   useEffect(() => {
@@ -211,6 +157,14 @@ export default function NovaCampanhaPage() {
           const chips: Chip[] = await chipsRes.json();
           setAllChips(chips);
           setConnectedChips(chips.filter((chip) => chip.status === 'connected'));
+          // Set initial chip profile from the first connected chip
+          const firstConnected = chips.find((chip) => chip.status === 'connected');
+          if (firstConnected) {
+            setSelectedChipProfile({
+              profileName: firstConnected.profileName ?? firstConnected.name,
+              profilePictureUrl: firstConnected.profilePictureUrl ?? undefined,
+            });
+          }
         }
 
         if (!cancelled && settingsRes.ok) {
@@ -285,6 +239,24 @@ export default function NovaCampanhaPage() {
     };
   }, [campaignSource, voterContextId, voterContextName]);
 
+  // Sync chip profile with selected chip(s) from SendConfigPanel
+  useEffect(() => {
+    if (allChips.length === 0) return;
+    const selectedIds = sendConfig.selectedChipIds;
+    const firstId = Array.isArray(selectedIds) && selectedIds.length > 0 ? selectedIds[0] : null;
+    const chip = firstId
+      ? allChips.find((c) => c.id === firstId)
+      : allChips.find((c) => c.status === 'connected');
+    if (chip) {
+      setSelectedChipProfile({
+        profileName: chip.profileName ?? chip.name,
+        profilePictureUrl: chip.profilePictureUrl ?? undefined,
+      });
+    } else {
+      setSelectedChipProfile(null);
+    }
+  }, [allChips, sendConfig.selectedChipIds]);
+
   // Auto-grow textarea
   const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
@@ -319,13 +291,32 @@ export default function NovaCampanhaPage() {
   const candidateVariableSelected = templateValidation.supportedVariables.includes('{candidato}');
 
   const saveDraft = async (): Promise<string | null> => {
-    if (!campaignName.trim()) {
+    const trimmedName = campaignName.trim();
+    if (!trimmedName) {
       toast.error('Dê um nome para a campanha');
+      return null;
+    }
+    if (trimmedName.length < 3 || trimmedName.length > 100) {
+      toast.error('Nome deve ter entre 3 e 100 caracteres');
+      return null;
+    }
+
+    if (!message.trim()) {
+      toast.error('Mensagem não pode estar vazia');
+      return null;
+    }
+    if (message.length > 65536) {
+      toast.error('Mensagem excede o limite do WhatsApp (65.536 caracteres)');
       return null;
     }
 
     if (templateValidationMessage) {
       toast.error(templateValidationMessage);
+      return null;
+    }
+
+    if (endDate && startDate && endDate <= startDate) {
+      toast.error('Data de fim deve ser posterior à data de início');
       return null;
     }
 
@@ -337,6 +328,8 @@ export default function NovaCampanhaPage() {
         body: JSON.stringify({
           name: campaignName.trim(),
           template: message,
+          startDate: startDate || null,
+          endDate: endDate || null,
           segmentId: segmentId || null,
           chipId: selectedChipId !== 'auto' ? selectedChipId : null,
           status: 'draft',
@@ -520,14 +513,19 @@ export default function NovaCampanhaPage() {
                       </div>
                     )}
 
-                    {/* Textarea */}
+                    {/* Formatting toolbar + Textarea */}
                     <div className="space-y-1.5">
+                      <WhatsAppFormatToolbar
+                        textareaRef={textareaRef}
+                        onTextChange={setMessage}
+                        currentText={message}
+                      />
                       <textarea
                         ref={textareaRef}
                         value={message}
                         onChange={handleMessageChange}
                         placeholder="Olá {nome}! Aqui é a equipe do {candidato}. Gostaríamos de contar com o seu apoio em {bairro}..."
-                        className="w-full min-h-[160px] resize-none rounded-lg border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        className="w-full min-h-[160px] resize-none rounded-t-none rounded-b-lg border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
                       />
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span className="italic">
@@ -542,6 +540,14 @@ export default function NovaCampanhaPage() {
                         </span>
                       </div>
                     </div>
+
+                    {/* AI Assistant */}
+                    <GeminiMessageAssistant
+                      currentMessage={message}
+                      onInsertMessage={setMessage}
+                      candidateName={candidateProfile.candidateDisplayName ?? undefined}
+                      segmentDescription={segments.find(s => s.id === segmentId)?.name}
+                    />
 
                     {/* Quality indicators */}
                     <Separator />
@@ -631,6 +637,44 @@ export default function NovaCampanhaPage() {
                   )}
                 </Card>
 
+                {/* Date Range */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Período da Campanha</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-xs text-muted-foreground">
+                      Opcional — deixe em branco para campanhas pontuais sem janela de vigência.
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="start-date" className="text-xs font-medium">Data de início</Label>
+                        <Input
+                          id="start-date"
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="end-date" className="text-xs font-medium">Data de fim</Label>
+                        <Input
+                          id="end-date"
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          min={startDate || undefined}
+                          className="text-sm"
+                        />
+                      </div>
+                    </div>
+                    {endDate && startDate && endDate <= startDate && (
+                      <p className="text-xs text-red-600">A data de fim deve ser posterior à data de início.</p>
+                    )}
+                  </CardContent>
+                </Card>
+
                 {/* Send Config Panel */}
                 <SendConfigPanel
                   value={sendConfig}
@@ -649,7 +693,11 @@ export default function NovaCampanhaPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-2">
-                    <WhatsAppPreview message={message} previewContext={previewContext} />
+                    <WhatsAppPreview
+                      message={resolveCampaignTemplate(message, previewContext)}
+                      profileName={selectedChipProfile?.profileName}
+                      profilePictureUrl={selectedChipProfile?.profilePictureUrl}
+                    />
                     <p className="text-[10px] text-muted-foreground text-center mt-2 px-2">
                       As variáveis são substituídas por valores reais no envio
                     </p>

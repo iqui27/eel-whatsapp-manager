@@ -69,22 +69,23 @@ function KpiCard({
 }) {
   const animatedValue = useCountUp(typeof value === 'number' ? value : 0, 700, delay);
   return (
-    <div className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3">
+    <div className="rounded-xl border border-[#E8E4DD] bg-[#F8F6F1] p-5 shadow-sm flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
         <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', iconBg)}>
           <Icon className="h-4 w-4 text-white" />
         </div>
       </div>
-      <div className="text-3xl font-bold text-foreground tabular-nums">
+      <div className="text-2xl font-semibold text-foreground tabular-nums">
         {typeof value === 'number' ? animatedValue.toLocaleString('pt-BR') : value}
       </div>
       <div className={cn(
-        'flex items-center gap-1 text-xs font-medium',
+        'flex items-center gap-1.5 text-xs font-medium',
         trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-muted-foreground',
       )}>
-        {trend === 'up' && <TrendingUp className="h-3 w-3" />}
-        {trend === 'down' && <TrendingDown className="h-3 w-3" />}
+        {trend === 'up' && <span className="inline-block h-2 w-2 rounded-full bg-green-500 shrink-0" />}
+        {trend === 'down' && <span className="inline-block h-2 w-2 rounded-full bg-red-500 shrink-0" />}
+        {trend === 'neutral' && <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/40 shrink-0" />}
         {subLabel}
         {note && <span className="ml-1 text-muted-foreground font-normal italic">{note}</span>}
       </div>
@@ -250,8 +251,9 @@ function CommandPanel({
   onWarmAll: () => void;
   warmingAll: boolean;
 }) {
+  const actionClass = "flex w-full items-center gap-3 rounded-lg border border-[#E8E4DD] bg-[#F8F6F1] px-3 py-2.5 text-sm transition-colors hover:bg-[#F2F0EB] text-left";
   return (
-    <Card>
+    <Card className="border-[#E8E4DD] bg-[#F8F6F1]">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold">Ações rápidas</CardTitle>
       </CardHeader>
@@ -259,32 +261,32 @@ function CommandPanel({
         <button
           onClick={onWarmAll}
           disabled={warmingAll}
-          className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-left transition-colors hover:bg-accent disabled:opacity-50"
+          className={cn(actionClass, 'disabled:opacity-50')}
         >
           <Flame className="h-4 w-4 text-amber-500 shrink-0" />
           <span className="font-medium">{warmingAll ? 'Aquecendo...' : 'Aquecer chips'}</span>
         </button>
-        <Link href="/campanhas/nova" className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-sm transition-colors hover:bg-accent">
+        <Link href="/campanhas/nova" className={actionClass}>
           <Plus className="h-4 w-4 text-primary shrink-0" />
           <span className="font-medium">Nova campanha</span>
         </Link>
-        <Link href="/segmentacao/importar" className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-sm transition-colors hover:bg-accent">
+        <Link href="/segmentacao/importar" className={actionClass}>
           <Upload className="h-4 w-4 text-blue-500 shrink-0" />
           <span className="font-medium">Importar eleitores</span>
         </Link>
-        <Link href="/compliance" className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-sm transition-colors hover:bg-accent">
+        <Link href="/compliance" className={actionClass}>
           <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
           <span className="font-medium">Ver compliance</span>
         </Link>
-        <Link href="/relatorios" className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-sm transition-colors hover:bg-accent">
+        <Link href="/relatorios" className={actionClass}>
           <BarChart3 className="h-4 w-4 text-purple-500 shrink-0" />
           <span className="font-medium">Ver relatórios</span>
         </Link>
-        <Link href="/mobile/captura" className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-sm transition-colors hover:bg-accent">
+        <Link href="/mobile/captura" className={actionClass}>
           <Smartphone className="h-4 w-4 text-cyan-600 shrink-0" />
           <span className="font-medium">Captura mobile</span>
         </Link>
-        <Link href="/mobile/inbox" className="flex w-full items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 text-sm transition-colors hover:bg-accent">
+        <Link href="/mobile/inbox" className={actionClass}>
           <MessageCircle className="h-4 w-4 text-amber-600 shrink-0" />
           <span className="font-medium">Inbox prioritária</span>
         </Link>
@@ -403,7 +405,7 @@ export default function DashboardPage() {
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="rounded-xl border border-border bg-card p-5 animate-pulse h-32" />
+              <div key={i} className="rounded-xl border border-[#E8E4DD] bg-[#F8F6F1] p-5 shadow-sm animate-pulse h-28" />
             ))}
           </div>
         </div>
@@ -442,9 +444,9 @@ export default function DashboardPage() {
         )}
 
         {/* ── Two-column layout: main + right panel ── */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
 
-          {/* ── Left: KPIs + Operations table ── */}
+          {/* ── Left: KPIs + Operations table + Chat Queue ── */}
           <div className="space-y-6">
 
             {/* KPI row */}
@@ -614,16 +616,18 @@ export default function DashboardPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Chat queue — full width, below campaigns */}
+            <ChatQueuePanel />
           </div>
 
-          {/* ── Right: Command panel + Chat queue ── */}
-          <div className="lg:sticky lg:top-24 space-y-4 max-h-[calc(100vh-74px-48px)] overflow-y-auto pr-1 pb-4">
+          {/* ── Right: Command panel only ── */}
+          <div className="lg:sticky lg:top-24 self-start">
             <CommandPanel
               status={systemStatus}
               onWarmAll={handleWarmAll}
               warmingAll={warmingAll}
             />
-            <ChatQueuePanel />
           </div>
         </div>
       </div>

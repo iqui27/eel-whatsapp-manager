@@ -60,6 +60,10 @@ export const chips = pgTable('chips', {
   bannedAt: timestamp('banned_at', { withTimezone: true }),
   errorCount: integer('error_count').default(0).notNull(),
   blockRate: integer('block_rate').default(0), // percentage * 100 (e.g., 250 = 2.5%)
+  // ─── Profile fields (Phase 38) ──────────────────────────────────────────────
+  profileName: text('profile_name'),           // WhatsApp display name
+  profilePictureUrl: text('profile_picture_url'), // URL to profile picture
+  profileStatus: text('profile_status'),       // WhatsApp status/about text
   // ─── Proxy configuration (Phase 35) ────────────────────────────────────────
   proxyHost: text('proxy_host'),
   proxyPort: integer('proxy_port'),
@@ -230,6 +234,9 @@ export const campaigns = pgTable('campaigns', {
   segmentId: uuid('segment_id').references(() => segments.id, { onDelete: 'set null' }),
   chipId: uuid('chip_id').references(() => chips.id, { onDelete: 'set null' }),
   scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
+  // ─── Date range (Phase 39) ────────────────────────────────────────────────
+  startDate: timestamp('start_date', { withTimezone: true }),
+  endDate: timestamp('end_date', { withTimezone: true }),
   windowStart: time('window_start').default('08:00'),
   windowEnd: time('window_end').default('22:00'),
   // ─── Send configuration (Phase 35) ────────────────────────────────────────

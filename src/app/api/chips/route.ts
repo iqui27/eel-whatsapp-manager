@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadChips, addChip, updateChip, deleteChip, updateChipHealth, getChip } from '@/lib/db-chips';
+import { loadChips, addChip, updateChip, deleteChip, updateChipHealth, getChip, updateChipProfile } from '@/lib/db-chips';
 import { requirePermission } from '@/lib/api-auth';
-import { getConnectionState, restartInstance, updateInstanceSettings } from '@/lib/evolution';
+import { getConnectionState, restartInstance, updateInstanceSettings, setProfileName, setProfilePicture } from '@/lib/evolution';
 import { loadConfig } from '@/lib/db-config';
+import { syslog } from '@/lib/system-logger';
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -123,6 +124,58 @@ export async function PUT(request: NextRequest) {
           lastHealthCheck: new Date(),
         });
         return NextResponse.json({ error: 'Erro ao reiniciar instância', details: String(restartError) }, { status: 500 });
+      }
+    }
+
+    // ─── Update profile action ─────────────────────────────────────────────
+    if (body.action === 'updateProfile') {
+      const chipId = body.id as string;
+      if (!chipId) {
+        return NextResponse.json({ error: 'ID é obrigatório' }, { status: 400 });
+      }
+
+      const chip = await getChip(chipId);
+      if (!chip) {
+        return NextResponse.json({ error: 'Chip não encontrado' }, { status: 404 });
+      }
+      if (!chip.instanceName) {
+        return NextResponse.json({ error: 'Chip sem instância configurada' }, { status: 400 });
+      }
+
+      const config = await loadConfig();
+      if (!config) {
+        return NextResponse.json({ error: 'Configuração ausente' }, { status: 404 });
+      }
+
+      const { profileName, profilePictureUrl } = body as {
+        profileName?: string;
+        profilePictureUrl?: string;
+      };
+
+      try {
+        if (profileName) {
+          await setProfileName(config.evolutionApiUrl, config.evolutionApiKey, chip.instanceName, profileName);
+        }
+        if (profilePictureUrl) {
+          await setProfilePicture(config.evolutionApiUrl, config.evolutionApiKey, chip.instanceName, profilePictureUrl);
+        }
+
+        const updatedChip = await updateChipProfile(chipId, {
+          ...(profileName !== undefined && { profileName }),
+          ...(profilePictureUrl !== undefined && { profilePictureUrl }),
+        });
+
+        syslog({
+          level: 'info',
+          category: 'system',
+          message: 'Profile updated for chip',
+          details: { chipId, profileName, instanceName: chip.instanceName },
+        });
+
+        return NextResponse.json(updatedChip);
+      } catch (profileError) {
+        console.error('Update profile error:', profileError);
+        return NextResponse.json({ error: 'Erro ao atualizar perfil', details: String(profileError) }, { status: 500 });
       }
     }
 

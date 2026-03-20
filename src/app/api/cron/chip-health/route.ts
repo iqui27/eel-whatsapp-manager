@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/db-config';
 import { loadChips, updateChipHealth } from '@/lib/db-chips';
-import { getConnectionState, restartInstance } from '@/lib/evolution';
+import { getConnectionState, restartInstance, getProfilePicture } from '@/lib/evolution';
+import { updateChipProfile } from '@/lib/db-chips';
 import { reassignMessagesFromChip } from '@/lib/db-message-queue';
 import { isLocalInternalRequest, readCronToken, resolveServerEnv } from '@/lib/server-env';
 import { withCronLock } from '@/lib/cron-lock';
@@ -11,9 +12,44 @@ export const maxDuration = 60;
 
 const WEBHOOK_STALE_MS = 5 * 60 * 1000; // 5 minutes - increased from 2min for reliability
 const RESTART_WAIT_MS = 5000;
+const PROFILE_SYNC_INTERVAL_MS = 60 * 60 * 1000; // 1 hour between profile syncs per chip
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+interface ProfileSyncChip {
+  id: string;
+  instanceName: string;
+  profilePictureUrl: string | null;
+  updatedAt: Date | null;
+}
+
+/**
+ * Sync the profile picture from Evolution API to DB if it has changed.
+ * Rate-limited to once per hour per chip to avoid excessive API calls.
+ * Wrapped in try/catch — profile sync errors never crash the health cron.
+ */
+async function syncChipProfilePicture(
+  chip: ProfileSyncChip,
+  evolutionApiUrl: string,
+  evolutionApiKey: string,
+  now: Date,
+): Promise<void> {
+  // Rate limit: skip if chip was updated (profile sync) within the last hour
+  if (chip.updatedAt && now.getTime() - new Date(chip.updatedAt).getTime() < PROFILE_SYNC_INTERVAL_MS) {
+    return;
+  }
+
+  try {
+    const pictureUrl = await getProfilePicture(evolutionApiUrl, evolutionApiKey, chip.instanceName);
+    if (pictureUrl && pictureUrl !== chip.profilePictureUrl) {
+      await updateChipProfile(chip.id, { profilePictureUrl: pictureUrl });
+    }
+  } catch (err) {
+    // Non-fatal — profile sync is best-effort
+    console.warn(`[chip-health] Profile sync failed for ${chip.instanceName}:`, err);
+  }
 }
 
 /**
@@ -137,6 +173,20 @@ export async function GET(request: NextRequest) {
             });
             healthy++;
           }
+
+          // ─── Profile sync (healthy + degraded chips only) ──────────────────
+          // Best-effort — errors are caught inside syncChipProfilePicture
+          await syncChipProfilePicture(
+            {
+              id: chip.id,
+              instanceName,
+              profilePictureUrl: chip.profilePictureUrl ?? null,
+              updatedAt: chip.updatedAt ?? null,
+            },
+            evolutionApiUrl,
+            evolutionApiKey,
+            now,
+          );
         } else {
           // Still disconnected after restart attempt
           const newErrorCount = (chip.errorCount ?? 0) + 1;

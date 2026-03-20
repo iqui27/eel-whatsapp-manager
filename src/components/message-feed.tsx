@@ -63,10 +63,10 @@ export function MessageFeed({
     const fetchMessages = async () => {
       try {
         if (!autoRefresh || isPaused || document.hidden) return; // skip when tab is hidden
-        const res = await fetch('/api/operations/messages');
+        const res = await fetch('/api/dashboard/messages');
         if (res.ok) {
           const data = await res.json();
-          setMessages(data);
+          setMessages(data.messages || data);
         }
       } catch { /* silent — non-critical refresh */ }
     };
@@ -132,22 +132,28 @@ export function MessageFeed({
           key={msg.id}
           className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 text-sm"
         >
-          {/* Direction */}
+          {/* Direction badge */}
           <div className="shrink-0">
             {msg.direction === 'outbound' ? (
-              <ArrowUpRight className="h-4 w-4 text-blue-500" />
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                <ArrowUpRight className="h-3 w-3" />
+                Env
+              </span>
             ) : (
-              <ArrowDownLeft className="h-4 w-4 text-green-500" />
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700 border border-green-200">
+                <ArrowDownLeft className="h-3 w-3" />
+                Rec
+              </span>
             )}
           </div>
           
           {/* Chip */}
-          <div className="shrink-0 text-xs text-muted-foreground min-w-[3rem] max-w-[5rem] truncate">
+          <div className="shrink-0 text-xs text-muted-foreground w-[5rem] truncate" title={msg.chipName}>
             {msg.chipName}
           </div>
-          
+
           {/* Lead */}
-          <div className="shrink-0 font-medium min-w-[4rem] max-w-[7rem] truncate">
+          <div className="shrink-0 font-medium w-[6rem] truncate" title={msg.leadName || msg.leadPhone}>
             {msg.leadName || msg.leadPhone}
           </div>
           

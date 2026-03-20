@@ -31,9 +31,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Megaphone, Pencil, Trash2, BarChart3, Copy, Search } from 'lucide-react';
+import { Plus, Megaphone, Pencil, Trash2, BarChart3, Copy, Search, Play, Pause, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Campaign, Segment } from '@/db/schema';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ChipInfo {
+  id: string;
+  name: string;
+  profileName: string | null;
+  profilePictureUrl: string | null;
+}
 
 // ─── Status helpers ──────────────────────────────────────────────────────────
 
@@ -56,12 +65,179 @@ const STATUS_CLASSES: Record<string, string> = {
 };
 
 function StatusBadge({ status }: { status: string | null }) {
-  const s = status ?? 'rascunho';
+  const s = status ?? 'draft';
   return (
-    <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', STATUS_CLASSES[s] ?? STATUS_CLASSES.rascunho)}>
+    <span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium', STATUS_CLASSES[s] ?? STATUS_CLASSES.draft)}>
       {STATUS_LABELS[s] ?? s}
     </span>
   );
+}
+
+// ─── Segment chip ─────────────────────────────────────────────────────────────
+
+function SegmentChip({ name }: { name: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300">
+      {name}
+    </span>
+  );
+}
+
+// ─── Chip avatars ─────────────────────────────────────────────────────────────
+
+function ChipAvatar({ chip }: { chip: ChipInfo }) {
+  const initials = (chip.profileName ?? chip.name).slice(0, 2).toUpperCase();
+  return (
+    <div
+      className="relative h-6 w-6 shrink-0 rounded-full border border-border bg-muted overflow-hidden"
+      title={chip.profileName ?? chip.name}
+    >
+      {chip.profilePictureUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={chip.profilePictureUrl}
+          alt={chip.name}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center text-[9px] font-semibold text-muted-foreground">
+          {initials}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ChipPills({ chipIds, allChips }: { chipIds: string[]; allChips: ChipInfo[] }) {
+  const matched = chipIds
+    .map(id => allChips.find(c => c.id === id))
+    .filter((c): c is ChipInfo => !!c);
+
+  if (matched.length === 0) {
+    return <span className="text-muted-foreground/50 text-xs">—</span>;
+  }
+
+  const visible = matched.slice(0, 2);
+  const overflow = matched.length - 2;
+
+  return (
+    <div className="flex items-center gap-1">
+      {visible.map(chip => (
+        <ChipAvatar key={chip.id} chip={chip} />
+      ))}
+      {overflow > 0 && (
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-muted text-[9px] font-medium text-muted-foreground">
+          +{overflow}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── Date range display ───────────────────────────────────────────────────────
+
+function DateRangeCell({ campaign }: { campaign: Campaign }) {
+  const fmt = (d: Date | string | null | undefined) => {
+    if (!d) return null;
+    return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  };
+
+  if (campaign.startDate && campaign.endDate) {
+    return (
+      <span className="text-xs text-muted-foreground">
+        {fmt(campaign.startDate)} — {fmt(campaign.endDate)}
+      </span>
+    );
+  }
+  if (campaign.scheduledAt) {
+    return (
+      <span className="text-xs text-muted-foreground">
+        {new Date(campaign.scheduledAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+      </span>
+    );
+  }
+  return <span className="text-muted-foreground/40 text-xs">—</span>;
+}
+
+// ─── Progress bar ─────────────────────────────────────────────────────────────
+
+function ProgressCell({ campaign }: { campaign: Campaign }) {
+  const showProgress = campaign.status === 'sending' || campaign.status === 'sent';
+  if (!showProgress) return null;
+
+  const sent = campaign.totalSent ?? 0;
+  const total = sent + (campaign.totalFailed ?? 0);
+  if (total === 0) return null;
+
+  const pct = Math.min(100, Math.round((sent / total) * 100));
+
+  return (
+    <div className="space-y-0.5 min-w-[80px]">
+      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn('h-full rounded-full transition-all', campaign.status === 'sent' ? 'bg-green-500' : 'bg-amber-500')}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="text-[10px] text-muted-foreground text-right">{pct}%</p>
+    </div>
+  );
+}
+
+// ─── Activate / Pause button ──────────────────────────────────────────────────
+
+interface ActionButtonProps {
+  campaign: Campaign;
+  onActivate: (id: string) => void;
+  onPause: (id: string) => void;
+  onResume: (id: string) => void;
+  loading: boolean;
+}
+
+function ActivatePauseButton({ campaign, onActivate, onPause, onResume, loading }: ActionButtonProps) {
+  if (campaign.status === 'draft') {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+        title="Ativar campanha"
+        disabled={loading}
+        onClick={() => onActivate(campaign.id)}
+      >
+        <Play className="h-3.5 w-3.5" />
+      </Button>
+    );
+  }
+  if (campaign.status === 'scheduled' || campaign.status === 'sending') {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 w-7 p-0 text-orange-500 hover:text-orange-600 hover:bg-orange-50"
+        title="Pausar campanha"
+        disabled={loading}
+        onClick={() => onPause(campaign.id)}
+      >
+        <Pause className="h-3.5 w-3.5" />
+      </Button>
+    );
+  }
+  if (campaign.status === 'paused') {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+        title="Retomar campanha"
+        disabled={loading}
+        onClick={() => onResume(campaign.id)}
+      >
+        <RotateCcw className="h-3.5 w-3.5" />
+      </Button>
+    );
+  }
+  return null;
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -71,8 +247,11 @@ const ITEMS_PER_PAGE = 20;
 export default function CampanhasPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [allChips, setAllChips] = useState<ChipInfo[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [pauseId, setPauseId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -85,13 +264,25 @@ export default function CampanhasPage() {
 
   const loadCampaigns = useCallback(async () => {
     try {
-      const [campaignsRes, segmentsRes] = await Promise.all([
+      const [campaignsRes, segmentsRes, chipsRes] = await Promise.all([
         fetch('/api/campaigns'),
         fetch('/api/segments'),
+        fetch('/api/chips'),
       ]);
 
       if (campaignsRes.ok) setCampaigns(await campaignsRes.json());
       if (segmentsRes.ok) setSegments(await segmentsRes.json());
+      if (chipsRes.ok) {
+        const chipsData = await chipsRes.json();
+        setAllChips(
+          chipsData.map((c: { id: string; name: string; profileName?: string | null; profilePictureUrl?: string | null }) => ({
+            id: c.id,
+            name: c.name,
+            profileName: c.profileName ?? null,
+            profilePictureUrl: c.profilePictureUrl ?? null,
+          }))
+        );
+      }
     } catch {
       toast.error('Erro ao carregar campanhas');
     } finally {
@@ -139,6 +330,51 @@ export default function CampanhasPage() {
     }
   };
 
+  // ─── Status transition helpers ─────────────────────────────────────────────
+
+  const updateStatus = async (id: string, newStatus: string) => {
+    const prev = campaigns.find(c => c.id === id);
+    if (!prev) return;
+
+    // Optimistic update
+    setCampaigns(cs => cs.map(c => c.id === id ? { ...c, status: newStatus as Campaign['status'] } : c));
+    setActionLoading(id);
+
+    try {
+      const res = await fetch('/api/campaigns', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? 'Erro ao atualizar status');
+      }
+      const updated = await res.json();
+      setCampaigns(cs => cs.map(c => c.id === id ? updated : c));
+      toast.success(`Campanha ${newStatus === 'scheduled' ? 'ativada' : newStatus === 'paused' ? 'pausada' : 'retomada'}`);
+    } catch (err) {
+      // Rollback
+      setCampaigns(cs => cs.map(c => c.id === id ? prev : c));
+      toast.error(err instanceof Error ? err.message : 'Erro ao atualizar status');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleActivate = (id: string) => updateStatus(id, 'scheduled');
+
+  const handlePause = async () => {
+    if (!pauseId) return;
+    setPauseId(null);
+    await updateStatus(pauseId, 'paused');
+  };
+
+  const handleResume = async (id: string) => {
+    // Resume: go back to scheduled (safest, cron will pick it up)
+    await updateStatus(id, 'scheduled');
+  };
+
   const filteredCampaigns = useMemo(() => {
     let result = [...campaigns];
     if (searchQuery) {
@@ -164,7 +400,7 @@ export default function CampanhasPage() {
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery, statusFilter]);
 
-  const segmentNames = new Map(segments.map((segment) => [segment.id, segment.name]));
+  const segmentMap = new Map(segments.map((s) => [s.id, s]));
 
   return (
     <SidebarLayout currentPage="campanhas" pageTitle="Campanhas">
@@ -290,80 +526,119 @@ export default function CampanhasPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40">
-                  <TableHead className="w-[240px]">Nome</TableHead>
+                  <TableHead className="w-[220px]">Nome</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Segmento</TableHead>
-                  <TableHead>Mensagem</TableHead>
-                  <TableHead>Agendado</TableHead>
+                  <TableHead>Chips</TableHead>
+                  <TableHead>Período</TableHead>
+                  <TableHead>Progresso</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedCampaigns.map(campaign => (
-                  <TableRow key={campaign.id} className="hover:bg-muted/30">
-                    <TableCell className="font-medium text-sm">{campaign.name}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={campaign.status} />
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {campaign.segmentId ? (
-                        segmentNames.has(campaign.segmentId) ? (
-                          <span>{segmentNames.get(campaign.segmentId)}</span>
+                {paginatedCampaigns.map(campaign => {
+                  const segment = campaign.segmentId ? segmentMap.get(campaign.segmentId) : undefined;
+                  const chipIds = Array.isArray(campaign.selectedChipIds) ? campaign.selectedChipIds : [];
+
+                  return (
+                    <TableRow key={campaign.id} className="hover:bg-muted/30">
+                      {/* Nome — clickable link to detail page */}
+                      <TableCell className="font-medium text-sm">
+                        <Link
+                          href={`/campanhas/${campaign.id}`}
+                          className="hover:text-primary hover:underline underline-offset-2 transition-colors"
+                        >
+                          {campaign.name}
+                        </Link>
+                      </TableCell>
+
+                      {/* Status badge */}
+                      <TableCell>
+                        <StatusBadge status={campaign.status} />
+                      </TableCell>
+
+                      {/* Segmento chip */}
+                      <TableCell>
+                        {segment ? (
+                          <SegmentChip name={segment.name} />
+                        ) : campaign.segmentId ? (
+                          <span className="text-muted-foreground/60 italic text-xs">Removido</span>
                         ) : (
-                          <span className="text-muted-foreground/70 italic">Segmento removido</span>
-                        )
-                      ) : (
-                        <span className="text-muted-foreground/50">—</span>
-                      )}
-                    </TableCell>
-                     <TableCell className="max-w-[200px] text-sm text-muted-foreground">
-                       {campaign.template
-                         ? <span className="line-clamp-1" title={campaign.template}>{campaign.template}</span>
-                         : <span className="text-muted-foreground/40 italic">Sem mensagem</span>}
-                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {campaign.scheduledAt
-                        ? new Date(campaign.scheduledAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
-                        : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        {(campaign.status === 'scheduled' || campaign.status === 'sending' || campaign.status === 'sent') && (
-                          <Link href={`/campanhas/${campaign.id}/monitor`}>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Monitorar campanha">
-                              <BarChart3 className="h-3.5 w-3.5" />
-                            </Button>
-                          </Link>
+                          <span className="text-muted-foreground/40 text-xs">—</span>
                         )}
-                        {campaign.status === 'draft' && (
-                          <Link href={`/campanhas/${campaign.id}/editar`}>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Editar campanha">
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                          </Link>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          title="Duplicar campanha"
-                          onClick={() => handleDuplicate(campaign)}
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 hover:text-destructive hover:bg-destructive/10"
-                          title="Excluir campanha"
-                          onClick={() => setDeleteId(campaign.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+
+                      {/* Chip pills */}
+                      <TableCell>
+                        <ChipPills chipIds={chipIds} allChips={allChips} />
+                      </TableCell>
+
+                      {/* Date range / scheduled */}
+                      <TableCell>
+                        <DateRangeCell campaign={campaign} />
+                      </TableCell>
+
+                      {/* Progress bar */}
+                      <TableCell>
+                        <ProgressCell campaign={campaign} />
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Activate / Pause / Resume */}
+                          <ActivatePauseButton
+                            campaign={campaign}
+                            onActivate={handleActivate}
+                            onPause={(id) => setPauseId(id)}
+                            onResume={handleResume}
+                            loading={actionLoading === campaign.id}
+                          />
+
+                          {/* Monitor */}
+                          {(campaign.status === 'scheduled' || campaign.status === 'sending' || campaign.status === 'sent') && (
+                            <Link href={`/campanhas/${campaign.id}/monitor`}>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Monitorar campanha">
+                                <BarChart3 className="h-3.5 w-3.5" />
+                              </Button>
+                            </Link>
+                          )}
+
+                          {/* Edit */}
+                          {campaign.status === 'draft' && (
+                            <Link href={`/campanhas/${campaign.id}/editar`}>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Editar campanha">
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            </Link>
+                          )}
+
+                          {/* Duplicate */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            title="Duplicar campanha"
+                            onClick={() => handleDuplicate(campaign)}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+
+                          {/* Delete */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 hover:text-destructive hover:bg-destructive/10"
+                            title="Excluir campanha"
+                            onClick={() => setDeleteId(campaign.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -403,6 +678,31 @@ export default function CampanhasPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Pause confirm dialog */}
+      <AlertDialog open={!!pauseId} onOpenChange={open => !open && setPauseId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pausar campanha?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pauseId && (() => {
+                const c = campaigns.find(x => x.id === pauseId);
+                return c ? `Tem certeza que deseja pausar a campanha "${c.name}"?` : 'Tem certeza que deseja pausar esta campanha?';
+              })()}
+              {' '}Você poderá retomá-la a qualquer momento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handlePause}
+              className="bg-orange-500 text-white hover:bg-orange-600"
+            >
+              Pausar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

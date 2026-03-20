@@ -24,6 +24,12 @@
 | 13 | Zero-Pendency Release Closure | P0 | 11, 12 | 5 plans |
 | 31 | Diagnostic Fixes | P0 | 30 | 5/5 complete ✅ |
 | 32 | System Logs & Observability | P1 | 31 | 3/3 complete ✅ |
+| 36 | 1/1 | Complete    | 2026-03-20 | 1 plan |
+| 37 | 1/1 | Complete    | 2026-03-20 | 1 plan |
+| 38 | 2/2 | Complete    | 2026-03-20 | 2 plans |
+| 39 | 2/2 | Complete    | 2026-03-20 | 2 plans |
+| 40 | 2/2 | Complete    | 2026-03-20 | 2 plans |
+| 41 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 
 ---
 
@@ -894,7 +900,7 @@ Plans:
 ---
 
 ### Phase 35: Campaign Management Overhaul
-**Status:** Planned
+**Status:** COMPLETE ✅
 **Goal:** Fix critical campaign bugs (double sidebar, invisible logs), expand campaign DB schema for per-campaign send configuration, build send config UI, refactor send queue to read per-campaign config with anti-ban protections (presence simulation, rest pauses, circuit breaker), add proxy management per chip, and create an anti-ban monitoring dashboard within campaign detail.
 
 **Requirements:** [CMPFIX-01, CMPFIX-02, CMPFIX-03, CMPFIX-04, CMPFIX-05, CMPFIX-06, CMPFIX-07, CMPFIX-08, CMPFIX-09, CMPFIX-10, CMPFIX-11, CMPFIX-12, CMPFIX-13, CMPFIX-14, CMPFIX-15, CMPFIX-16, CMPFIX-17]
@@ -918,15 +924,15 @@ Plans:
 - CMPFIX-17: Campaign detail page shows circuit breaker status and smart recommendations
 
 **Depends on:** Phase 34
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete ✅
 
 Plans:
 - [x] 35-01-PLAN.md — Quick fixes: double sidebar bug + system logger default to 'info' + instrument all 8 crons
 - [x] 35-02-PLAN.md — Campaign DB schema expansion (send config fields + proxy fields on chips) + migration 0013
 - [x] 35-03-PLAN.md — Campaign send config UI (speed presets, real time windows, multi-chip selection)
 - [x] 35-04-PLAN.md — Send queue intelligence (per-campaign config, presence simulation, rest pauses, circuit breaker)
-- [ ] 35-05-PLAN.md — Proxy management (chips page UI + Evolution API proxy pass-through)
-- [ ] 35-06-PLAN.md — Anti-ban dashboard (per-chip warm-up status, error rates, circuit breaker, recommendations)
+- [x] 35-05-PLAN.md — Proxy management (chips page UI + Evolution API proxy pass-through)
+- [x] 35-06-PLAN.md — Anti-ban dashboard (per-chip warm-up status, error rates, circuit breaker, recommendations)
 
 ### Phase 35 Wave Structure
 
@@ -935,6 +941,193 @@ Plans:
 | 1 | 35-01, 35-02 | Yes | Quick fixes + schema — no file overlaps |
 | 2 | 35-03, 35-04 | Yes | UI + queue logic — no file overlaps |
 | 3 | 35-05, 35-06 | Yes | Proxy + anti-ban dashboard — no file overlaps |
+
+---
+
+## 🎯 Milestone 6 — Dashboard Polish + Campanhas Overhaul + Chip Profiles
+
+> Elevate the dashboard and operations pages to full V2 Editorial Light polish, overhaul the campaign system with WhatsApp formatting, Gemini AI writing assistance, rich campaign management, and add chip profile management via Evolution API.
+
+### Milestone 6 Phase Overview
+
+| Phase | Name | Priority | Depends On | Plans | Wave |
+|-------|------|----------|------------|-------|------|
+| 36 | Dashboard Editorial Polish | P1 | — | 1 plan | 1 |
+| 37 | Operações Layout & Data | P1 | — | 1 plan | 1 |
+| 38 | Chip Profile Management | P1 | — | 2 plans | 1 |
+| 39 | Campanhas WhatsApp Foundation | P0 | 38-01 (for 39-02) | 2 plans | 1-2 |
+| 40 | Campanhas Editor Overhaul | P0 | 39-01, 39-02, 40-01 | 2 plans | 2-3 |
+| 41 | Campanhas Management & Analytics | P0 | 39-02, 40-02, 41-01 | 2 plans | 3-4 |
+
+### Milestone 6 Dependency Graph
+
+```
+Wave 1 (parallel):  36-01  37-01  38-01  39-01
+                                    |       |
+Wave 2:                           38-02  39-02  40-01
+                                            |     |
+Wave 3:                                   40-02  41-01
+                                            |     |
+Wave 4:                                   41-02 ←┘
+```
+
+---
+
+### Phase 36: Dashboard Editorial Polish
+**Status:** Not started
+**Goal:** Polish the main dashboard to full V2 Editorial Light quality — fix KPI card margins/styling, relocate ChatQueuePanel below Campanhas Ativas, and audit all Ações Rápidas links for deprecated routes.
+
+**Requirements:** [DASH-V2-01, DASH-V2-02, DASH-V2-03, DASH-V2-04]
+
+- DASH-V2-01: KPI cards (Entregues, Leituras, Respostas, Bloqueios) have V2 Editorial Light warm styling with consistent margins and 4-column responsive grid
+- DASH-V2-02: ChatQueuePanel (Fila de Conversas) renders BELOW the Campanhas Ativas table, not in the right sidebar
+- DASH-V2-03: All Ações Rápidas links navigate to existing, non-deprecated routes (audit /mobile/* links)
+- DASH-V2-04: Dashboard layout is cohesive with V2 Editorial Light design tokens (#F8F6F1 bg, warm borders)
+
+**Depends on:** —
+**Plans:** 1/1 plans complete
+
+Plans:
+- [ ] 36-01-PLAN.md — KPI card V2 styling, ChatQueuePanel relocation below campaigns, Ações Rápidas link audit
+
+---
+
+### Phase 37: Operações Layout & Data
+**Status:** Not started
+**Goal:** Improve layout and readability of all 8+ Operações sub-components, verify every component displays real data from APIs (no hardcoded values), apply V2 Editorial Light styling consistently.
+
+**Requirements:** [OPS-V2-01, OPS-V2-02, OPS-V2-03, OPS-V2-04]
+
+- OPS-V2-01: All Operações sub-components (ChipHealthGrid, CampaignProgressBars, AlertsPanel, etc.) have consistent card styling and readable text
+- OPS-V2-02: Every component displays real data from API endpoints, not hardcoded/mock values
+- OPS-V2-03: Layout is readable on 1024px+ screens with proper spacing and visual hierarchy
+- OPS-V2-04: No emoji indicators — all status uses colored dots or text badges per project conventions
+
+**Depends on:** —
+**Plans:** 1/1 plans complete
+
+Plans:
+- [ ] 37-01-PLAN.md — Operações layout/styling fix for all components + real data verification (2 tasks)
+
+---
+
+### Phase 38: Chip Profile Management
+**Status:** Not started
+**Goal:** Add chip profile management (name, photo) via Evolution API — backend wrappers, DB schema extension, API endpoints, and profile editor UI integrated into the chips page.
+
+**Requirements:** [CHIP-PROF-01, CHIP-PROF-02, CHIP-PROF-03, CHIP-PROF-04, CHIP-PROF-05]
+
+- CHIP-PROF-01: Evolution API wrapper has setProfileName(), setProfilePicture(), getProfilePicture() functions
+- CHIP-PROF-02: Chips DB table stores profileName and profilePictureUrl fields
+- CHIP-PROF-03: Chips API supports updating chip profile via PUT with action='updateProfile'
+- CHIP-PROF-04: Operators can view and edit chip profile name and photo from the chips page
+- CHIP-PROF-05: Profile changes are saved to both Evolution API and the local DB
+
+**Depends on:** —
+**Plans:** 2/2 plans complete
+
+Plans:
+- [ ] 38-01-PLAN.md — Evolution API profile wrappers + DB schema extension + API endpoint
+- [ ] 38-02-PLAN.md — ChipProfileEditor UI component + chips page integration
+
+### Phase 38 Wave Structure
+
+| Wave | Plans | Parallel | Notes |
+|------|-------|----------|-------|
+| 1 | 38-01, 38-02 | Sequential | 38-02 depends on 38-01 (needs API + schema) |
+
+---
+
+### Phase 39: Campanhas WhatsApp Foundation
+**Status:** Not started
+**Goal:** Build the WhatsApp message foundation — shared WhatsApp preview component (replacing 3 inline duplicates), WhatsApp text formatting parser (bold/italic/strikethrough/monospace), fix 100→65536 char limit, campaign date range schema, and integrate chip profile into preview.
+
+**Requirements:** [WA-01, WA-02, WA-03, WA-04, WA-05, WA-06, WA-07, WA-08]
+
+- WA-01: A single shared WhatsAppPreview component exists (replaces 3 inline duplicates)
+- WA-02: WhatsApp formatting (bold `*text*`, italic `_text_`, strikethrough `~text~`, monospace `` `text` ``) is parsed and rendered correctly
+- WA-03: Preview shows chip profile name and photo (not hardcoded 'EEL Eleição')
+- WA-04: Message preview handles links, emoji, and multi-line content correctly
+- WA-05: Campaign create page uses shared WhatsAppPreview instead of inline duplicate
+- WA-06: Campaign edit page uses shared WhatsAppPreview instead of inline duplicate
+- WA-07: Message textarea allows 65536 chars (not 100 char limit)
+- WA-08: Campaign schema has startDate and endDate fields
+
+**Depends on:** 38-01 (for chip profile data in preview)
+**Plans:** 2/2 plans complete
+
+Plans:
+- [ ] 39-01-PLAN.md — WhatsApp format parser + shared WhatsAppPreview component
+- [ ] 39-02-PLAN.md — Replace inline previews with shared component + fix char limit + campaign date range schema
+
+### Phase 39 Wave Structure
+
+| Wave | Plans | Parallel | Notes |
+|------|-------|----------|-------|
+| 1 | 39-01 | Yes | No dependencies — parser + preview component |
+| 2 | 39-02 | Sequential | Depends on 39-01 (shared component) + 38-01 (chip profile) |
+
+---
+
+### Phase 40: Campanhas Editor Overhaul
+**Status:** Not started
+**Goal:** Add Gemini AI message writing assistance (generate, improve, rewrite) and WhatsApp formatting toolbar to the campaign editor, with proper data validation for templates and date ranges.
+
+**Requirements:** [EDIT-01, EDIT-02, EDIT-03, EDIT-04, EDIT-05, EDIT-06, EDIT-07]
+
+- EDIT-01: Gemini can generate campaign messages based on prompt/context (segment, candidate info)
+- EDIT-02: Gemini can improve/rewrite existing messages with specific instructions
+- EDIT-03: An AI assistant UI component (GeminiMessageAssistant) exists for the campaign editor
+- EDIT-04: Campaign editor has a WhatsApp formatting toolbar (bold, italic, strikethrough, monospace)
+- EDIT-05: Gemini AI assistant is integrated into the campaign creation/edit pages
+- EDIT-06: Message validation warns about unsupported formatting or overly long messages
+- EDIT-07: Data validation prevents saving campaigns with empty templates or invalid date ranges
+
+**Depends on:** 39-01 (WhatsApp preview), 39-02 (shared preview integration)
+**Plans:** 2/2 plans complete
+
+Plans:
+- [ ] 40-01-PLAN.md — Gemini message generation functions + API endpoint + GeminiMessageAssistant UI
+- [ ] 40-02-PLAN.md — WhatsApp formatting toolbar + integrate AI+toolbar into editor + data validation
+
+### Phase 40 Wave Structure
+
+| Wave | Plans | Parallel | Notes |
+|------|-------|----------|-------|
+| 2 | 40-01 | Yes (with 39-02) | Depends on 39-01 only |
+| 3 | 40-02 | Yes (with 41-01) | Depends on 39-02 + 40-01 |
+
+---
+
+### Phase 41: Campanhas Management & Analytics
+**Status:** Not started
+**Goal:** Enrich the campaign list with segments/chips/tags, add activate/pause controls, improve the campaign detail page with comprehensive analytics, and integrate Gemini for real-time campaign performance analysis with actionable recommendations.
+
+**Requirements:** [MGMT-01, MGMT-02, MGMT-03, MGMT-04, MGMT-05, MGMT-06, MGMT-07, MGMT-08, MGMT-09]
+
+- MGMT-01: Campaign list shows rich information — segment chips/tags, date range, chip info
+- MGMT-02: Campaign list has activate/pause buttons that change campaign status
+- MGMT-03: Campaign list rows link to a detail page
+- MGMT-04: Status changes are instant with optimistic UI updates
+- MGMT-05: Status transitions are validated server-side (draft→scheduled, scheduled→sending, etc.)
+- MGMT-06: Campaign detail page shows comprehensive campaign info with delivery analytics
+- MGMT-07: Campaign detail page has real-time analytics with delivery funnel
+- MGMT-08: Gemini provides campaign performance analysis with actionable recommendations
+- MGMT-09: Campaign detail page is navigable from the campaign list
+
+**Depends on:** 39-02 (date range schema), 40-02 (editor), 41-01 (list enhancements)
+**Plans:** 2/2 plans complete
+
+Plans:
+- [ ] 41-01-PLAN.md — Enriched campaign list + activate/pause controls + status transitions
+- [ ] 41-02-PLAN.md — Enhanced campaign detail page + Gemini campaign analytics + AI insights
+
+### Phase 41 Wave Structure
+
+| Wave | Plans | Parallel | Notes |
+|------|-------|----------|-------|
+| 3 | 41-01 | Yes (with 40-02) | Depends on 39-02 |
+| 4 | 41-02 | Sequential | Depends on 41-01 + 40-02 |
 
 ---
 

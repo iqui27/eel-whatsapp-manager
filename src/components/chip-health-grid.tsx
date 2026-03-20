@@ -90,7 +90,7 @@ export function ChipHealthGrid({ chips, onRestart, loading }: ChipHealthGridProp
         <span>Nome</span>
         <span>Status</span>
         <span>Enviadas/Limite</span>
-        <span>Ultimo Check</span>
+        <span>Último Check</span>
         <span className="w-7" />
       </div>
 

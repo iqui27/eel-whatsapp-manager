@@ -66,7 +66,22 @@ export async function bulkInsertVoters(
     ...v,
     phone: normalizePhone(v.phone),
   }));
-  return db.insert(voters).values(normalizedData).returning();
+
+  // PostgreSQL hard limit: 65534 bind parameters per query.
+  // The voters table has up to 31 columns → max safe batch = floor(65534/31) = 2114.
+  // Use 2000 as a conservative chunk size.
+  const BATCH_SIZE = 2000;
+  if (normalizedData.length <= BATCH_SIZE) {
+    return db.insert(voters).values(normalizedData).returning();
+  }
+
+  const results: Voter[] = [];
+  for (let i = 0; i < normalizedData.length; i += BATCH_SIZE) {
+    const batch = normalizedData.slice(i, i + BATCH_SIZE);
+    const inserted = await db.insert(voters).values(batch).returning();
+    results.push(...inserted);
+  }
+  return results;
 }
 
 export interface VoterFilters {

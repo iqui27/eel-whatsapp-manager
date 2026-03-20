@@ -1,35 +1,41 @@
 ---
 gsd_state_version: 1.0
-milestone: v5.0
-milestone_name: "Milestone 5 — Performance Optimization + Campaign Management"
-current_phase: 35
-current_phase_name: campaign-management
-current_plan: 1
-status: executing
-stopped_at: "Phase 34 complete (4/4 plans) — ready to execute Phase 35"
-last_updated: "2026-03-20T00:00:00.000Z"
+milestone: v6.0
+milestone_name: "Milestone 6 — Dashboard Polish + Campanhas Overhaul + Chip Profiles"
+current_phase: 36
+current_phase_name: dashboard-editorial-polish
+current_plan: 0
+status: planning_complete
+stopped_at: "Completed 39-02-PLAN.md — campaign WhatsApp preview refactor + date range"
+last_updated: "2026-03-20T17:00:00.000Z"
 last_activity: 2026-03-20
 progress:
-  total_phases: 35
-  completed_phases: 34
-  total_plans: 116
-  completed_plans: 102
-  percent: 88
+  total_phases: 41
+  completed_phases: 35
+  total_plans: 126
+  completed_plans: 108
+  percent: 85
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 35
-**Current Phase Name:** campaign-management
-**Current Plan:** 6
-**Total Phases:** 35
-**Total Plans in Phase:** 6
-**Status:** Ready to execute
-**Progress:** [████████░░] 88% (34/35 phases complete)
+**Current Phase:** 41
+**Current Phase Name:** campanhas management analytics
+**Current Plan:** Not started
+**Total Phases:** 41
+**Total Plans in Milestone 6:** 10 (across 6 phases)
+**Status:** Milestone complete
+**Progress:** [██████████] 104%
 **Last Activity:** 2026-03-20
-**Last Activity Description:** Phase 34 (Remaining Performance Hardening) — all 4 plans complete: cron locks, SSE limits, SWR caching, log retention
-**Stopped At:** Completed 35-05-PLAN.md (proxy management: chips UI + evolution API pass-through)
+**Last Activity Description:** Phase 41 complete
+**Stopped At:** Completed 41-02-PLAN.md — campaign detail analytics + AI insights panel
+
+**Milestone 6 Execution Plan:**
+- Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
+- Wave 2: 38-02, 39-02, 40-01
+- Wave 3: 40-02, 41-01
+- Wave 4: 41-02
 
 **Phase 34 (Remaining Performance Hardening) — COMPLETE** ✅
 - Plan 34-01: Cron overlap protection (DB lock table + withCronLock) ✅ commits: 62e8ac8, 0d4d8bf
@@ -37,13 +43,13 @@ progress:
 - Plan 34-03: SidebarLayout SWR caching (session 60s, chips 30s) ✅ commit: 78669bf
 - Plan 34-04: Log retention cron (daily at 3 AM UTC, 30-day retention) ✅ commit: 2dc3e1e
 
-**Phase 35 (Campaign Management Overhaul) — PLANNED** 🔵
-- Plan 35-01: Quick fixes (double sidebar + logger default + cron instrumentation) [Wave 1]
-- Plan 35-02: Campaign DB schema expansion (send config + proxy fields, migration 0014) [Wave 1]
-- Plan 35-03: Campaign send config UI (speed presets, time windows, multi-chip selection) [Wave 2]
-- Plan 35-04: Send queue intelligence (per-campaign config, presence simulation, circuit breaker) [Wave 2]
-- Plan 35-05: Proxy management (chips page UI + Evolution API proxy pass-through) [Wave 3]
-- Plan 35-06: Anti-ban dashboard (per-chip warm-up, error rates, recommendations) [Wave 3]
+**Phase 35 (Campaign Management Overhaul) — COMPLETE** ✅
+- Plan 35-01: Quick fixes (double sidebar + logger default + cron instrumentation) [Wave 1] ✅
+- Plan 35-02: Campaign DB schema expansion (send config + proxy fields, migration 0014) [Wave 1] ✅
+- Plan 35-03: Campaign send config UI (speed presets, time windows, multi-chip selection) [Wave 2] ✅
+- Plan 35-04: Send queue intelligence (per-campaign config, presence simulation, circuit breaker) [Wave 2] ✅
+- Plan 35-05: Proxy management (chips page UI + Evolution API proxy pass-through) [Wave 3] ✅
+- Plan 35-06: Anti-ban dashboard (per-chip warm-up, error rates, circuit breaker panel) [Wave 3] ✅
 
 Progress: [██████████] 100%
 
@@ -258,6 +264,12 @@ Progress: [██████████] 100%
 
 Last session: 2026-03-19T00:00:00.000Z
 
+## 🎉 MILESTONE 5 COMPLETE — ALL 35 PHASES EXECUTED
+
+Progress: [██████████] 100%
+
+Last session: 2026-03-20T00:00:00.000Z
+
 **Phase 33 (Performance Optimization) — COMPLETE** ✅
 - Plan 33-01: CSS @keyframes page transitions, lazy-loaded recharts, motion-safe polyfill ✅
 - Plan 33-02: In-memory session cache (60s TTL, 500 max) ✅
@@ -391,6 +403,34 @@ Last session: 2026-03-19T00:00:00.000Z
 - [Phase 35-campaign-management]: selectBestChip accepts optional CampaignChipConstraints — backward compatible, no constraints = existing affinity scoring
 - [Phase 35]: alwaysOnline changed from true to false in createInstance() — anti-ban best practice per Evolution API docs
 - [Phase 35]: updateInstanceSettings gracefully handles 404 for older Evolution API versions — proxy takes effect on next restart
+- [Phase 35-campaign-management]: Warm-up stages derived from chip.createdAt: 0-3d=Phase1(20/day), 4-7d=Phase2(50/day), 8-30d=Phase3(200/day), 31-90d=Phase4(350/day), 90+d=Phase5(500/day)
+- [Phase 35-campaign-management]: Circuit breaker status inferred from campaign.status==='paused' + circuitBreakerThreshold presence (no extra DB field needed)
+- [Phase 35-campaign-management]: buildChipStats uses single SQL aggregate GROUP BY chip_id to avoid N+1 per-chip queries
+- [Phase 36-dashboard-editorial-polish]: ChatQueuePanel relocated below Campanhas Ativas — right column reserved for CommandPanel only
+- [Phase 36-dashboard-editorial-polish]: KPI trend indicators use colored dot spans — no emoji, no Lucide icons (V2 editorial direction)
+- [Phase 39-campanhas-whatsapp-foundation]: Tokenizer uses priority-based span-coverage to prevent overlapping format markers; codeblocks claimed first
+- [Phase 39-campanhas-whatsapp-foundation]: WhatsAppPreview uses SVG check marks (no emoji) for delivery status indicators
+- [Phase 39-campanhas-whatsapp-foundation]: Link preview card shows domain only (not full OG preview) matching plan spec for simplicity
+- [Phase 38-chip-profile-management]: Evolution API profile endpoints use /chat/ namespace: fetchProfilePictureUrl (POST), updateProfileName (POST), updateProfilePicture (POST), fetchProfile (GET)
+- [Phase 38-chip-profile-management]: Profile sync in health cron rate-limited via chip.updatedAt — skips chips updated within last hour to avoid excessive API calls
+- [Phase 38-chip-profile-management]: updateProfile action added to existing PUT /api/chips handler — consistent with restart action pattern from Phase 14
+- [Phase 39-02-campaign-preview]: resolveCampaignTemplate called inline before passing text to shared WhatsAppPreview — shared component uses parseWhatsAppFormat, not campaign variable resolution
+- [Phase 39-02-campaign-preview]: Chip profile for preview resolved from sendConfig.selectedChipIds[0] falling back to first connected chip — consistent with campaign send chip selection logic
+- [Phase 39-02-campaign-preview]: startDate/endDate are nullable in campaigns table — one-shot campaigns remain valid without a date range
+- [Phase 38-chip-profile-management P02]: shadcn Avatar component not available — div-based ProfileAvatar helper with img+initials fallback used instead
+- [Phase 38-chip-profile-management P02]: ChipProfileEditor integrates inline within chip cards (consistent with segment/proxy inline edit pattern) rather than a separate dialog per card
+- [Phase 38-chip-profile-management P02]: Photo upload converts file to base64 via FileReader — sent directly to PUT /api/chips action=updateProfile
+- [Phase 37-operacoes-layout-data]: MessageFeed auto-refresh fixed to /api/dashboard/messages (was polling non-existent /api/operations/messages)
+- [Phase 37-operacoes-layout-data]: QuickActionsPanel corrected /settings → /configuracoes for V2 electoral nav consistency
+- [Phase 40-campanhas-editor-overhaul]: generateMessage/improveMessage/rewriteMessage added to gemini.ts alongside existing analyzeMessage/profileLead
+- [Phase 40-campanhas-editor-overhaul]: Rate limiting uses in-memory Map keyed by session cookie — no Redis needed for per-instance rate limiting
+- [Phase 40-campanhas-editor-overhaul]: GeminiMessageAssistant is fully self-contained — receives currentMessage as prop, stores last 3 generations in component state
+- [Phase 40]: WhatsApp format toolbar uses native title tooltips — Tooltip shadcn component not available
+- [Phase 40]: GeminiMessageAssistant hidden (not just disabled) for locked campaigns — cleaner UX
+- [Phase 41]: Status-only PUT requests bypass template validation and go through transition guard — keeps concerns separate
+- [Phase 41]: Resume from paused always goes to scheduled — safest, cron picks it up
+- [Phase 41]: Campaign detail page converted to client component for AI refresh + 30s auto-refresh
+- [Phase 41]: AI analysis fetched on-demand with in-memory cache keyed by campaignId:totalSent — invalidates on new message deliveries
 
 ## Accumulated Context
 
@@ -537,12 +577,28 @@ src/components/
 | Phase 35-campaign-management P03 | 25 min | 2 tasks | 4 files |
 | Phase 35-campaign-management P04 | 20 min | 2 tasks | 2 files |
 | Phase 35 P05 | 25 | 2 tasks | 3 files |
+| Phase 35 P06 | 15 min | 2 tasks | 2 files |
+| Phase 36-dashboard-editorial-polish P01 | 2 min | 1 tasks | 1 files |
+| Phase 39-campanhas-whatsapp-foundation P01 | 15 | 2 tasks | 2 files |
+| Phase 38-chip-profile-management P01 | 3 | 2 tasks | 6 files |
+| Phase 39-campanhas-whatsapp-foundation P02 | 8 min | 2 tasks | 4 files |
+| Phase 38-chip-profile-management P02 | 3 min | 2 tasks | 2 files |
+| Phase 37-operacoes-layout-data P01 | 4 min | 2 tasks | 4 files |
+| Phase 40-campanhas-editor-overhaul P01 | 3 min | 2 tasks | 3 files |
+| Phase 40 P02 | 4 min | 2 tasks | 3 files |
+| Phase 41-campanhas-management-analytics P01 | 3 min | 2 tasks | 3 files |
+| Phase 41 P02 | 4 min | 2 tasks | 3 files |
 
 ## Next Actions
 
-**Milestone 4 Complete — All 32 Phases Executed and Deployed**
+**Milestone 6 — Ready for Execution**
 
-Optional next steps (if needed):
-1. Set `SYSLOG_MIN_LEVEL=info` on server `.env` to see info-level logs on `/logs` page (currently only warn/error visible)
-2. Add log retention cron: `DELETE FROM system_logs WHERE created_at < NOW() - INTERVAL '7 days'`
-3. Start new Milestone 5 planning if new features are required
+Execute Wave 1 (parallel — no dependencies):
+1. `/gsd-execute-phase 36` — Dashboard Editorial Polish (1 plan)
+2. `/gsd-execute-phase 37` — Operações Layout & Data (1 plan)
+3. `/gsd-execute-phase 38` — Chip Profile Management (2 plans)
+4. `/gsd-execute-phase 39` — Campanhas WhatsApp Foundation (plan 01 only in Wave 1)
+
+Then Wave 2: 38-02, 39-02, 40-01
+Then Wave 3: 40-02, 41-01
+Then Wave 4: 41-02

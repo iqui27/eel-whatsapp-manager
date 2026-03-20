@@ -32,6 +32,7 @@ import {
   AlertTriangle,
   Info,
   Bug,
+  Trash2,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -156,6 +157,31 @@ function DetailsCell({ details }: { details: Record<string, unknown> | null }) {
         <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-muted/50 p-2 text-[11px] text-muted-foreground font-mono">
           {JSON.stringify(details, null, 2)}
         </pre>
+      )}
+    </div>
+  );
+}
+
+// ─── Message Cell (truncate long messages) ────────────────────────────────────
+
+const MSG_TRUNCATE = 200;
+
+function MessageCell({ message }: { message: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = message.length > MSG_TRUNCATE;
+  return (
+    <div>
+      <p className="text-sm text-foreground leading-snug break-words">
+        {isLong && !expanded ? message.slice(0, MSG_TRUNCATE) + '…' : message}
+      </p>
+      {isLong && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          {expanded ? 'mostrar menos' : 'mensagem completa'}
+        </button>
       )}
     </div>
   );
@@ -324,6 +350,16 @@ export default function LogsPage() {
     setEditTo('');
     appliedRef.current = cleared;
     void doFetch();
+  }
+
+  // ── Delete a single log entry ─────────────────────────────────────────────────
+  async function deleteLog(id: string) {
+    setLogs((prev) => prev.filter((l) => l.id !== id));
+    try {
+      await fetch(`/api/system-logs?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    } catch {
+      // Optimistic removal already done; silently ignore network errors
+    }
   }
 
   const hasFilters = editLevels.size > 0 || editCategories.size > 0 || editSearch || editFrom || editTo;
@@ -505,6 +541,7 @@ export default function LogsPage() {
                 <TableHead className="text-xs">Mensagem</TableHead>
                 <TableHead className="w-24 text-right text-xs">Duração</TableHead>
                 <TableHead className="w-32 text-right text-xs">Quando</TableHead>
+                <TableHead className="w-8" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -516,11 +553,12 @@ export default function LogsPage() {
                     <TableCell><div className="h-5 w-full animate-pulse rounded bg-muted" /></TableCell>
                     <TableCell><div className="h-5 w-12 animate-pulse rounded bg-muted ml-auto" /></TableCell>
                     <TableCell><div className="h-5 w-24 animate-pulse rounded bg-muted ml-auto" /></TableCell>
+                    <TableCell />
                   </TableRow>
                 ))
               ) : logs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-16 text-center">
+                  <TableCell colSpan={6} className="py-16 text-center">
                     <div className="flex flex-col items-center gap-3 text-muted-foreground">
                       <ScrollText className="h-10 w-10 opacity-30" />
                       <div>
@@ -540,7 +578,7 @@ export default function LogsPage() {
                   const lvl = LEVEL_CONFIG[log.level];
                   const LevelIcon = lvl.icon;
                   return (
-                    <TableRow key={log.id} className="border-border align-top hover:bg-muted/30">
+                    <TableRow key={log.id} className="group border-border align-top hover:bg-muted/30">
 
                       {/* Level */}
                       <TableCell className="pt-3">
@@ -559,7 +597,7 @@ export default function LogsPage() {
 
                       {/* Message + details */}
                       <TableCell className="py-2.5 max-w-0">
-                        <p className="text-sm text-foreground leading-snug break-words">{log.message}</p>
+                        <MessageCell message={log.message} />
                         <DetailsCell details={log.details} />
                       </TableCell>
 
@@ -588,6 +626,17 @@ export default function LogsPage() {
                         >
                           {relativeTime(log.createdAt)}
                         </span>
+                      </TableCell>
+
+                      {/* Delete */}
+                      <TableCell className="pt-2.5 text-right">
+                        <button
+                          onClick={() => void deleteLog(log.id)}
+                          title="Apagar log"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-50 hover:text-red-500 text-muted-foreground/50"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </TableCell>
                     </TableRow>
                   );

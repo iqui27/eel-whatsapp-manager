@@ -7,6 +7,7 @@ import {
   getCampaignWithDeliveryEvents,
   addCampaign,
   updateCampaign,
+  updateCampaignStatus,
   deleteCampaign,
   getCampaignsByStatus,
 } from '@/lib/db-campaigns';
@@ -14,6 +15,7 @@ import type { Campaign } from '@/db/schema';
 import { getTemplateValidationMessage, validateCampaignTemplates } from '@/lib/campaign-variables';
 import { db, chips, messageQueue } from '@/db';
 import { eq, and, inArray, sql } from 'drizzle-orm';
+import { syslogInfo, syslogError } from '@/lib/system-logger';
 
 // ─── Warm-up stage helper ─────────────────────────────────────────────────────
 
@@ -234,6 +236,34 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
     }
 
+    // ─── Status-only transitions (activate / pause / resume) ──────────────
+    // If only status is being updated, validate transition and skip template checks
+    const updateKeys = Object.keys(updates);
+    if (updateKeys.length === 1 && updateKeys[0] === 'status') {
+      const newStatus = updates.status as string;
+      const oldStatus = existingCampaign.status ?? 'draft';
+      try {
+        const updated = await updateCampaignStatus(id, newStatus);
+        syslogInfo('campaign', 'Campaign status changed', {
+          campaignId: id,
+          campaignName: existingCampaign.name,
+          from: oldStatus,
+          to: newStatus,
+        });
+        return NextResponse.json(updated);
+      } catch (transitionErr) {
+        const msg = transitionErr instanceof Error ? transitionErr.message : 'Transição inválida';
+        syslogError('campaign', 'Invalid campaign status transition', {
+          campaignId: id,
+          from: oldStatus,
+          to: newStatus,
+          error: msg,
+        });
+        return NextResponse.json({ error: msg }, { status: 400 });
+      }
+    }
+
+    // ─── Full campaign update (template, config, etc.) ─────────────────────
     updates.chipId = normalizeCampaignChipId(updates.chipId);
 
     const nextAbEnabled = typeof updates.abEnabled === 'boolean'

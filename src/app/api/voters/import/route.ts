@@ -15,6 +15,29 @@ import {
   generateTagFromName,
 } from '@/lib/db-segments';
 import { normalizePhone } from '@/lib/phone';
+import { syslogInfo, syslogWarn, syslogError } from '@/lib/system-logger';
+
+// ─── Error helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Extracts a concise, human-readable message from any error.
+ *
+ * Drizzle wraps raw DB errors as:
+ *   Error: Failed query: insert into "voters" (…very long SQL…)
+ * The actual PostgreSQL error lives in `error.cause`.
+ * We surface the cause when present; otherwise truncate to 200 chars.
+ */
+function extractErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return String(error).slice(0, 200);
+
+  // Drizzle "Failed query:" wrapper — the real error is in cause
+  if (error.message.startsWith('Failed query:') && error.cause instanceof Error) {
+    return error.cause.message.slice(0, 300);
+  }
+
+  // Generic long message — truncate
+  return error.message.slice(0, 300);
+}
 
 // ─── Name normalization ───────────────────────────────────────────────────────
 // Converts ALL CAPS or all lowercase names to Title Case
@@ -77,6 +100,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'rows array is required' }, { status: 400 });
     }
 
+    syslogInfo('crm', `Import iniciado: ${rows.length} linha(s) recebida(s)`, {
+      rowCount: rows.length,
+      segmentMode: enrichment.segmentMode,
+      segmentId: enrichment.segmentId,
+    });
+
     // ── Scope check ──────────────────────────────────────────────────────────
     const scopedRows = rows.filter((row) =>
       isVoterInScope(auth.actor, {
@@ -86,6 +115,10 @@ export async function POST(request: NextRequest) {
       }),
     );
     if (scopedRows.length !== rows.length) {
+      syslogWarn('crm', `Import bloqueado: ${rows.length - scopedRows.length} eleitor(es) fora do escopo`, {
+        totalRows: rows.length,
+        scopedRows: scopedRows.length,
+      });
       return NextResponse.json(
         { error: 'A importação contém eleitores fora do seu escopo regional' },
         { status: 403 },
@@ -167,7 +200,10 @@ export async function POST(request: NextRequest) {
             segmentName = seg.name;
           }
         } catch (segErr) {
-          console.error('[import] Failed to add to existing segment:', segErr);
+          syslogError('crm', 'Import: falha ao adicionar ao segmento existente', {
+            segmentId: enrichment.segmentId,
+            error: segErr instanceof Error ? segErr.message : String(segErr),
+          });
         }
 
       } else if (enrichment.segmentMode === 'new' && enrichment.newSegmentName?.trim()) {
@@ -190,10 +226,20 @@ export async function POST(request: NextRequest) {
           await updateSegmentCount(newSeg.id);
           segmentName = newSeg.name;
         } catch (segErr) {
-          console.error('[import] Failed to create segment:', segErr);
+          syslogError('crm', 'Import: falha ao criar novo segmento', {
+            segmentName: enrichment.newSegmentName,
+            error: segErr instanceof Error ? segErr.message : String(segErr),
+          });
         }
       }
     }
+
+    syslogInfo('crm', `Import concluído: ${inserted.length} inserido(s), ${duplicateCount} duplicado(s)`, {
+      inserted: inserted.length,
+      duplicates: duplicateCount,
+      total: scopedRows.length,
+      segmentName,
+    });
 
     return NextResponse.json(
       {
@@ -205,7 +251,12 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error('Import voters error:', error);
-    return NextResponse.json({ error: 'Erro ao importar eleitores' }, { status: 500 });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const cleanMsg = extractErrorMessage(error);
+    syslogError('crm', `Import falhou: ${cleanMsg}`, {
+      error: errMsg,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    return NextResponse.json({ error: cleanMsg }, { status: 500 });
   }
 }

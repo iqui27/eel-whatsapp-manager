@@ -113,6 +113,28 @@ export async function getHealthyChips(): Promise<Chip[]> {
     );
 }
 
+// ─── Profile management helpers (Phase 38) ────────────────────────────────
+
+export type ChipProfileFields = Partial<Pick<
+  Chip,
+  | 'profileName'
+  | 'profilePictureUrl'
+  | 'profileStatus'
+>>;
+
+/** Partial update of profile-related fields on a chip */
+export async function updateChipProfile(
+  chipId: string,
+  profileFields: ChipProfileFields,
+): Promise<Chip | undefined> {
+  const rows = await db
+    .update(chips)
+    .set({ ...profileFields, updatedAt: new Date() })
+    .where(eq(chips.id, chipId))
+    .returning();
+  return rows[0];
+}
+
 /** Atomically increment a counter field using SQL */
 export async function incrementChipCounter(
   chipId: string,

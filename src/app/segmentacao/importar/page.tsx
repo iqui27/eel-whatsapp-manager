@@ -289,6 +289,7 @@ export default function ImportarPage() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [separator, setSeparator] = useState(',');
   const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [customValues, setCustomValues] = useState<Record<string, string>>({});
   const [enrichment, setEnrichment] = useState<EnrichmentOptions>(DEFAULT_ENRICHMENT);
   const [availableSegments, setAvailableSegments] = useState<SegmentOption[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
@@ -340,7 +341,12 @@ export default function ImportarPage() {
       const mapped: Record<string, string> = {};
       for (const field of VOTER_FIELDS) {
         const srcCol = mapping[field.key];
-        if (srcCol) mapped[field.key] = row[srcCol]?.trim() ?? '';
+        if (srcCol) {
+          mapped[field.key] = row[srcCol]?.trim() ?? '';
+        } else if (customValues[field.key]?.trim()) {
+          // No CSV column mapped → apply the custom static value to every row
+          mapped[field.key] = customValues[field.key].trim();
+        }
       }
       const hasContent = Object.values(mapped).some(v => v.trim());
       if (!hasContent) continue;
@@ -357,7 +363,7 @@ export default function ImportarPage() {
       qualityScore: total > 0 ? Math.round((validRows.length / total) * 100) : 0,
     });
     setStep('validacao');
-  }, [rawRows, mapping]);
+  }, [rawRows, mapping, customValues]);
 
   const runImport = useCallback(async () => {
     if (!validationResult || isProcessing) return; // guard double-click
@@ -405,6 +411,7 @@ export default function ImportarPage() {
     setRawRows([]);
     setHeaders([]);
     setMapping({});
+    setCustomValues({});
     setEnrichment(DEFAULT_ENRICHMENT);
     setValidationResult(null);
     setImportResult(null);
@@ -507,6 +514,7 @@ export default function ImportarPage() {
                     <TableRow>
                       <TableHead>Campo</TableHead>
                       <TableHead>Coluna no arquivo</TableHead>
+                      <TableHead>Valor fixo</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -528,6 +536,15 @@ export default function ImportarPage() {
                             {headers.map(h => <option key={h} value={h}>{h}</option>)}
                           </select>
                         </TableCell>
+                        <TableCell>
+                          <Input
+                            placeholder="Preencher todas as células…"
+                            value={customValues[field.key] ?? ''}
+                            onChange={e => setCustomValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+                            disabled={!!mapping[field.key]}
+                            className="h-8 text-sm disabled:opacity-40"
+                          />
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -541,6 +558,7 @@ export default function ImportarPage() {
                     <TableRow>
                       <TableHead>Campo</TableHead>
                       <TableHead>Coluna no arquivo</TableHead>
+                      <TableHead>Valor fixo</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -551,6 +569,9 @@ export default function ImportarPage() {
                             <span className="font-medium text-sm">{field.label}</span>
                             {mapping[field.key] && (
                               <Badge variant="secondary" className="text-[10px] px-1.5 py-0">detectado</Badge>
+                            )}
+                            {!mapping[field.key] && customValues[field.key] && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-400 text-amber-600">fixo</Badge>
                             )}
                           </div>
                         </TableCell>
@@ -563,6 +584,15 @@ export default function ImportarPage() {
                             <option value="">(ignorar)</option>
                             {headers.map(h => <option key={h} value={h}>{h}</option>)}
                           </select>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            placeholder="Preencher todas as células…"
+                            value={customValues[field.key] ?? ''}
+                            onChange={e => setCustomValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+                            disabled={!!mapping[field.key]}
+                            className="h-8 text-sm disabled:opacity-40"
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -960,9 +990,21 @@ export default function ImportarPage() {
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10 mx-auto">
                     <AlertTriangle className="h-8 w-8 text-red-600" />
                   </div>
-                  <div>
+                  <div className="w-full max-w-sm">
                     <h2 className="text-xl font-semibold text-red-600">Erro na importação</h2>
-                    <p className="text-sm text-muted-foreground mt-1">{importResult.error}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Não foi possível importar os dados. Verifique o arquivo e tente novamente.
+                    </p>
+                    {importResult.error && (
+                      <details className="mt-3 text-left">
+                        <summary className="text-xs text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors">
+                          Detalhes técnicos
+                        </summary>
+                        <p className="mt-1 text-xs text-red-700 bg-red-50 rounded p-2 break-words whitespace-pre-wrap font-mono leading-relaxed">
+                          {importResult.error}
+                        </p>
+                      </details>
+                    )}
                   </div>
                   <Button onClick={reset} variant="outline">
                     <RotateCcw className="mr-2 h-4 w-4" />
