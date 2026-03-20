@@ -588,3 +588,12 @@ export const systemLogs = pgTable(
 
 export type SystemLog    = typeof systemLogs.$inferSelect;
 export type NewSystemLog = typeof systemLogs.$inferInsert;
+
+// ─── Cron Locks ──────────────────────────────────────────────────────────────
+// Prevents concurrent execution of the same cron job (Phase 34)
+
+export const cronLocks = pgTable('cron_locks', {
+  name:      text('name').primaryKey(),          // e.g. "send-queue", "ai-profile"
+  lockedAt:  timestamp('locked_at',  { withTimezone: true }).notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+});
