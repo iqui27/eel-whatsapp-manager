@@ -91,7 +91,7 @@ const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
     id: 'settings',
     label: 'Configurações',
     icon: Settings,
-    href: '/settings',
+    href: '/configuracoes',
     shortcut: 'S',
     category: 'manage',
   },

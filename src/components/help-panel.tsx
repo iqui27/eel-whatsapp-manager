@@ -105,6 +105,7 @@ interface HelpPanelProps {
 export function HelpPanel({ 
   links = DEFAULT_HELP_LINKS, 
   faq = DEFAULT_FAQ,
+  // Configure via NEXT_PUBLIC_SUPPORT_EMAIL env var or pass directly to this component
   supportEmail = 'suporte@eel.app',
 }: HelpPanelProps) {
   const [showFAQ, setShowFAQ] = useState(false);
