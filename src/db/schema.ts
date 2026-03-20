@@ -60,6 +60,12 @@ export const chips = pgTable('chips', {
   bannedAt: timestamp('banned_at', { withTimezone: true }),
   errorCount: integer('error_count').default(0).notNull(),
   blockRate: integer('block_rate').default(0), // percentage * 100 (e.g., 250 = 2.5%)
+  // ─── Proxy configuration (Phase 35) ────────────────────────────────────────
+  proxyHost: text('proxy_host'),
+  proxyPort: integer('proxy_port'),
+  proxyProtocol: text('proxy_protocol', { enum: ['http', 'https', 'socks4', 'socks5'] }),
+  proxyUsername: text('proxy_username'),
+  proxyPassword: text('proxy_password'),
   assignedSegments: text('assigned_segments').array(),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
@@ -226,6 +232,26 @@ export const campaigns = pgTable('campaigns', {
   scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
   windowStart: time('window_start').default('08:00'),
   windowEnd: time('window_end').default('22:00'),
+  // ─── Send configuration (Phase 35) ────────────────────────────────────────
+  batchSize: integer('batch_size').default(10),
+  minDelayMs: integer('min_delay_ms').default(15000),
+  maxDelayMs: integer('max_delay_ms').default(60000),
+  sendRate: text('send_rate', { enum: ['slow', 'normal', 'fast'] }).default('normal'),
+  typingDelayMin: integer('typing_delay_min').default(2000),
+  typingDelayMax: integer('typing_delay_max').default(5000),
+  maxDailyPerChip: integer('max_daily_per_chip').default(200),
+  maxHourlyPerChip: integer('max_hourly_per_chip').default(25),
+  pauseOnChipDegraded: boolean('pause_on_chip_degraded').default(true),
+  // Multi-chip support: array of chip UUIDs for this campaign
+  selectedChipIds: text('selected_chip_ids').array().default(sql`'{}'`),
+  chipStrategy: text('chip_strategy', { enum: ['round_robin', 'least_loaded', 'affinity'] }).default('round_robin'),
+  // Anti-ban: rest pause configuration
+  restPauseEvery: integer('rest_pause_every').default(20),
+  restPauseDurationMs: integer('rest_pause_duration_ms').default(180000),
+  longBreakEvery: integer('long_break_every').default(100),
+  longBreakDurationMs: integer('long_break_duration_ms').default(900000),
+  // Circuit breaker
+  circuitBreakerThreshold: integer('circuit_breaker_threshold').default(5),
   abEnabled: boolean('ab_enabled').default(false),
   abVariantB: text('ab_variant_b'),
   abSplitPercent: integer('ab_split_percent').default(50),
