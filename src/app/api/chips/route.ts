@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loadChips, addChip, updateChip, deleteChip, updateChipHealth, getChip } from '@/lib/db-chips';
 import { requirePermission } from '@/lib/api-auth';
-import { getConnectionState, restartInstance } from '@/lib/evolution';
+import { getConnectionState, restartInstance, updateInstanceSettings } from '@/lib/evolution';
 import { loadConfig } from '@/lib/db-config';
 
 function sleep(ms: number) {
@@ -36,6 +36,12 @@ export async function POST(request: NextRequest) {
       assignedSegments: Array.isArray(body.assignedSegments) && body.assignedSegments.length > 0
         ? body.assignedSegments
         : null,
+      // Proxy fields — per-instance IP routing for anti-ban protection
+      proxyHost: body.proxyHost || null,
+      proxyPort: body.proxyPort ? Number(body.proxyPort) : null,
+      proxyProtocol: body.proxyProtocol || null,
+      proxyUsername: body.proxyUsername || null,
+      proxyPassword: body.proxyPassword || null,
     });
     return NextResponse.json(chip, { status: 201 });
   } catch (error) {
@@ -122,6 +128,30 @@ export async function PUT(request: NextRequest) {
 
     // ─── Standard update ───────────────────────────────────────────────────
     await updateChip(body.id, body.updates);
+
+    // When proxy fields change, propagate to Evolution API if instance exists
+    const proxyFields = ['proxyHost', 'proxyPort', 'proxyProtocol', 'proxyUsername', 'proxyPassword'];
+    const hasProxyUpdate = body.updates && proxyFields.some((f: string) => f in body.updates);
+    if (hasProxyUpdate) {
+      const chip = await getChip(body.id);
+      if (chip?.instanceName) {
+        const config = await loadConfig();
+        if (config) {
+          // Best-effort — Evolution API may not support runtime proxy update on all versions
+          await updateInstanceSettings(config.evolutionApiUrl, config.evolutionApiKey, chip.instanceName, {
+            proxyHost: body.updates.proxyHost ?? chip.proxyHost ?? undefined,
+            proxyPort: body.updates.proxyPort ?? chip.proxyPort ?? undefined,
+            proxyProtocol: body.updates.proxyProtocol ?? chip.proxyProtocol ?? undefined,
+            proxyUsername: body.updates.proxyUsername ?? chip.proxyUsername ?? undefined,
+            proxyPassword: body.updates.proxyPassword ?? chip.proxyPassword ?? undefined,
+          }).catch((err: unknown) => {
+            // Non-fatal — log and continue; proxy will take effect on next restart
+            console.warn('[chips PUT] updateInstanceSettings failed (non-fatal):', err);
+          });
+        }
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Update chip error:', error);

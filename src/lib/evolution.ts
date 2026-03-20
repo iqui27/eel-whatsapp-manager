@@ -101,6 +101,12 @@ export interface CreateInstanceOptions {
   rejectCall?: boolean;
   alwaysOnline?: boolean;
   readMessages?: boolean;
+  // Proxy config — per-instance IP routing for anti-ban protection
+  proxyHost?: string;
+  proxyPort?: number;
+  proxyProtocol?: 'http' | 'https' | 'socks4' | 'socks5';
+  proxyUsername?: string;
+  proxyPassword?: string;
 }
 
 export interface CreateInstanceResult {
@@ -125,7 +131,7 @@ export async function createInstance(
     qrcode: false,
     rejectCall: options.rejectCall ?? true,
     msgCall: 'Este número não atende chamadas.',
-    alwaysOnline: options.alwaysOnline ?? true,
+    alwaysOnline: options.alwaysOnline ?? false,   // false = anti-ban best practice
     readMessages: options.readMessages ?? false,
     readStatus: false,
     syncFullHistory: false,
@@ -147,6 +153,17 @@ export async function createInstance(
         'QRCODE_UPDATED',
         'GROUP_PARTICIPANTS_UPDATE',
       ],
+    };
+  }
+
+  // Proxy config — pass through to Evolution API when configured
+  if (options.proxyHost) {
+    body.proxy = {
+      host: options.proxyHost,
+      port: String(options.proxyPort ?? 80),
+      protocol: options.proxyProtocol ?? 'http',
+      username: options.proxyUsername ?? '',
+      password: options.proxyPassword ?? '',
     };
   }
 
@@ -187,6 +204,72 @@ export async function deleteInstance(
     const errBody = await res.text();
     throw new Error(`deleteInstance failed (${res.status}): ${errBody}`);
   }
+}
+
+export interface UpdateInstanceOptions {
+  rejectCall?: boolean;
+  alwaysOnline?: boolean;
+  readMessages?: boolean;
+  // Proxy config — per-instance IP routing for anti-ban protection
+  proxyHost?: string;
+  proxyPort?: number;
+  proxyProtocol?: 'http' | 'https' | 'socks4' | 'socks5';
+  proxyUsername?: string;
+  proxyPassword?: string;
+}
+
+/**
+ * Update settings of an existing Evolution API instance.
+ * Note: Not all Evolution API versions support runtime proxy update via this endpoint.
+ * If proxy update fails (404), proxy changes will only take effect on instance
+ * creation or restart. This is a known limitation of the Evolution API.
+ */
+export async function updateInstanceSettings(
+  apiUrl: string,
+  apiKey: string,
+  instanceName: string,
+  options: UpdateInstanceOptions,
+): Promise<{ success: boolean; message: string }> {
+  const body: Record<string, unknown> = {};
+
+  if (options.rejectCall !== undefined) body.rejectCall = options.rejectCall;
+  if (options.alwaysOnline !== undefined) body.alwaysOnline = options.alwaysOnline;
+  if (options.readMessages !== undefined) body.readMessages = options.readMessages;
+
+  // Include proxy config if host is set
+  if (options.proxyHost) {
+    body.proxy = {
+      host: options.proxyHost,
+      port: String(options.proxyPort ?? 80),
+      protocol: options.proxyProtocol ?? 'http',
+      username: options.proxyUsername ?? '',
+      password: options.proxyPassword ?? '',
+    };
+  }
+
+  const res = await fetch(
+    `${baseUrl(apiUrl)}/instance/update/${encodeURIComponent(instanceName)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', apikey: apiKey },
+      body: JSON.stringify(body),
+    },
+  );
+
+  // 404 = endpoint not available in this Evolution API version
+  if (res.status === 404) {
+    return {
+      success: false,
+      message: 'updateInstanceSettings não disponível nesta versão da Evolution API — proxy tomará efeito no próximo restart',
+    };
+  }
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    return { success: false, message: `updateInstanceSettings failed (${res.status}): ${errBody}` };
+  }
+
+  return { success: true, message: 'Configurações atualizadas' };
 }
 
 /**
