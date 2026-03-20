@@ -292,6 +292,12 @@ export async function PUT(request: NextRequest) {
     updates.endDate = toDate(updates.endDate);
 
     const campaign = await updateCampaign(id, updates);
+    syslogInfo('campaign', 'Campaign updated', {
+      campaignId: id,
+      campaignName: existingCampaign.name,
+      startDate: updates.startDate instanceof Date ? updates.startDate.toISOString() : updates.startDate,
+      endDate: updates.endDate instanceof Date ? updates.endDate.toISOString() : updates.endDate,
+    });
     return NextResponse.json(campaign);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

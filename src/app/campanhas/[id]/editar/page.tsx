@@ -381,6 +381,7 @@ export default function EditarCampanhaPage() {
       }
 
       toast.success('Campanha atualizada');
+      router.refresh();
       router.push('/campanhas');
     } catch {
       toast.error('Erro ao salvar alterações');
