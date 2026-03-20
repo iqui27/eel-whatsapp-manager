@@ -77,6 +77,52 @@ export async function updateCampaign(
   return rows[0];
 }
 
+// ─── Valid status transitions ──────────────────────────────────────────────────
+
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  draft:     ['scheduled', 'cancelled'],
+  scheduled: ['sending', 'paused', 'cancelled'],
+  sending:   ['paused', 'sent'],
+  paused:    ['scheduled', 'sending', 'cancelled'],
+  // Terminal states — no outbound transitions
+  sent:      [],
+  cancelled: [],
+};
+
+/**
+ * Validate and apply a campaign status transition.
+ * Saves previousStatus before pause so resume can go back.
+ * Returns the updated campaign or throws with an error message.
+ */
+export async function updateCampaignStatus(
+  id: string,
+  newStatus: string,
+): Promise<Campaign> {
+  const campaign = await getCampaign(id);
+  if (!campaign) {
+    throw new Error('Campanha não encontrada');
+  }
+
+  const fromStatus = campaign.status ?? 'draft';
+  const allowed = VALID_TRANSITIONS[fromStatus] ?? [];
+
+  if (!allowed.includes(newStatus)) {
+    throw new Error(
+      `Transição inválida: ${fromStatus} → ${newStatus}. Permitidas: ${allowed.join(', ') || 'nenhuma'}`,
+    );
+  }
+
+  const updates: Partial<Omit<NewCampaign, 'id' | 'createdAt'>> = {
+    status: newStatus as Campaign['status'],
+  };
+
+  const updated = await updateCampaign(id, updates);
+  if (!updated) {
+    throw new Error('Falha ao atualizar campanha');
+  }
+  return updated;
+}
+
 export async function deleteCampaign(id: string): Promise<void> {
   await db.delete(campaigns).where(eq(campaigns.id, id));
 }
