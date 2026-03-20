@@ -44,6 +44,26 @@ export function addFailoverLog(log: FailoverLog): void {
   }
 }
 
+export interface CampaignChipConstraints {
+  /** Only consider these chip IDs. If empty/undefined, consider all available chips. */
+  selectedChipIds?: string[];
+  /** Chip selection strategy. Default: affinity (existing scoring). */
+  chipStrategy?: 'round_robin' | 'least_loaded' | 'affinity';
+  /** Campaign-level daily limit per chip (may be tighter than chip's global dailyLimit). */
+  maxDailyPerChip?: number;
+  /** Campaign-level hourly limit per chip. */
+  maxHourlyPerChip?: number;
+  /** If true, skip degraded chips (only use healthy). Default follows chip's own status. */
+  pauseOnChipDegraded?: boolean;
+}
+
+// Round-robin index — distributes load across chips within a cron run
+let roundRobinIndex = 0;
+
+export function resetRoundRobinIndex(): void {
+  roundRobinIndex = 0;
+}
+
 export interface ChipCapacity {
   daily: number;
   hourly: number;
@@ -154,38 +174,72 @@ function calculateChipScore(
 
 /**
  * Select the best chip for sending a message.
- * 
+ *
  * @param segmentId - Optional segment ID for affinity matching
+ * @param constraints - Optional campaign-level chip constraints (filter by selectedChipIds, strategy, limits)
  * @returns The selected chip and reason, or null if no chip available
  */
 export async function selectBestChip(
-  segmentId?: string
+  segmentId?: string,
+  constraints?: CampaignChipConstraints,
 ): Promise<ChipSelectionResult> {
-  const availableChips = await getAvailableChips();
+  let availableChips = await getAvailableChips();
+
+  // ── Apply campaign constraints ──────────────────────────────────────────────
+
+  // 1. Filter to selected chip IDs (if campaign specified which chips to use)
+  if (constraints?.selectedChipIds && constraints.selectedChipIds.length > 0) {
+    const allowed = new Set(constraints.selectedChipIds);
+    availableChips = availableChips.filter((c) => allowed.has(c.id));
+  }
+
+  // 2. Exclude degraded chips if campaign requires only healthy
+  if (constraints?.pauseOnChipDegraded) {
+    availableChips = availableChips.filter((c) => c.healthStatus === 'healthy');
+  }
+
+  // 3. Apply campaign-level daily limit (may be stricter than chip's own limit)
+  if (constraints?.maxDailyPerChip != null) {
+    availableChips = availableChips.filter(
+      (c) => (c.messagesSentToday ?? 0) < constraints.maxDailyPerChip!,
+    );
+  }
+
+  // 4. Apply campaign-level hourly limit
+  if (constraints?.maxHourlyPerChip != null) {
+    availableChips = availableChips.filter(
+      (c) => (c.messagesSentThisHour ?? 0) < constraints.maxHourlyPerChip!,
+    );
+  }
 
   if (availableChips.length === 0) {
     // Determine why no chips are available
     const allChips = await loadChips();
-    
+
     if (allChips.length === 0) {
       return { chip: null, reason: 'Nenhum chip cadastrado' };
     }
 
-    const enabledChips = allChips.filter(c => c.enabled);
+    const enabledChips = allChips.filter((c) => c.enabled);
     if (enabledChips.length === 0) {
       return { chip: null, reason: 'Todos os chips estão desabilitados' };
     }
 
-    const healthyChips = enabledChips.filter(c => 
-      ['healthy', 'degraded'].includes(c.healthStatus ?? '')
+    if (constraints?.selectedChipIds && constraints.selectedChipIds.length > 0) {
+      return { chip: null, reason: `Nenhum dos chips selecionados está disponível (${constraints.selectedChipIds.join(', ')})` };
+    }
+
+    const healthyChips = enabledChips.filter((c) =>
+      ['healthy', 'degraded'].includes(c.healthStatus ?? ''),
     );
     if (healthyChips.length === 0) {
       return { chip: null, reason: 'Nenhum chip saudável disponível' };
     }
 
-    const chipsWithCapacity = healthyChips.filter(c => 
-      (c.messagesSentToday ?? 0) < (c.dailyLimit ?? 200) &&
-      (c.messagesSentThisHour ?? 0) < (c.hourlyLimit ?? 25)
+    const chipsWithCapacity = healthyChips.filter(
+      (c) =>
+        (c.messagesSentToday ?? 0) < (c.dailyLimit ?? 200) &&
+        (c.messagesSentThisHour ?? 0) < (c.hourlyLimit ?? 25),
     );
     if (chipsWithCapacity.length === 0) {
       return { chip: null, reason: 'Todos os chips atingiram o limite diário/horário' };
@@ -194,8 +248,39 @@ export async function selectBestChip(
     return { chip: null, reason: 'Nenhum chip disponível (verifique configuração)' };
   }
 
+  // ── Strategy selection ──────────────────────────────────────────────────────
+
+  const strategy = constraints?.chipStrategy ?? 'affinity';
+
+  if (strategy === 'round_robin') {
+    // Distribute evenly across available chips using module-level index
+    const chip = availableChips[roundRobinIndex % availableChips.length];
+    roundRobinIndex++;
+    return {
+      chip,
+      reason: `round_robin (index ${roundRobinIndex - 1}, ${availableChips.length} chips disponíveis)`,
+    };
+  }
+
+  if (strategy === 'least_loaded') {
+    // Sort by remaining daily capacity descending (chip with most headroom first)
+    const sorted = [...availableChips].sort((a, b) => {
+      const remainA = (a.dailyLimit ?? 200) - (a.messagesSentToday ?? 0);
+      const remainB = (b.dailyLimit ?? 200) - (b.messagesSentToday ?? 0);
+      return remainB - remainA;
+    });
+    const best = sorted[0];
+    const remaining = (best.dailyLimit ?? 200) - (best.messagesSentToday ?? 0);
+    return {
+      chip: best,
+      reason: `least_loaded (${remaining} msgs restantes hoje)`,
+    };
+  }
+
+  // ── Default: affinity scoring ───────────────────────────────────────────────
+
   // Score each chip
-  const scored = availableChips.map(chip => ({
+  const scored = availableChips.map((chip) => ({
     chip,
     ...calculateChipScore(chip, segmentId),
   }));
@@ -204,7 +289,7 @@ export async function selectBestChip(
   scored.sort((a, b) => b.score - a.score);
 
   const best = scored[0];
-  
+
   return {
     chip: best.chip,
     reason: `Score: ${best.score} (${best.reasons.join(', ')})`,
