@@ -1,55 +1,49 @@
 ---
 gsd_state_version: 1.0
 milestone: v5.0
-milestone_name: "Milestone 5 — Performance Optimization"
-current_phase: 34
-current_phase_name: remaining-performance
+milestone_name: "Milestone 5 — Performance Optimization + Campaign Management"
+current_phase: 35
+current_phase_name: campaign-management
 current_plan: 0
 status: planning_complete
-stopped_at: "Phase 34 planned — 4 plans in 1 wave ready for execution"
-last_updated: "2026-03-19T00:00:00.000Z"
-last_activity: 2026-03-19
+stopped_at: "Phase 35 planned — 6 plans in 3 waves ready for execution (Phase 34 also ready)"
+last_updated: "2026-03-20T00:00:00.000Z"
+last_activity: 2026-03-20
 progress:
-  total_phases: 34
+  total_phases: 35
   completed_phases: 33
-  total_plans: 102
+  total_plans: 112
   completed_plans: 98
-  percent: 96
+  percent: 87
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 34
-**Current Phase Name:** remaining-performance
+**Current Phase:** 35
+**Current Phase Name:** campaign-management
 **Current Plan:** 0
-**Total Phases:** 34
-**Total Plans in Phase:** 4
-**Status:** Ready to execute
-**Progress:** [█████████░] 96% (33/34 phases complete)
-**Last Activity:** 2026-03-19
-**Last Activity Description:** Phase 34 planned — 4 plans for cron locks, SSE limits, SWR caching, log retention
-**Stopped At:** Phase 34 planned — ready to execute
+**Total Phases:** 35
+**Total Plans in Phase:** 6
+**Status:** Ready to execute (Phase 34 also ready — 4 plans)
+**Progress:** [████████░░] 87% (33/35 phases complete)
+**Last Activity:** 2026-03-20
+**Last Activity Description:** Phase 35 planned — 6 plans for campaign management overhaul (double sidebar fix, send config, anti-ban protections, proxy management)
+**Stopped At:** Phase 35 planned — execute Phase 34 first, then Phase 35
 
-**Phase 33 (Performance Optimization) — COMPLETE** ✅
-- Plan 33-01: Bundle optimization (next.config, dead deps, framer-motion, recharts lazy) ✅
-- Plan 33-02: Auth session cache (in-memory 60s TTL, max 500 entries) ✅
-- Plan 33-03: Visibility guards for all 6 polling intervals + SSE optimization ✅
-- Plan 33-04: DB indexes + SQL-level voter pagination ✅
+**Phase 34 (Remaining Performance Hardening) — PLANNED** 🔵
+- Plan 34-01: Cron overlap protection (DB lock table + withCronLock)
+- Plan 34-02: SSE connection limits (3/user, 50 global, 5min max)
+- Plan 34-03: SidebarLayout SWR caching
+- Plan 34-04: Log retention cron (daily, 30-day retention)
 
-**Phase 31 (Diagnostic Fixes) — COMPLETE** ✅
-- Plan 31-01: CRM inline edit fix, AI analysis card, Gemini model fix (gemini-2.5-flash GA) ✅
-- Plan 31-02: Voter segments shown in CRM list and detail pages ✅
-- Plan 31-03: WhatsApp group creation UX — admin phones field, voter picker, admin promotion ✅
-- Plan 31-04: Message History empty state + inbound message support ✅
-- Plan 31-05: Opt-in/out keyword detection in webhook (automatic consent automation) ✅
-
-**Phase 32 (System Logs) — COMPLETE** ✅
-- Plan 32-01: system_logs table, system-logger.ts, GET /api/system-logs, webhook + Gemini instrumentation ✅
-- Plan 32-02: /logs UI page — level/category filters, search, date range, expandable JSON, auto-refresh, CSV export ✅
-- Plan 32-03: Batch writer rewrite (in-memory buffer, 2s flush, SYSLOG_MIN_LEVEL guard), logs page debounce fix ✅
-
-## 🎉 MILESTONE 4 COMPLETE — ALL 32 PHASES EXECUTED
+**Phase 35 (Campaign Management Overhaul) — PLANNED** 🔵
+- Plan 35-01: Quick fixes (double sidebar + logger default + cron instrumentation) [Wave 1]
+- Plan 35-02: Campaign DB schema expansion (send config + proxy fields, migration 0013) [Wave 1]
+- Plan 35-03: Campaign send config UI (speed presets, time windows, multi-chip selection) [Wave 2]
+- Plan 35-04: Send queue intelligence (per-campaign config, presence simulation, circuit breaker) [Wave 2]
+- Plan 35-05: Proxy management (chips page UI + Evolution API proxy pass-through) [Wave 3]
+- Plan 35-06: Anti-ban dashboard (per-chip warm-up, error rates, recommendations) [Wave 3]
 
 Progress: [██████████] 100%
 

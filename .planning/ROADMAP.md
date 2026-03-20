@@ -822,6 +822,7 @@ Plans:
 |-------|------|----------|------------|-------|
 | 33 | Performance Optimization | P0 | 32 | 4/4 complete ✅ |
 | 34 | Remaining Performance Hardening | P0 | 33 | 4 plans (1 wave) |
+| 35 | Campaign Management Overhaul | P0 | 34 | 6 plans (3 waves) |
 
 ---
 
@@ -889,6 +890,51 @@ Plans:
 | Wave | Plans | Parallel | Notes |
 |------|-------|----------|-------|
 | 1 | 34-01, 34-02, 34-03, 34-04 | Yes | No file overlaps between plans |
+
+---
+
+### Phase 35: Campaign Management Overhaul
+**Status:** Planned
+**Goal:** Fix critical campaign bugs (double sidebar, invisible logs), expand campaign DB schema for per-campaign send configuration, build send config UI, refactor send queue to read per-campaign config with anti-ban protections (presence simulation, rest pauses, circuit breaker), add proxy management per chip, and create an anti-ban monitoring dashboard within campaign detail.
+
+**Requirements:** [CMPFIX-01, CMPFIX-02, CMPFIX-03, CMPFIX-04, CMPFIX-05, CMPFIX-06, CMPFIX-07, CMPFIX-08, CMPFIX-09, CMPFIX-10, CMPFIX-11, CMPFIX-12, CMPFIX-13, CMPFIX-14, CMPFIX-15, CMPFIX-16, CMPFIX-17]
+
+- CMPFIX-01: Campaign sub-pages (edit, monitor, schedule) render exactly ONE sidebar (fix double sidebar layout bug)
+- CMPFIX-02: SYSLOG_MIN_LEVEL defaults to 'info' so cron activity is visible in /logs page
+- CMPFIX-03: All 8 cron routes instrumented with syslog (start, end, error logging)
+- CMPFIX-04: Campaigns table has send configuration columns (batchSize, delays, sendRate, typing delays, limits)
+- CMPFIX-05: Campaigns table supports multi-chip selection via selectedChipIds array with chipStrategy
+- CMPFIX-06: Chips table has proxy configuration columns (proxyHost, proxyPort, proxyProtocol, proxyUsername, proxyPassword)
+- CMPFIX-07: Campaign creation form has "Configuração de Envio" section with speed presets (Lento/Normal/Rápido)
+- CMPFIX-08: Campaign scheduling page saves real time windows to DB (not decorative buttons)
+- CMPFIX-09: Multi-chip selection UI shows chip health status and daily usage next to each chip
+- CMPFIX-10: Send queue reads per-campaign config (batch size, delays, time windows) instead of hardcoded constants
+- CMPFIX-11: Typing presence simulation (configurable delay) runs before each message send
+- CMPFIX-12: Rest pauses and long breaks inserted at configurable intervals during send
+- CMPFIX-13: Circuit breaker pauses campaign if error rate exceeds configurable threshold
+- CMPFIX-14: Chips page has proxy configuration per chip with persistence and Evolution API pass-through
+- CMPFIX-15: Evolution API createInstance passes proxy config and sets alwaysOnline=false
+- CMPFIX-16: Campaign detail page shows anti-ban status panel with per-chip warm-up, usage, error rates
+- CMPFIX-17: Campaign detail page shows circuit breaker status and smart recommendations
+
+**Depends on:** Phase 34
+**Plans:** 6 plans
+
+Plans:
+- [ ] 35-01-PLAN.md — Quick fixes: double sidebar bug + system logger default to 'info' + instrument all 8 crons
+- [ ] 35-02-PLAN.md — Campaign DB schema expansion (send config fields + proxy fields on chips) + migration 0013
+- [ ] 35-03-PLAN.md — Campaign send config UI (speed presets, real time windows, multi-chip selection)
+- [ ] 35-04-PLAN.md — Send queue intelligence (per-campaign config, presence simulation, rest pauses, circuit breaker)
+- [ ] 35-05-PLAN.md — Proxy management (chips page UI + Evolution API proxy pass-through)
+- [ ] 35-06-PLAN.md — Anti-ban dashboard (per-chip warm-up status, error rates, circuit breaker, recommendations)
+
+### Phase 35 Wave Structure
+
+| Wave | Plans | Parallel | Notes |
+|------|-------|----------|-------|
+| 1 | 35-01, 35-02 | Yes | Quick fixes + schema — no file overlaps |
+| 2 | 35-03, 35-04 | Yes | UI + queue logic — no file overlaps |
+| 3 | 35-05, 35-06 | Yes | Proxy + anti-ban dashboard — no file overlaps |
 
 ---
 
