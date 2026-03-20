@@ -822,7 +822,7 @@ Plans:
 |-------|------|----------|------------|-------|
 | 33 | Performance Optimization | P0 | 32 | 4/4 complete ✅ |
 | 34 | Remaining Performance Hardening | P0 | 33 | 4 plans (1 wave) |
-| 35 | 2/6 | In Progress|  | 6 plans (3 waves) |
+| 35 | 3/6 | In Progress|  | 6 plans (3 waves) |
 
 ---
 
@@ -918,12 +918,12 @@ Plans:
 - CMPFIX-17: Campaign detail page shows circuit breaker status and smart recommendations
 
 **Depends on:** Phase 34
-**Plans:** 2/6 plans executed
+**Plans:** 3/6 plans executed
 
 Plans:
-- [ ] 35-01-PLAN.md — Quick fixes: double sidebar bug + system logger default to 'info' + instrument all 8 crons
-- [ ] 35-02-PLAN.md — Campaign DB schema expansion (send config fields + proxy fields on chips) + migration 0013
-- [ ] 35-03-PLAN.md — Campaign send config UI (speed presets, real time windows, multi-chip selection)
+- [x] 35-01-PLAN.md — Quick fixes: double sidebar bug + system logger default to 'info' + instrument all 8 crons
+- [x] 35-02-PLAN.md — Campaign DB schema expansion (send config fields + proxy fields on chips) + migration 0013
+- [x] 35-03-PLAN.md — Campaign send config UI (speed presets, real time windows, multi-chip selection)
 - [ ] 35-04-PLAN.md — Send queue intelligence (per-campaign config, presence simulation, rest pauses, circuit breaker)
 - [ ] 35-05-PLAN.md — Proxy management (chips page UI + Evolution API proxy pass-through)
 - [ ] 35-06-PLAN.md — Anti-ban dashboard (per-chip warm-up status, error rates, circuit breaker, recommendations)
