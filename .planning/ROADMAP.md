@@ -24,10 +24,10 @@
 | 13 | Zero-Pendency Release Closure | P0 | 11, 12 | 5 plans |
 | 31 | Diagnostic Fixes | P0 | 30 | 5/5 complete ✅ |
 | 32 | System Logs & Observability | P1 | 31 | 3/3 complete ✅ |
-| 36 | 1/1 | Complete   | 2026-03-20 | 1 plan |
-| 37 | 1/1 | Complete   | 2026-03-20 | 1 plan |
-| 38 | 2/2 | Complete   | 2026-03-20 | 2 plans |
-| 39 | 2/2 | Complete   | 2026-03-20 | 2 plans |
+| 36 | 1/1 | Complete    | 2026-03-20 | 1 plan |
+| 37 | 1/1 | Complete    | 2026-03-20 | 1 plan |
+| 38 | 2/2 | Complete    | 2026-03-20 | 2 plans |
+| 39 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 40 | Campanhas Editor Overhaul | P0 | 39, 40-01 | 2 plans |
 | 41 | Campanhas Management & Analytics | P0 | 39, 40, 41-01 | 2 plans |
 
