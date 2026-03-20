@@ -7,6 +7,7 @@ import { ConversionFunnel } from '@/components/conversion-funnel';
 import { DeliveryTimeline } from '@/components/delivery-timeline';
 import { ChipBreakdown } from '@/components/chip-breakdown';
 import type { FunnelData } from '@/app/api/campaigns/[id]/funnel/route';
+import SidebarLayout from '@/components/SidebarLayout';
 
 interface CampaignDetailPageProps {
   params: Promise<{ id: string }>;
@@ -75,7 +76,8 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
   const alerts = analytics?.alerts ?? [];
 
   return (
-    <div className="space-y-6">
+    <SidebarLayout currentPage="campanhas" pageTitle="Campanha">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -171,5 +173,6 @@ export default async function CampaignDetailPage({ params }: CampaignDetailPageP
         </div>
       </div>
     </div>
+    </SidebarLayout>
   );
 }

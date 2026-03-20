@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
+import SidebarLayout from '@/components/SidebarLayout';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -215,6 +216,7 @@ export default function CampaignMessagesPage({ params }: { params: Promise<{ id:
   };
 
   return (
+    <SidebarLayout currentPage="campanhas" pageTitle="Mensagens">
     <div className="p-6 space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -435,5 +437,6 @@ export default function CampaignMessagesPage({ params }: { params: Promise<{ id:
         </div>
       )}
     </div>
+    </SidebarLayout>
   );
 }
