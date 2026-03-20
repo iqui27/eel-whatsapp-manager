@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 35
 **Current Phase Name:** campaign-management
-**Current Plan:** 5
+**Current Plan:** 6
 **Total Phases:** 35
 **Total Plans in Phase:** 6
 **Status:** Ready to execute
 **Progress:** [████████░░] 88% (34/35 phases complete)
 **Last Activity:** 2026-03-20
 **Last Activity Description:** Phase 34 (Remaining Performance Hardening) — all 4 plans complete: cron locks, SSE limits, SWR caching, log retention
-**Stopped At:** Completed 35-04-PLAN.md (send queue intelligence: per-campaign config + chip constraints)
+**Stopped At:** Completed 35-05-PLAN.md (proxy management: chips UI + evolution API pass-through)
 
 **Phase 34 (Remaining Performance Hardening) — COMPLETE** ✅
 - Plan 34-01: Cron overlap protection (DB lock table + withCronLock) ✅ commits: 62e8ac8, 0d4d8bf
@@ -389,6 +389,8 @@ Last session: 2026-03-19T00:00:00.000Z
 - [Phase 35-campaign-management]: send-queue groups messages by campaignId and processes each campaign with its own config (batch size, delays, time windows)
 - [Phase 35-campaign-management]: Circuit breaker pauses campaign immediately when error rate >= threshold (default 5%) after min 5 attempts
 - [Phase 35-campaign-management]: selectBestChip accepts optional CampaignChipConstraints — backward compatible, no constraints = existing affinity scoring
+- [Phase 35]: alwaysOnline changed from true to false in createInstance() — anti-ban best practice per Evolution API docs
+- [Phase 35]: updateInstanceSettings gracefully handles 404 for older Evolution API versions — proxy takes effect on next restart
 
 ## Accumulated Context
 
@@ -534,6 +536,7 @@ src/components/
 | Phase 35 P02 | 12 min | 2 tasks | 2 files |
 | Phase 35-campaign-management P03 | 25 min | 2 tasks | 4 files |
 | Phase 35-campaign-management P04 | 20 min | 2 tasks | 2 files |
+| Phase 35 P05 | 25 | 2 tasks | 3 files |
 
 ## Next Actions
 
