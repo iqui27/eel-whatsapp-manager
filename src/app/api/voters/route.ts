@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/api-auth';
 import { isVoterInScope } from '@/lib/authorization';
 import {
-  filterVoters, getVoter, addVoter, updateVoter, deleteVoter,
+  filterVotersPaginated, getVoter, addVoter, updateVoter, deleteVoter,
   getSegmentsForVoterIds,
 } from '@/lib/db-voters';
 
@@ -34,27 +34,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ...voter, segments: segmentMap.get(voter.id) ?? [] });
     }
 
-    const allData = await filterVoters({
-      search: query ?? undefined,
-      tag: searchParams.get('tag') ?? undefined,
-      segmentId: searchParams.get('segmentId') ?? undefined,
-      optInStatus: searchParams.get('optIn') ?? undefined,
-      aiTier: searchParams.get('tier') ?? undefined,
-      zone: searchParams.get('zone') ?? undefined,
-      projectName: searchParams.get('projectName') ?? undefined,
-      subsecretaria: searchParams.get('subsecretaria') ?? undefined,
-    });
-    const scopedData = allData.filter((voter) => isVoterInScope(auth.actor, voter));
-    const data = scopedData.slice(offset, offset + limit);
+    // SQL-level pagination: O(page_size) instead of O(total_rows)
+    const { data: paginatedData, total } = await filterVotersPaginated(
+      {
+        search: query ?? undefined,
+        tag: searchParams.get('tag') ?? undefined,
+        segmentId: searchParams.get('segmentId') ?? undefined,
+        optInStatus: searchParams.get('optIn') ?? undefined,
+        aiTier: searchParams.get('tier') ?? undefined,
+        zone: searchParams.get('zone') ?? undefined,
+        projectName: searchParams.get('projectName') ?? undefined,
+        subsecretaria: searchParams.get('subsecretaria') ?? undefined,
+      },
+      { limit, offset },
+    );
+    // Apply scope filter on the small paginated set (no-op for admin users)
+    const scopedData = paginatedData.filter((voter) => isVoterInScope(auth.actor, voter));
 
     // Enrich paginated voters with segment data (single bulk query)
-    const voterIds = data.map((v) => v.id);
+    const voterIds = scopedData.map((v) => v.id);
     const segmentMap = await getSegmentsForVoterIds(voterIds);
-    const enriched = data.map((v) => ({ ...v, segments: segmentMap.get(v.id) ?? [] }));
+    const enriched = scopedData.map((v) => ({ ...v, segments: segmentMap.get(v.id) ?? [] }));
 
     return NextResponse.json({
       data: enriched,
-      total: scopedData.length,
+      total,
       page,
       limit,
     });

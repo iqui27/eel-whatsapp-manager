@@ -197,6 +197,7 @@ export const voters = pgTable('voters', {
   index('idx_voters_opt_in').on(t.optInStatus),
   index('idx_voters_engagement').on(t.engagementScore),
   index('idx_voters_ai_tier').on(t.aiTier),
+  index('idx_voters_created_at').on(t.createdAt),
 ]);
 
 // ─── Segments ─────────────────────────────────────────────────────────────────
@@ -324,6 +325,8 @@ export const conversations = pgTable('conversations', {
   index('idx_conversations_chip').on(t.chipId),
   index('idx_conversations_status').on(t.status),
   index('idx_conversations_priority').on(t.priority),
+  index('idx_conversations_updated_at').on(t.updatedAt),
+  index('idx_conversations_status_updated').on(t.status, t.updatedAt),
 ]);
 
 // ─── Conversation Messages ────────────────────────────────────────────────────

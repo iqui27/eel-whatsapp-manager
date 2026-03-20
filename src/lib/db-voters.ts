@@ -12,8 +12,10 @@ import { normalizePhone } from '@/lib/phone';
 
 export type { Voter, NewVoter };
 
-export async function loadVoters(): Promise<Voter[]> {
-  return db.select().from(voters).orderBy(desc(voters.createdAt));
+export async function loadVoters(limit?: number): Promise<Voter[]> {
+  const query = db.select().from(voters).orderBy(desc(voters.createdAt));
+  if (limit) return query.limit(limit);
+  return query;
 }
 
 export async function getVoter(id: string): Promise<Voter | undefined> {
@@ -162,6 +164,86 @@ export async function getVotersBySegment(segmentId: string): Promise<Voter[]> {
     .innerJoin(voters, eq(segmentVoters.voterId, voters.id))
     .where(eq(segmentVoters.segmentId, segmentId));
   return rows.map((r) => r.voter);
+}
+
+// ─── SQL-level paginated voter query ─────────────────────────────────────────
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+}
+
+/**
+ * Paginated voter query with SQL LIMIT/OFFSET.
+ * Replaces the pattern of loading all voters then slicing in JS.
+ * Returns { data: Voter[], total: number } with O(page_size) DB cost.
+ *
+ * Keep existing filterVoters() unchanged for callers that need all results
+ * (compliance, conversations, export).
+ */
+export async function filterVotersPaginated(
+  filters: VoterFilters,
+  pagination: { limit: number; offset: number },
+): Promise<PaginatedResult<Voter>> {
+  const conditions = [];
+
+  if (filters.search) {
+    const q = `%${filters.search}%`;
+    conditions.push(
+      or(ilike(voters.name, q), ilike(voters.phone, q)),
+    );
+  }
+  if (filters.optInStatus && filters.optInStatus !== 'all') {
+    conditions.push(sql`${voters.optInStatus} = ${filters.optInStatus}`);
+  }
+  if (filters.aiTier && filters.aiTier !== 'all') {
+    conditions.push(sql`${voters.aiTier} = ${filters.aiTier}`);
+  }
+  if (filters.zone && filters.zone !== 'all') {
+    conditions.push(eq(voters.zone, filters.zone));
+  }
+  if (filters.projectName) {
+    conditions.push(ilike(voters.projectName, `%${filters.projectName}%`));
+  }
+  if (filters.subsecretaria) {
+    conditions.push(ilike(voters.subsecretaria, `%${filters.subsecretaria}%`));
+  }
+  if (filters.tag) {
+    conditions.push(sql`${voters.tags} @> ARRAY[${filters.tag}]::text[]`);
+  }
+
+  // Segment filter — resolve voter IDs first (subquery)
+  if (filters.segmentId) {
+    const voterIdsInSegment = await db
+      .select({ voterId: segmentVoters.voterId })
+      .from(segmentVoters)
+      .where(eq(segmentVoters.segmentId, filters.segmentId));
+    const ids = voterIdsInSegment.map((r) => r.voterId);
+    if (ids.length === 0) return { data: [], total: 0 };
+    conditions.push(inArray(voters.id, ids));
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  // Get total count (single integer, minimal data transfer)
+  const countResult = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(voters)
+    .where(where);
+  const total = countResult[0]?.count ?? 0;
+
+  if (total === 0) return { data: [], total: 0 };
+
+  // Get paginated data with SQL LIMIT/OFFSET
+  const data = await db
+    .select()
+    .from(voters)
+    .where(where)
+    .orderBy(desc(voters.createdAt))
+    .limit(pagination.limit)
+    .offset(pagination.offset);
+
+  return { data, total };
 }
 
 /**
