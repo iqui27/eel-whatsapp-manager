@@ -268,3 +268,232 @@ export async function quickSentimentCheck(messageText: string): Promise<'positiv
   const analysis = await analyzeMessage(messageText);
   return analysis?.sentiment || 'neutral';
 }
+
+// ─── Message Generation ────────────────────────────────────────────────────────
+
+const MESSAGE_GENERATION_SYSTEM_PROMPT = `Você é um especialista em marketing político eleitoral via WhatsApp.
+Regras:
+- Mensagens devem ser em português brasileiro
+- Use linguagem direta e pessoal
+- Inclua variáveis de personalização quando apropriado: {nome}, {bairro}, {candidato}
+- Respeite o limite de caracteres solicitado
+- Mensagens devem seguir boas práticas de WhatsApp (parágrafos curtos, sem muita formatação)
+- Nunca inclua conteúdo ofensivo, fake news, ou promessas ilegais
+- Use formatação WhatsApp quando apropriado: *bold* para destaques, _italic_ para ênfase`;
+
+export interface GenerateMessageResult {
+  message: string;
+  suggestions: string[];
+}
+
+export interface ImproveMessageResult {
+  improved: string;
+  changes: string[];
+}
+
+export interface RewriteMessageResult {
+  rewritten: string;
+}
+
+/**
+ * Generate a new campaign message from a prompt
+ */
+export async function generateMessage(params: {
+  prompt: string;
+  tone?: 'formal' | 'informal' | 'friendly' | 'urgent';
+  maxLength?: number;
+  candidateName?: string;
+  segmentDescription?: string;
+  includeVariables?: boolean;
+}): Promise<GenerateMessageResult | null> {
+  const client = getGeminiClient();
+  const modelName = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+
+  if (!client) return null;
+
+  const start = Date.now();
+  const {
+    prompt,
+    tone = 'informal',
+    maxLength = 500,
+    candidateName,
+    segmentDescription,
+    includeVariables = true,
+  } = params;
+
+  const toneMap = {
+    formal: 'formal e profissional',
+    informal: 'informal e próximo',
+    friendly: 'amigável e caloroso',
+    urgent: 'urgente e direto',
+  };
+
+  const contextLines: string[] = [];
+  if (candidateName) contextLines.push(`Candidato: ${candidateName}`);
+  if (segmentDescription) contextLines.push(`Público-alvo: ${segmentDescription}`);
+  contextLines.push(`Tom: ${toneMap[tone]}`);
+  contextLines.push(`Limite de caracteres: ${maxLength}`);
+  if (includeVariables) contextLines.push('Inclua variáveis como {nome}, {bairro}, {candidato} quando natural');
+
+  const userPrompt = `${MESSAGE_GENERATION_SYSTEM_PROMPT}
+
+${contextLines.join('\n')}
+
+Descrição da mensagem desejada:
+${prompt}
+
+Retorne um JSON com:
+1. "message": string — a mensagem gerada
+2. "suggestions": string[] — até 3 variações alternativas curtas
+
+Retorne APENAS o JSON, sem formatação adicional.`;
+
+  try {
+    const model = client.getGenerativeModel({ model: modelName });
+    const result = await model.generateContent(userPrompt);
+    const response = result.response.text();
+
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      syslog({ level: 'warn', category: 'gemini', message: 'generateMessage — JSON não encontrado na resposta', durationMs: Date.now() - start, details: { model: modelName } });
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    syslog({ level: 'info', category: 'gemini', message: 'generateMessage — mensagem gerada com sucesso', durationMs: Date.now() - start, details: { model: modelName, tone, chars: parsed.message?.length } });
+
+    return {
+      message: parsed.message || '',
+      suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+    };
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    syslog({ level: 'error', category: 'gemini', message: `generateMessage — ERRO: ${errMsg}`, durationMs: Date.now() - start, details: { model: modelName, error: errMsg } });
+    return null;
+  }
+}
+
+/**
+ * Improve an existing message (fix grammar, improve tone, add persuasion)
+ */
+export async function improveMessage(params: {
+  message: string;
+  instruction?: string;
+  candidateName?: string;
+}): Promise<ImproveMessageResult | null> {
+  const client = getGeminiClient();
+  const modelName = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+
+  if (!client) return null;
+
+  const start = Date.now();
+  const { message, instruction, candidateName } = params;
+
+  const contextLines: string[] = [];
+  if (candidateName) contextLines.push(`Candidato: ${candidateName}`);
+  if (instruction) contextLines.push(`Instrução específica: ${instruction}`);
+
+  const userPrompt = `${MESSAGE_GENERATION_SYSTEM_PROMPT}
+
+${contextLines.join('\n')}
+
+Mensagem original:
+${message}
+
+Melhore esta mensagem mantendo a essência mas ${instruction || 'tornando-a mais eficaz e persuasiva'}.
+
+Retorne um JSON com:
+1. "improved": string — a mensagem melhorada
+2. "changes": string[] — lista do que foi alterado (até 5 itens)
+
+Retorne APENAS o JSON, sem formatação adicional.`;
+
+  try {
+    const model = client.getGenerativeModel({ model: modelName });
+    const result = await model.generateContent(userPrompt);
+    const response = result.response.text();
+
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      syslog({ level: 'warn', category: 'gemini', message: 'improveMessage — JSON não encontrado na resposta', durationMs: Date.now() - start, details: { model: modelName } });
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    syslog({ level: 'info', category: 'gemini', message: 'improveMessage — mensagem melhorada com sucesso', durationMs: Date.now() - start, details: { model: modelName, instruction } });
+
+    return {
+      improved: parsed.improved || '',
+      changes: Array.isArray(parsed.changes) ? parsed.changes : [],
+    };
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    syslog({ level: 'error', category: 'gemini', message: `improveMessage — ERRO: ${errMsg}`, durationMs: Date.now() - start, details: { model: modelName, error: errMsg } });
+    return null;
+  }
+}
+
+/**
+ * Rewrite message in a completely different style
+ */
+export async function rewriteMessage(params: {
+  message: string;
+  style: 'shorter' | 'longer' | 'more_formal' | 'more_casual' | 'more_persuasive';
+  candidateName?: string;
+}): Promise<RewriteMessageResult | null> {
+  const client = getGeminiClient();
+  const modelName = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+
+  if (!client) return null;
+
+  const start = Date.now();
+  const { message, style, candidateName } = params;
+
+  const styleMap = {
+    shorter: 'muito mais curta (máximo 50% do tamanho original)',
+    longer: 'mais longa e detalhada (pelo menos 150% do tamanho original)',
+    more_formal: 'formal e profissional',
+    more_casual: 'casual e descontraída',
+    more_persuasive: 'mais persuasiva e com apelo emocional',
+  };
+
+  const contextLines: string[] = [];
+  if (candidateName) contextLines.push(`Candidato: ${candidateName}`);
+
+  const userPrompt = `${MESSAGE_GENERATION_SYSTEM_PROMPT}
+
+${contextLines.join('\n')}
+
+Mensagem original:
+${message}
+
+Reescreva esta mensagem tornando-a ${styleMap[style]}.
+
+Retorne um JSON com:
+1. "rewritten": string — a mensagem reescrita
+
+Retorne APENAS o JSON, sem formatação adicional.`;
+
+  try {
+    const model = client.getGenerativeModel({ model: modelName });
+    const result = await model.generateContent(userPrompt);
+    const response = result.response.text();
+
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      syslog({ level: 'warn', category: 'gemini', message: 'rewriteMessage — JSON não encontrado na resposta', durationMs: Date.now() - start, details: { model: modelName } });
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    syslog({ level: 'info', category: 'gemini', message: 'rewriteMessage — mensagem reescrita com sucesso', durationMs: Date.now() - start, details: { model: modelName, style } });
+
+    return {
+      rewritten: parsed.rewritten || '',
+    };
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    syslog({ level: 'error', category: 'gemini', message: `rewriteMessage — ERRO: ${errMsg}`, durationMs: Date.now() - start, details: { model: modelName, error: errMsg } });
+    return null;
+  }
+}
