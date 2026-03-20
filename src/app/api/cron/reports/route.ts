@@ -9,6 +9,10 @@ import {
 } from '@/lib/reporting';
 import { loadCampaignReport } from '@/lib/reporting-server';
 import { isLocalInternalRequest, readCronToken, resolveServerEnv } from '@/lib/server-env';
+import { withCronLock } from '@/lib/cron-lock';
+import { syslog } from '@/lib/system-logger';
+
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   const cronSecret = resolveServerEnv('CRON_SECRET');
@@ -23,62 +27,75 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const dueSchedules = await getDueReportSchedules();
-  const results: Array<{ id: string; status: string; transport?: string; error?: string }> = [];
+  const lockResult = await withCronLock('reports', 90000, async () => {
+    syslog({ level: 'info', category: 'cron', message: 'reports started' });
+    const dueSchedules = await getDueReportSchedules();
+    const results: Array<{ id: string; status: string; transport?: string; error?: string }> = [];
 
-  for (const schedule of dueSchedules) {
-    const report = await loadCampaignReport(schedule.periodDays ?? 7);
-    const attachments = [];
-    if (schedule.format === 'csv' || schedule.format === 'both') {
-      attachments.push({
-        filename: `relatorio-${schedule.periodDays}d.csv`,
-        contentType: 'text/csv',
-        content: Buffer.from(buildCampaignReportCsv(report), 'utf8'),
+    for (const schedule of dueSchedules) {
+      const report = await loadCampaignReport(schedule.periodDays ?? 7);
+      const attachments = [];
+      if (schedule.format === 'csv' || schedule.format === 'both') {
+        attachments.push({
+          filename: `relatorio-${schedule.periodDays}d.csv`,
+          contentType: 'text/csv',
+          content: Buffer.from(buildCampaignReportCsv(report), 'utf8'),
+        });
+      }
+      if (schedule.format === 'pdf' || schedule.format === 'both') {
+        attachments.push({
+          filename: `relatorio-${schedule.periodDays}d.pdf`,
+          contentType: 'application/pdf',
+          content: buildCampaignReportPdf(report),
+        });
+      }
+
+      const delivery = await deliverReportEmail({
+        recipients: schedule.recipients ?? [],
+        subject: `${schedule.name} · ${report.summary.periodLabel}`,
+        body: `Relatório operacional gerado em ${new Date(report.summary.generatedAt).toLocaleString('pt-BR')}.`,
+        format: schedule.format,
+        attachments,
       });
-    }
-    if (schedule.format === 'pdf' || schedule.format === 'both') {
-      attachments.push({
-        filename: `relatorio-${schedule.periodDays}d.pdf`,
-        contentType: 'application/pdf',
-        content: buildCampaignReportPdf(report),
+
+      await addReportDispatch({
+        scheduleId: schedule.id,
+        recipients: schedule.recipients ?? [],
+        format: schedule.format,
+        status: delivery.status,
+        errorMessage: delivery.status === 'failed' ? delivery.error : null,
+        metadata: {
+          transport: delivery.transport,
+          periodDays: schedule.periodDays,
+          totalSent: report.summary.totalSent,
+        },
       });
-    }
 
-    const delivery = await deliverReportEmail({
-      recipients: schedule.recipients ?? [],
-      subject: `${schedule.name} · ${report.summary.periodLabel}`,
-      body: `Relatório operacional gerado em ${new Date(report.summary.generatedAt).toLocaleString('pt-BR')}.`,
-      format: schedule.format,
-      attachments,
-    });
+      await updateReportSchedule(schedule.id, {
+        lastRunAt: new Date(),
+        lastStatus: delivery.status,
+        lastError: delivery.status === 'failed' ? delivery.error : null,
+        nextRunAt: nextRunDate(schedule.frequency),
+      });
 
-    await addReportDispatch({
-      scheduleId: schedule.id,
-      recipients: schedule.recipients ?? [],
-      format: schedule.format,
-      status: delivery.status,
-      errorMessage: delivery.status === 'failed' ? delivery.error : null,
-      metadata: {
+      results.push({
+        id: schedule.id,
+        status: delivery.status,
         transport: delivery.transport,
-        periodDays: schedule.periodDays,
-        totalSent: report.summary.totalSent,
-      },
-    });
+        error: delivery.status === 'failed' ? delivery.error : undefined,
+      });
+    }
 
-    await updateReportSchedule(schedule.id, {
-      lastRunAt: new Date(),
-      lastStatus: delivery.status,
-      lastError: delivery.status === 'failed' ? delivery.error : null,
-      nextRunAt: nextRunDate(schedule.frequency),
-    });
+    syslog({ level: 'info', category: 'cron', message: 'reports completed', details: { processed: results.length } });
+    return NextResponse.json({ processed: results.length, results });
+  });
 
-    results.push({
-      id: schedule.id,
-      status: delivery.status,
-      transport: delivery.transport,
-      error: delivery.status === 'failed' ? delivery.error : undefined,
+  if (!lockResult.locked) {
+    return NextResponse.json({
+      message: 'Execução anterior ainda em andamento',
+      skipped: true,
     });
   }
 
-  return NextResponse.json({ processed: results.length, results });
+  return lockResult.result;
 }

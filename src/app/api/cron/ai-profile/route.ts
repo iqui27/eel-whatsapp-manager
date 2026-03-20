@@ -4,6 +4,10 @@ import { profileVoter, getVotersNeedingProfiling } from '@/lib/ai-analysis';
 import { db } from '@/db';
 import { config } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { withCronLock } from '@/lib/cron-lock';
+import { syslog } from '@/lib/system-logger';
+
+export const maxDuration = 300;
 
 /**
  * POST /api/cron/ai-profile
@@ -31,60 +35,75 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  try {
-    // Get voters needing profiling (max 100 per run)
-    const voterIds = await getVotersNeedingProfiling(100);
+  const lockResult = await withCronLock('ai-profile', 360000, async () => {
+    syslog({ level: 'info', category: 'cron', message: 'ai-profile started' });
+    try {
+      // Get voters needing profiling (max 100 per run)
+      const voterIds = await getVotersNeedingProfiling(100);
 
-    if (voterIds.length === 0) {
-      return NextResponse.json({
-        message: 'No voters need profiling',
+      if (voterIds.length === 0) {
+        syslog({ level: 'info', category: 'cron', message: 'ai-profile completed (nenhum eleitor pendente)', details: { profiled: 0 } });
+        return NextResponse.json({
+          message: 'No voters need profiling',
+          profiled: 0,
+        });
+      }
+
+      const results = {
+        total: voterIds.length,
         profiled: 0,
-      });
-    }
+        failed: 0,
+        tiers: { hot: 0, warm: 0, cold: 0, dead: 0 },
+      };
 
-    const results = {
-      total: voterIds.length,
-      profiled: 0,
-      failed: 0,
-      tiers: { hot: 0, warm: 0, cold: 0, dead: 0 },
-    };
+      // Profile each voter
+      for (const voterId of voterIds) {
+        try {
+          const profile = await profileVoter(voterId);
+          
+          if (profile) {
+            results.profiled++;
+            results.tiers[profile.tier]++;
+          } else {
+            results.failed++;
+          }
 
-    // Profile each voter
-    for (const voterId of voterIds) {
-      try {
-        const profile = await profileVoter(voterId);
-        
-        if (profile) {
-          results.profiled++;
-          results.tiers[profile.tier]++;
-        } else {
+          // Rate limiting: 1 second delay between API calls
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.error('[cron/ai-profile] Error profiling voter', voterId, error);
           results.failed++;
         }
-
-        // Rate limiting: 1 second delay between API calls
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (error) {
-        console.error('[cron/ai-profile] Error profiling voter', voterId, error);
-        results.failed++;
       }
+
+      // Update last cron run
+      await updateLastCronRun();
+
+      console.log('[cron/ai-profile] Completed:', results);
+      syslog({ level: 'info', category: 'cron', message: 'ai-profile completed', details: { total: results.total, profiled: results.profiled, failed: results.failed } });
+
+      return NextResponse.json({
+        message: 'Batch profiling complete',
+        ...results,
+      });
+    } catch (error) {
+      console.error('[cron/ai-profile] Error:', error);
+      syslog({ level: 'error', category: 'cron', message: 'ai-profile failed', details: { error: error instanceof Error ? error.message : String(error) } });
+      return NextResponse.json(
+        { error: 'Batch profiling failed' },
+        { status: 500 }
+      );
     }
+  });
 
-    // Update last cron run
-    await updateLastCronRun();
-
-    console.log('[cron/ai-profile] Completed:', results);
-
+  if (!lockResult.locked) {
     return NextResponse.json({
-      message: 'Batch profiling complete',
-      ...results,
+      message: 'Execução anterior ainda em andamento',
+      skipped: true,
     });
-  } catch (error) {
-    console.error('[cron/ai-profile] Error:', error);
-    return NextResponse.json(
-      { error: 'Batch profiling failed' },
-      { status: 500 }
-    );
   }
+
+  return lockResult.result;
 }
 
 /**

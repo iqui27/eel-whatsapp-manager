@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resetDailyCounters, resetHourlyCounters } from '@/lib/db-chips';
 import { isLocalInternalRequest, readCronToken, resolveServerEnv } from '@/lib/server-env';
 import { withCronLock } from '@/lib/cron-lock';
+import { syslog } from '@/lib/system-logger';
 
 export const maxDuration = 30;
 
@@ -34,8 +35,10 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type') ?? 'daily';
 
   const lockResult = await withCronLock('reset-counters', 60000, async () => {
+    syslog({ level: 'info', category: 'cron', message: 'reset-counters started', details: { type } });
     if (type === 'hourly') {
       await resetHourlyCounters();
+      syslog({ level: 'info', category: 'cron', message: 'reset-counters completed', details: { reset: 'hourly' } });
       return NextResponse.json({
         timestamp: new Date().toISOString(),
         reset: 'hourly',
@@ -43,6 +46,7 @@ export async function GET(request: NextRequest) {
       });
     } else {
       await resetDailyCounters();
+      syslog({ level: 'info', category: 'cron', message: 'reset-counters completed', details: { reset: 'daily' } });
       return NextResponse.json({
         timestamp: new Date().toISOString(),
         reset: 'daily',

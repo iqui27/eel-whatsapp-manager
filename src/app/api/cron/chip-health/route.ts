@@ -4,6 +4,10 @@ import { loadChips, updateChipHealth } from '@/lib/db-chips';
 import { getConnectionState, restartInstance } from '@/lib/evolution';
 import { reassignMessagesFromChip } from '@/lib/db-message-queue';
 import { isLocalInternalRequest, readCronToken, resolveServerEnv } from '@/lib/server-env';
+import { withCronLock } from '@/lib/cron-lock';
+import { syslog } from '@/lib/system-logger';
+
+export const maxDuration = 60;
 
 const WEBHOOK_STALE_MS = 5 * 60 * 1000; // 5 minutes - increased from 2min for reliability
 const RESTART_WAIT_MS = 5000;
@@ -32,152 +36,165 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const config = await loadConfig();
-  if (!config) {
-    return NextResponse.json({ error: 'Sistema não configurado' }, { status: 400 });
-  }
+  const lockResult = await withCronLock('chip-health', 90000, async () => {
+    syslog({ level: 'info', category: 'cron', message: 'chip-health started' });
+    const config = await loadConfig();
+    if (!config) {
+      return NextResponse.json({ error: 'Sistema não configurado' }, { status: 400 });
+    }
 
-  const { evolutionApiUrl, evolutionApiKey } = config;
-  if (!evolutionApiUrl || !evolutionApiKey) {
-    return NextResponse.json({ error: 'Evolution API não configurada' }, { status: 400 });
-  }
+    const { evolutionApiUrl, evolutionApiKey } = config;
+    if (!evolutionApiUrl || !evolutionApiKey) {
+      return NextResponse.json({ error: 'Evolution API não configurada' }, { status: 400 });
+    }
 
-  const allChips = await loadChips();
-  const enabled = allChips.filter((c) => c.enabled && c.instanceName);
+    const allChips = await loadChips();
+    const enabled = allChips.filter((c) => c.enabled && c.instanceName);
 
-  let healthy = 0;
-  let degraded = 0;
-  let disconnected = 0;
-  let quarantined = 0;
-  let notFound = 0;
+    let healthy = 0;
+    let degraded = 0;
+    let disconnected = 0;
+    let quarantined = 0;
+    let notFound = 0;
 
-  const now = new Date();
+    const now = new Date();
 
-  for (const chip of enabled) {
-    const instanceName = chip.instanceName!;
+    for (const chip of enabled) {
+      const instanceName = chip.instanceName!;
 
-    try {
-      // eslint-disable-next-line prefer-const
-      let { status: connStatus, instanceExists } = await getConnectionState(
-        evolutionApiUrl, 
-        evolutionApiKey, 
-        instanceName
-      );
+      try {
+        // eslint-disable-next-line prefer-const
+        let { status: connStatus, instanceExists } = await getConnectionState(
+          evolutionApiUrl, 
+          evolutionApiKey, 
+          instanceName
+        );
 
-      // ─── Instance doesn't exist in Evolution API ────────────────────────────
-      if (!instanceExists) {
-        await updateChipHealth(chip.id, {
-          healthStatus: 'not_found',
-          lastHealthCheck: now,
-        });
-        notFound++;
-        console.warn(`[chip-health] Instance "${instanceName}" not found in Evolution API`);
-        continue;
-      }
-
-      // ─── Connection handling ─────────────────────────────────────────────
-      if (connStatus === 'connecting' || connStatus === 'disconnected') {
-        // Attempt restart unless already quarantined
-        if ((chip.errorCount ?? 0) < 3) {
-          const result = await restartInstance(evolutionApiUrl, evolutionApiKey, instanceName);
-          if (!result.success) {
-            console.log(`[chip-health] Restart not available for ${instanceName}: ${result.message}`);
-          }
-          await sleep(RESTART_WAIT_MS);
-          const recheck = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
-          connStatus = recheck.status;
-        }
-      }
-
-      // ─── Check cooldown expiry ───────────────────────────────────────────
-      if (
-        chip.healthStatus === 'cooldown' &&
-        chip.cooldownUntil &&
-        new Date(chip.cooldownUntil) <= now
-      ) {
-        // Cooldown expired — restore to healthy if connected
-        if (connStatus === 'connected') {
+        // ─── Instance doesn't exist in Evolution API ──────────────────────────
+        if (!instanceExists) {
           await updateChipHealth(chip.id, {
-            healthStatus: 'healthy',
-            errorCount: 0,
-            cooldownUntil: null,
+            healthStatus: 'not_found',
             lastHealthCheck: now,
           });
-          healthy++;
+          notFound++;
+          console.warn(`[chip-health] Instance "${instanceName}" not found in Evolution API`);
           continue;
         }
-      }
 
-      // ─── Determine new health status ─────────────────────────────────────
-      if (connStatus === 'connected') {
-        const isWebhookStale =
-          chip.lastWebhookEvent
-            ? now.getTime() - new Date(chip.lastWebhookEvent).getTime() > WEBHOOK_STALE_MS
-            : true; // No webhook event ever — treat as stale until first event
-
-        if (isWebhookStale) {
-          // Connected but webhook is stale → degraded
-          await updateChipHealth(chip.id, {
-            healthStatus: 'degraded',
-            lastHealthCheck: now,
-          });
-          degraded++;
-        } else {
-          // Fully healthy
-          await updateChipHealth(chip.id, {
-            healthStatus: 'healthy',
-            errorCount: 0,
-            lastHealthCheck: now,
-          });
-          healthy++;
+        // ─── Connection handling ───────────────────────────────────────────
+        if (connStatus === 'connecting' || connStatus === 'disconnected') {
+          // Attempt restart unless already quarantined
+          if ((chip.errorCount ?? 0) < 3) {
+            const result = await restartInstance(evolutionApiUrl, evolutionApiKey, instanceName);
+            if (!result.success) {
+              console.log(`[chip-health] Restart not available for ${instanceName}: ${result.message}`);
+            }
+            await sleep(RESTART_WAIT_MS);
+            const recheck = await getConnectionState(evolutionApiUrl, evolutionApiKey, instanceName);
+            connStatus = recheck.status;
+          }
         }
-      } else {
-        // Still disconnected after restart attempt
-        const newErrorCount = (chip.errorCount ?? 0) + 1;
-        const newStatus = newErrorCount >= 3 ? 'quarantined' : 'disconnected';
 
-        await updateChipHealth(chip.id, {
-          healthStatus: newStatus,
-          errorCount: newErrorCount,
-          lastHealthCheck: now,
-        });
+        // ─── Check cooldown expiry ─────────────────────────────────────────
+        if (
+          chip.healthStatus === 'cooldown' &&
+          chip.cooldownUntil &&
+          new Date(chip.cooldownUntil) <= now
+        ) {
+          // Cooldown expired — restore to healthy if connected
+          if (connStatus === 'connected') {
+            await updateChipHealth(chip.id, {
+              healthStatus: 'healthy',
+              errorCount: 0,
+              cooldownUntil: null,
+              lastHealthCheck: now,
+            });
+            healthy++;
+            continue;
+          }
+        }
 
-        if (newStatus === 'quarantined') {
-          quarantined++;
-          console.warn(`[chip-health] Chip ${instanceName} quarantined after ${newErrorCount} failed restarts`);
-          
-          // Reassign pending messages from this chip back to the queue
-          const reassigned = await reassignMessagesFromChip(chip.id);
-          if (reassigned > 0) {
-            console.log(`[chip-health] Reassigned ${reassigned} messages from ${instanceName} to queue`);
+        // ─── Determine new health status ───────────────────────────────────
+        if (connStatus === 'connected') {
+          const isWebhookStale =
+            chip.lastWebhookEvent
+              ? now.getTime() - new Date(chip.lastWebhookEvent).getTime() > WEBHOOK_STALE_MS
+              : true; // No webhook event ever — treat as stale until first event
+
+          if (isWebhookStale) {
+            // Connected but webhook is stale → degraded
+            await updateChipHealth(chip.id, {
+              healthStatus: 'degraded',
+              lastHealthCheck: now,
+            });
+            degraded++;
+          } else {
+            // Fully healthy
+            await updateChipHealth(chip.id, {
+              healthStatus: 'healthy',
+              errorCount: 0,
+              lastHealthCheck: now,
+            });
+            healthy++;
           }
         } else {
-          disconnected++;
+          // Still disconnected after restart attempt
+          const newErrorCount = (chip.errorCount ?? 0) + 1;
+          const newStatus = newErrorCount >= 3 ? 'quarantined' : 'disconnected';
+
+          await updateChipHealth(chip.id, {
+            healthStatus: newStatus,
+            errorCount: newErrorCount,
+            lastHealthCheck: now,
+          });
+
+          if (newStatus === 'quarantined') {
+            quarantined++;
+            console.warn(`[chip-health] Chip ${instanceName} quarantined after ${newErrorCount} failed restarts`);
+            
+            // Reassign pending messages from this chip back to the queue
+            const reassigned = await reassignMessagesFromChip(chip.id);
+            if (reassigned > 0) {
+              console.log(`[chip-health] Reassigned ${reassigned} messages from ${instanceName} to queue`);
+            }
+          } else {
+            disconnected++;
+          }
         }
+      } catch (err) {
+        console.error(`[chip-health] Error checking chip ${instanceName}:`, err);
+        // Mark as disconnected on unexpected errors
+        await updateChipHealth(chip.id, {
+          healthStatus: 'disconnected',
+          errorCount: (chip.errorCount ?? 0) + 1,
+          lastHealthCheck: now,
+        });
+        disconnected++;
       }
-    } catch (err) {
-      console.error(`[chip-health] Error checking chip ${instanceName}:`, err);
-      // Mark as disconnected on unexpected errors
-      await updateChipHealth(chip.id, {
-        healthStatus: 'disconnected',
-        errorCount: (chip.errorCount ?? 0) + 1,
-        lastHealthCheck: now,
-      });
-      disconnected++;
     }
+
+    const summary = {
+      timestamp: now.toISOString(),
+      checked: enabled.length,
+      healthy,
+      degraded,
+      disconnected,
+      quarantined,
+      notFound,
+      skipped: allChips.length - enabled.length,
+    };
+
+    syslog({ level: 'info', category: 'cron', message: 'chip-health completed', details: { checked: enabled.length, healthy, degraded, disconnected, quarantined, notFound } });
+    console.log('[chip-health] Check complete:', summary);
+    return NextResponse.json(summary);
+  });
+
+  if (!lockResult.locked) {
+    return NextResponse.json({
+      message: 'Execução anterior ainda em andamento',
+      skipped: true,
+    });
   }
 
-  const summary = {
-    timestamp: now.toISOString(),
-    checked: enabled.length,
-    healthy,
-    degraded,
-    disconnected,
-    quarantined,
-    notFound,
-    skipped: allChips.length - enabled.length,
-  };
-
-  console.log('[chip-health] Check complete:', summary);
-  return NextResponse.json(summary);
+  return lockResult.result;
 }

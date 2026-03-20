@@ -4,13 +4,13 @@
  * DESIGN GOALS:
  *  1. Never block the caller — fire-and-forget, zero await in hot paths
  *  2. Never exhaust the DB connection pool — writes are batched, not per-call
- *  3. Configurable verbosity — SYSLOG_MIN_LEVEL env var (default: 'warn' in prod)
+ *  3. Configurable verbosity — SYSLOG_MIN_LEVEL env var (default: 'info')
  *
  * HOW IT WORKS:
  *  - syslog() pushes to an in-memory buffer (sync, instant)
  *  - A 2-second timer flushes the buffer as a single batch INSERT
  *  - If the buffer reaches 500 entries, it flushes immediately
- *  - Debug/info entries are dropped in production unless SYSLOG_MIN_LEVEL=debug|info
+ *  - Debug entries are dropped unless SYSLOG_MIN_LEVEL=debug; info is now the default
  *
  * CONNECTION COST:
  *  - Before: N inserts × N connections per second
@@ -38,15 +38,16 @@ const LEVEL_ORDER: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, erro
 /**
  * Minimum level that gets written to the database.
  *
- * Default: 'warn' — only warnings and errors are persisted.
- * Set SYSLOG_MIN_LEVEL=info or =debug to capture more in staging/dev.
+ * Default: 'info' — info, warnings, and errors are persisted by default.
+ * Set SYSLOG_MIN_LEVEL=warn to reduce DB writes in high-throughput production.
+ * Set SYSLOG_MIN_LEVEL=debug to capture everything in staging/dev.
  *
  * This is the single most important performance lever: at 'warn', routine
  * webhook + Gemini 'info' logs are dropped before touching the DB pool.
  */
 const MIN_LEVEL: LogLevel = (() => {
   const env = process.env.SYSLOG_MIN_LEVEL as LogLevel | undefined;
-  return env && env in LEVEL_ORDER ? env : 'warn';
+  return env && env in LEVEL_ORDER ? env : 'info';
 })();
 
 function shouldLog(level: LogLevel): boolean {
@@ -75,8 +76,9 @@ async function flushBuffer(): Promise<void> {
   const batch = BUFFER.splice(0, BATCH_MAX_SIZE);
   try {
     await db.insert(systemLogs).values(batch);
-  } catch {
-    // Silently discard — logging must NEVER break the application
+  } catch (err) {
+    // Log to console but never throw — logging must NEVER break the application
+    console.error('[syslog] batch flush failed:', err instanceof Error ? err.message : err);
   }
 }
 
