@@ -25,9 +25,50 @@ const MAX_TRACKED_CONVERSATIONS = 200; // cap to prevent memory leaks on long-ru
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// ─── Connection Tracking ──────────────────────────────────────────────────────
+const MAX_CONNECTIONS_GLOBAL = 50;
+const MAX_CONNECTIONS_PER_USER = 3;
+const MAX_CONNECTION_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes — forces reconnect (client already handles this)
+
+interface ActiveConnection {
+  userId: string;
+  startedAt: number;
+}
+
+const activeConnections = new Map<string, ActiveConnection>(); // connectionId → info
+let connectionCounter = 0;
+
 export async function GET(request: NextRequest) {
   const auth = await requirePermission(request, 'conversations.view', 'Seu operador não pode acompanhar o stream de conversas');
   if (auth.response) return auth.response;
+
+  // ─── Connection limits ────────────────────────────────────────────────────
+  const userId = auth.actor?.userId ?? 'anonymous';
+  const connectionId = `${userId}-${++connectionCounter}`;
+
+  if (activeConnections.size >= MAX_CONNECTIONS_GLOBAL) {
+    return new Response(
+      JSON.stringify({ error: 'Limite global de conexões atingido', limit: MAX_CONNECTIONS_GLOBAL }),
+      { status: 429, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
+  const userConnectionCount = Array.from(activeConnections.values()).filter(
+    (conn) => conn.userId === userId,
+  ).length;
+  if (userConnectionCount >= MAX_CONNECTIONS_PER_USER) {
+    return new Response(
+      JSON.stringify({
+        error: 'Limite de conexões por usuário atingido',
+        limit: MAX_CONNECTIONS_PER_USER,
+        current: userConnectionCount,
+      }),
+      { status: 429, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
+  const connectionStartedAt = Date.now();
+  activeConnections.set(connectionId, { userId, startedAt: connectionStartedAt });
 
   const { searchParams } = new URL(request.url);
   const filters: ConversationStreamFilters = {
@@ -52,6 +93,7 @@ export async function GET(request: NextRequest) {
       const close = () => {
         if (closed) return;
         closed = true;
+        activeConnections.delete(connectionId);
         try {
           controller.close();
         } catch {
@@ -184,7 +226,23 @@ export async function GET(request: NextRequest) {
             cycleCount++;
             if (cycleCount % 12 === 0) voterCache.clear();
 
+            // Stale connection cleanup safety valve (every ~5 min)
+            if (cycleCount % 60 === 0) {
+              const cutoff = Date.now() - MAX_CONNECTION_LIFETIME_MS * 2;
+              for (const [id, conn] of activeConnections) {
+                if (conn.startedAt < cutoff) {
+                  activeConnections.delete(id);
+                }
+              }
+            }
+
             await waitForNextPoll(request.signal);
+
+            // Server-side max lifetime — forces reconnect to prevent stale connections
+            if (Date.now() - connectionStartedAt > MAX_CONNECTION_LIFETIME_MS) {
+              close();
+              break;
+            }
           }
         } catch (error) {
           if (!request.signal.aborted) {
