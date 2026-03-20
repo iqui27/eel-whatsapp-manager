@@ -202,29 +202,39 @@ export async function POST(request: NextRequest) {
 
     // ── Segment assignment ────────────────────────────────────────────────────
     let segmentName: string | undefined;
+    const insertedIds = inserted.map((v) => v.id);
 
-    if (inserted.length > 0) {
-      const insertedIds = inserted.map((v) => v.id);
-
-      if (enrichment.segmentMode === 'existing' && enrichment.segmentId) {
-        // Additive merge into existing segment
-        try {
-          const seg = await getSegment(enrichment.segmentId);
-          if (seg) {
-            const existingIds = await getSegmentVoterIds(seg.id);
-            const merged = Array.from(new Set([...existingIds, ...insertedIds]));
-            await setSegmentVoters(seg.id, merged);
-            await updateSegmentCount(seg.id);
-            segmentName = seg.name;
+    if (enrichment.segmentMode === 'existing' && enrichment.segmentId) {
+      // Additive merge: include ALL voters from the import (new + already-existing duplicates)
+      // by looking up IDs for every incoming phone in chunks.
+      try {
+        const seg = await getSegment(enrichment.segmentId);
+        if (seg) {
+          const allVoterIds = new Set<string>();
+          for (let i = 0; i < incomingPhones.length; i += PHONE_CHUNK) {
+            const chunk = incomingPhones.slice(i, i + PHONE_CHUNK);
+            const found = await db
+              .select({ id: voters.id })
+              .from(voters)
+              .where(inArray(voters.phone, chunk));
+            for (const r of found) allVoterIds.add(r.id);
           }
-        } catch (segErr) {
-          syslogError('crm', 'Import: falha ao adicionar ao segmento existente', {
-            segmentId: enrichment.segmentId,
-            error: segErr instanceof Error ? segErr.message : String(segErr),
-          });
+          const existingIds = await getSegmentVoterIds(seg.id);
+          const merged = Array.from(new Set([...existingIds, ...allVoterIds]));
+          await setSegmentVoters(seg.id, merged);
+          await updateSegmentCount(seg.id);
+          segmentName = seg.name;
         }
+      } catch (segErr) {
+        syslogError('crm', 'Import: falha ao adicionar ao segmento existente', {
+          segmentId: enrichment.segmentId,
+          error: segErr instanceof Error ? segErr.message : String(segErr),
+        });
+      }
+    }
 
-      } else if (enrichment.segmentMode === 'new' && enrichment.newSegmentName?.trim()) {
+    if (insertedIds.length > 0) {
+      if (enrichment.segmentMode === 'new' && enrichment.newSegmentName?.trim()) {
         // Create new segment + assign all inserted voters
         try {
           const name = enrichment.newSegmentName.trim();
