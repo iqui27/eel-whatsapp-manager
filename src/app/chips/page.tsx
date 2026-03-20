@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Flame, Trash2, Smartphone, Loader2, X, RefreshCw,
   RotateCcw, AlertTriangle, Wifi, WifiOff, Clock, ChevronDown, Layers,
-  Pencil, Check,
+  Pencil, Check, Shield, ChevronRight,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,6 +51,12 @@ interface Chip {
   blockRate: number | null;
   // Segment assignment (Phase 21)
   assignedSegments: string[] | null;
+  // Proxy config (Phase 35-05)
+  proxyHost: string | null;
+  proxyPort: number | null;
+  proxyProtocol: 'http' | 'https' | 'socks4' | 'socks5' | null;
+  proxyUsername: string | null;
+  proxyPassword: string | null;
 }
 
 // ─── Health status config ─────────────────────────────────────────────────────
@@ -180,6 +186,20 @@ function ProgressBar({ value, max, label }: { value: number; max: number; label:
   );
 }
 
+function ProxyBadge({ chip }: { chip: Chip }) {
+  if (!chip.proxyHost) return null;
+  const tooltip = `${chip.proxyProtocol ?? 'http'}://${chip.proxyHost}:${chip.proxyPort ?? 80}`;
+  return (
+    <span
+      title={tooltip}
+      className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 cursor-help"
+    >
+      <Shield className="h-2.5 w-2.5" />
+      Proxy
+    </span>
+  );
+}
+
 // ─── Filter types ─────────────────────────────────────────────────────────────
 
 type HealthFilter = 'all' | ChipHealthStatus;
@@ -215,11 +235,21 @@ export default function ChipsPage() {
     name: '', phone: '', instanceName: '', groupId: '',
     dailyLimit: '200', hourlyLimit: '25',
     assignedSegments: [] as string[],
+    proxyHost: '', proxyPort: '80', proxyProtocol: 'http' as 'http' | 'https' | 'socks4' | 'socks5',
+    proxyUsername: '', proxyPassword: '',
   });
+  const [showProxySection, setShowProxySection] = useState(false);
   // Segment editing state for existing chips
   const [editingSegmentsId, setEditingSegmentsId] = useState<string | null>(null);
   const [editingSegments, setEditingSegments] = useState<string[]>([]);
   const [savingSegments, setSavingSegments] = useState(false);
+  // Proxy editing state for existing chips
+  const [editingProxyId, setEditingProxyId] = useState<string | null>(null);
+  const [editingProxy, setEditingProxy] = useState({
+    proxyHost: '', proxyPort: '80', proxyProtocol: 'http' as 'http' | 'https' | 'socks4' | 'socks5',
+    proxyUsername: '', proxyPassword: '',
+  });
+  const [savingProxy, setSavingProxy] = useState(false);
 
   // ─── Data loading ──────────────────────────────────────────────────────────
 
@@ -306,12 +336,18 @@ export default function ChipsPage() {
           dailyLimit: parseInt(form.dailyLimit) || 200,
           hourlyLimit: parseInt(form.hourlyLimit) || 25,
           assignedSegments: form.assignedSegments.length > 0 ? form.assignedSegments : null,
+          proxyHost: form.proxyHost || null,
+          proxyPort: form.proxyHost ? (parseInt(form.proxyPort) || 80) : null,
+          proxyProtocol: form.proxyHost ? form.proxyProtocol : null,
+          proxyUsername: form.proxyHost ? (form.proxyUsername || null) : null,
+          proxyPassword: form.proxyHost ? (form.proxyPassword || null) : null,
         }),
       });
       if (res.ok) {
         toast.success('Chip adicionado');
-        setForm({ name: '', phone: '', instanceName: '', groupId: '', dailyLimit: '200', hourlyLimit: '25', assignedSegments: [] });
+        setForm({ name: '', phone: '', instanceName: '', groupId: '', dailyLimit: '200', hourlyLimit: '25', assignedSegments: [], proxyHost: '', proxyPort: '80', proxyProtocol: 'http', proxyUsername: '', proxyPassword: '' });
         setShowForm(false);
+        setShowProxySection(false);
         fetchChips(true);
       } else {
         const d = await res.json();
@@ -454,6 +490,49 @@ export default function ChipsPage() {
       toast.error('Erro ao salvar segmentos');
     } finally {
       setSavingSegments(false);
+    }
+  };
+
+  const handleOpenProxyEdit = (chip: Chip) => {
+    setEditingProxyId(chip.id);
+    setEditingProxy({
+      proxyHost: chip.proxyHost ?? '',
+      proxyPort: String(chip.proxyPort ?? 80),
+      proxyProtocol: chip.proxyProtocol ?? 'http',
+      proxyUsername: chip.proxyUsername ?? '',
+      proxyPassword: chip.proxyPassword ?? '',
+    });
+  };
+
+  const handleSaveProxy = async (chipId: string) => {
+    setSavingProxy(true);
+    try {
+      const hasProxy = editingProxy.proxyHost.trim().length > 0;
+      const res = await fetch('/api/chips', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: chipId,
+          updates: {
+            proxyHost: hasProxy ? editingProxy.proxyHost.trim() : null,
+            proxyPort: hasProxy ? (parseInt(editingProxy.proxyPort) || 80) : null,
+            proxyProtocol: hasProxy ? editingProxy.proxyProtocol : null,
+            proxyUsername: hasProxy ? (editingProxy.proxyUsername || null) : null,
+            proxyPassword: hasProxy ? (editingProxy.proxyPassword || null) : null,
+          },
+        }),
+      });
+      if (res.ok) {
+        toast.success(hasProxy ? 'Proxy configurado' : 'Proxy removido');
+        setEditingProxyId(null);
+        fetchChips(true);
+      } else {
+        toast.error('Erro ao salvar proxy');
+      }
+    } catch {
+      toast.error('Erro ao salvar proxy');
+    } finally {
+      setSavingProxy(false);
     }
   };
 
@@ -621,6 +700,89 @@ export default function ChipsPage() {
                   <p className="text-xs text-muted-foreground">
                     Selecione os segmentos que este chip irá atender
                   </p>
+                </div>
+
+                {/* Proxy section — collapsible */}
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowProxySection((v) => !v)}
+                    className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Shield className="h-3 w-3" />
+                    Proxy (opcional)
+                    <ChevronRight className={cn('h-3 w-3 transition-transform', showProxySection && 'rotate-90')} />
+                  </button>
+                  <AnimatePresence>
+                    {showProxySection && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-md border border-blue-200 bg-blue-50/40 p-3">
+                          <div className="space-y-1.5 sm:col-span-2">
+                            <label className="text-xs font-medium text-muted-foreground">Host / IP</label>
+                            <input
+                              type="text"
+                              placeholder="192.168.1.1 ou proxy.exemplo.com"
+                              value={form.proxyHost}
+                              onChange={(e) => setForm((f) => ({ ...f, proxyHost: e.target.value }))}
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Protocolo</label>
+                            <select
+                              value={form.proxyProtocol}
+                              onChange={(e) => setForm((f) => ({ ...f, proxyProtocol: e.target.value as typeof form.proxyProtocol }))}
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                            >
+                              <option value="http">HTTP</option>
+                              <option value="https">HTTPS</option>
+                              <option value="socks4">SOCKS4</option>
+                              <option value="socks5">SOCKS5</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Porta</label>
+                            <input
+                              type="number"
+                              placeholder="80"
+                              value={form.proxyPort}
+                              onChange={(e) => setForm((f) => ({ ...f, proxyPort: e.target.value }))}
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Usuário (opcional)</label>
+                            <input
+                              type="text"
+                              placeholder="usuario"
+                              value={form.proxyUsername}
+                              onChange={(e) => setForm((f) => ({ ...f, proxyUsername: e.target.value }))}
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-muted-foreground">Senha (opcional)</label>
+                            <input
+                              type="password"
+                              placeholder="••••••••"
+                              value={form.proxyPassword}
+                              onChange={(e) => setForm((f) => ({ ...f, proxyPassword: e.target.value }))}
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground sm:col-span-2">
+                            Deixe o host em branco para não usar proxy. O proxy é aplicado na criação da instância.
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
                 
                 <div className="flex justify-end gap-2">
@@ -908,6 +1070,119 @@ export default function ChipsPage() {
                       >
                         <Pencil className="h-2.5 w-2.5" />
                         Editar
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Proxy — display or edit mode */}
+                  {editingProxyId === chip.id ? (
+                    <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50/40 p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                          <Shield className="h-3 w-3" />
+                          Configurar proxy
+                        </span>
+                        <button
+                          onClick={() => setEditingProxyId(null)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1 col-span-2">
+                          <label className="text-[10px] font-medium text-muted-foreground">Host / IP</label>
+                          <input
+                            type="text"
+                            placeholder="192.168.1.1 ou proxy.exemplo.com"
+                            value={editingProxy.proxyHost}
+                            onChange={(e) => setEditingProxy((p) => ({ ...p, proxyHost: e.target.value }))}
+                            className="flex h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-medium text-muted-foreground">Protocolo</label>
+                          <select
+                            value={editingProxy.proxyProtocol}
+                            onChange={(e) => setEditingProxy((p) => ({ ...p, proxyProtocol: e.target.value as typeof editingProxy.proxyProtocol }))}
+                            className="flex h-8 w-full rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                          >
+                            <option value="http">HTTP</option>
+                            <option value="https">HTTPS</option>
+                            <option value="socks4">SOCKS4</option>
+                            <option value="socks5">SOCKS5</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-medium text-muted-foreground">Porta</label>
+                          <input
+                            type="number"
+                            placeholder="80"
+                            value={editingProxy.proxyPort}
+                            onChange={(e) => setEditingProxy((p) => ({ ...p, proxyPort: e.target.value }))}
+                            className="flex h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-medium text-muted-foreground">Usuário</label>
+                          <input
+                            type="text"
+                            placeholder="usuario"
+                            value={editingProxy.proxyUsername}
+                            onChange={(e) => setEditingProxy((p) => ({ ...p, proxyUsername: e.target.value }))}
+                            className="flex h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-medium text-muted-foreground">Senha</label>
+                          <input
+                            type="password"
+                            placeholder="••••••"
+                            value={editingProxy.proxyPassword}
+                            onChange={(e) => setEditingProxy((p) => ({ ...p, proxyPassword: e.target.value }))}
+                            className="flex h-8 w-full rounded-md border border-input bg-background px-2.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Deixe o host em branco para remover o proxy.
+                      </p>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          onClick={() => setEditingProxyId(null)}
+                          className="rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => void handleSaveProxy(chip.id)}
+                          disabled={savingProxy}
+                          className="flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                        >
+                          {savingProxy
+                            ? <Loader2 className="h-3 w-3 animate-spin" />
+                            : <Check className="h-3 w-3" />
+                          }
+                          Salvar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 flex-wrap group/proxy">
+                      <ProxyBadge chip={chip} />
+                      {!chip.proxyHost && (
+                        <span className="text-[10px] text-muted-foreground italic flex items-center gap-1">
+                          <Shield className="h-2.5 w-2.5" />
+                          Sem proxy
+                        </span>
+                      )}
+                      <button
+                        onClick={() => handleOpenProxyEdit(chip)}
+                        title="Configurar proxy"
+                        className="ml-auto opacity-0 group-hover/proxy:opacity-100 flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+                      >
+                        <Pencil className="h-2.5 w-2.5" />
+                        {chip.proxyHost ? 'Editar' : 'Adicionar'}
                       </button>
                     </div>
                   )}
