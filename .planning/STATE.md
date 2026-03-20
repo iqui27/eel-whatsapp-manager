@@ -6,8 +6,8 @@ current_phase: 36
 current_phase_name: dashboard-editorial-polish
 current_plan: 0
 status: planning_complete
-stopped_at: "Completed 38-02-PLAN.md — chip profile management UI (ChipProfileEditor + chips page integration)"
-last_updated: "2026-03-20T16:30:00.000Z"
+stopped_at: "Completed 39-02-PLAN.md — campaign WhatsApp preview refactor + date range"
+last_updated: "2026-03-20T17:00:00.000Z"
 last_activity: 2026-03-20
 progress:
   total_phases: 41
@@ -414,6 +414,9 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 38-chip-profile-management]: Evolution API profile endpoints use /chat/ namespace: fetchProfilePictureUrl (POST), updateProfileName (POST), updateProfilePicture (POST), fetchProfile (GET)
 - [Phase 38-chip-profile-management]: Profile sync in health cron rate-limited via chip.updatedAt — skips chips updated within last hour to avoid excessive API calls
 - [Phase 38-chip-profile-management]: updateProfile action added to existing PUT /api/chips handler — consistent with restart action pattern from Phase 14
+- [Phase 39-02-campaign-preview]: resolveCampaignTemplate called inline before passing text to shared WhatsAppPreview — shared component uses parseWhatsAppFormat, not campaign variable resolution
+- [Phase 39-02-campaign-preview]: Chip profile for preview resolved from sendConfig.selectedChipIds[0] falling back to first connected chip — consistent with campaign send chip selection logic
+- [Phase 39-02-campaign-preview]: startDate/endDate are nullable in campaigns table — one-shot campaigns remain valid without a date range
 - [Phase 38-chip-profile-management P02]: shadcn Avatar component not available — div-based ProfileAvatar helper with img+initials fallback used instead
 - [Phase 38-chip-profile-management P02]: ChipProfileEditor integrates inline within chip cards (consistent with segment/proxy inline edit pattern) rather than a separate dialog per card
 - [Phase 38-chip-profile-management P02]: Photo upload converts file to base64 via FileReader — sent directly to PUT /api/chips action=updateProfile
@@ -569,6 +572,7 @@ src/components/
 | Phase 36-dashboard-editorial-polish P01 | 2 min | 1 tasks | 1 files |
 | Phase 39-campanhas-whatsapp-foundation P01 | 15 | 2 tasks | 2 files |
 | Phase 38-chip-profile-management P01 | 3 | 2 tasks | 6 files |
+| Phase 39-campanhas-whatsapp-foundation P02 | 8 min | 2 tasks | 4 files |
 | Phase 38-chip-profile-management P02 | 3 min | 2 tasks | 2 files |
 | Phase 37-operacoes-layout-data P01 | 4 min | 2 tasks | 4 files |
 
