@@ -32,6 +32,7 @@ import {
   MessageSquare,
   Smartphone,
   FlaskConical,
+  Users,
 } from 'lucide-react';
 import {
   buildCampaignPreviewContext,
@@ -637,6 +638,39 @@ export default function NovaCampanhaPage() {
                     </div>
                     {endDate && startDate && endDate <= startDate && (
                       <p className="text-xs text-red-600">A data de fim deve ser posterior à data de início.</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Segment selector */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Users className="h-4 w-4 text-primary" />
+                      Segmento
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Select
+                      value={segmentId || 'none'}
+                      onValueChange={(v) => setSegmentId(v === 'none' ? '' : v)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Nenhum segmento selecionado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum segmento</SelectItem>
+                        {segments.map((seg) => (
+                          <SelectItem key={seg.id} value={seg.id}>
+                            {seg.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {segmentId && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {segments.find((s) => s.id === segmentId)?.segmentTag ?? 'Segmento selecionado'}
+                      </p>
                     )}
                   </CardContent>
                 </Card>
