@@ -252,12 +252,44 @@ export default function ChipsPage() {
     }
   }, [router]);
 
-  // Auto-refresh every 15 seconds
+  // Auto-refresh every 15 seconds — pauses when tab is backgrounded
   useEffect(() => {
     fetchChips();
     fetchSegments();
-    const interval = setInterval(() => fetchChips(true), 15000);
-    return () => clearInterval(interval);
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (intervalId) return;
+      intervalId = setInterval(() => {
+        if (document.hidden) return;
+        fetchChips(true);
+      }, 15000);
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        fetchChips(true); // immediate refresh when tab becomes visible
+        startPolling();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startPolling();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      stopPolling();
+    };
   }, [fetchChips, fetchSegments]);
 
   // ─── Actions ───────────────────────────────────────────────────────────────

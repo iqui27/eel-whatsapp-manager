@@ -18,8 +18,10 @@ import {
 import { getConversationDeltas, getMessageDeltas } from '@/lib/db-conversations';
 import { getVoter } from '@/lib/db-voters';
 
-const POLL_INTERVAL_MS = 1500;
+// Increased from 1.5s to 5s — reduces DB queries from ~40/min to ~12/min per SSE connection
+const POLL_INTERVAL_MS = 5000;
 const HEARTBEAT_INTERVAL_MS = 15000;
+const MAX_TRACKED_CONVERSATIONS = 200; // cap to prevent memory leaks on long-running connections
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
@@ -69,11 +71,24 @@ export async function GET(request: NextRequest) {
       request.signal.addEventListener('abort', abortHandler, { once: true });
 
       const run = async () => {
+        // Per-cycle voter lookup cache: avoids N+1 queries for voter scope checks
+        const voterCache = new Map<string, Awaited<ReturnType<typeof getVoter>>>();
+        let cycleCount = 0;
+
+        const getCachedVoter = async (id: string) => {
+          if (voterCache.has(id)) return voterCache.get(id)!;
+          const voter = await getVoter(id);
+          voterCache.set(id, voter);
+          return voter;
+        };
+
         try {
           if (filters.status) {
             const seededConversations = await getConversationDeltas(filters);
             for (const conversation of seededConversations) {
-              trackedConversationIds.add(conversation.id);
+              if (trackedConversationIds.size < MAX_TRACKED_CONVERSATIONS) {
+                trackedConversationIds.add(conversation.id);
+              }
             }
           }
 
@@ -92,7 +107,7 @@ export async function GET(request: NextRequest) {
 
             for (const conversation of conversationDeltas) {
               if (conversation.voterId && auth.actor?.regionScope) {
-                const voter = await getVoter(conversation.voterId);
+                const voter = await getCachedVoter(conversation.voterId);
                 if (voter && !isVoterInScope(auth.actor, voter)) {
                   continue;
                 }
@@ -104,7 +119,10 @@ export async function GET(request: NextRequest) {
               }
 
               if (matchesStatus) {
-                trackedConversationIds.add(conversation.id);
+                // Cap tracked conversations to prevent unbounded memory growth
+                if (trackedConversationIds.size < MAX_TRACKED_CONVERSATIONS) {
+                  trackedConversationIds.add(conversation.id);
+                }
               } else {
                 trackedConversationIds.delete(conversation.id);
               }
@@ -125,7 +143,7 @@ export async function GET(request: NextRequest) {
 
               for (const message of messageDeltas) {
                 if (filters.voterId) {
-                  const voter = await getVoter(filters.voterId);
+                  const voter = await getCachedVoter(filters.voterId);
                   if (voter && !isVoterInScope(auth.actor, voter)) {
                     continue;
                   }
@@ -161,6 +179,10 @@ export async function GET(request: NextRequest) {
               push(CONVERSATION_STREAM_EVENT.heartbeat, createHeartbeatPayload(cursor));
               heartbeatAt = now;
             }
+
+            // Refresh voter cache every ~60s (12 cycles at 5s) to avoid stale data
+            cycleCount++;
+            if (cycleCount % 12 === 0) voterCache.clear();
 
             await waitForNextPoll(request.signal);
           }

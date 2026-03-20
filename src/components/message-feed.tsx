@@ -62,6 +62,7 @@ export function MessageFeed({
     if (!autoRefresh || isPaused) return;
     const fetchMessages = async () => {
       try {
+        if (!autoRefresh || isPaused || document.hidden) return; // skip when tab is hidden
         const res = await fetch('/api/operations/messages');
         if (res.ok) {
           const data = await res.json();
@@ -69,8 +70,37 @@ export function MessageFeed({
         }
       } catch { /* silent — non-critical refresh */ }
     };
-    const interval = setInterval(fetchMessages, refreshInterval);
-    return () => clearInterval(interval);
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (intervalId) return;
+      intervalId = setInterval(() => void fetchMessages(), refreshInterval);
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        void fetchMessages(); // immediate refresh when tab becomes visible
+        startPolling();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startPolling();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      stopPolling();
+    };
   }, [autoRefresh, isPaused, refreshInterval]);
 
   if (loading) {

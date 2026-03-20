@@ -154,11 +154,43 @@ export default function MonitorPage() {
     };
   }, [campaign?.segmentId]);
 
-  // Auto-refresh while sending
+  // Auto-refresh while sending — pauses when tab is backgrounded
   useEffect(() => {
     if (!campaign || campaign.status !== 'sending') return;
-    const interval = setInterval(fetchCampaign, 3000);
-    return () => clearInterval(interval);
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (intervalId) return;
+      intervalId = setInterval(() => {
+        if (document.hidden) return;
+        fetchCampaign();
+      }, 3000);
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        fetchCampaign(); // immediate refresh when tab becomes visible
+        startPolling();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startPolling();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      stopPolling();
+    };
   }, [campaign, fetchCampaign]);
 
   const isSending = campaign?.status === 'sending';

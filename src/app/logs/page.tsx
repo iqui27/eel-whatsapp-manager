@@ -234,11 +234,24 @@ export default function LogsPage() {
   // ── Auto-refresh — stable interval, reads appliedRef directly ────────────────
   useEffect(() => {
     if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
-    if (autoRefresh) {
-      autoRefreshRef.current = setInterval(() => void doFetch(), 10_000);
-    }
+    if (!autoRefresh) return;
+
+    autoRefreshRef.current = setInterval(() => {
+      if (document.hidden) return; // skip when tab is hidden
+      void doFetch();
+    }, 10_000);
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden && autoRefresh) {
+        void doFetch(); // immediate refresh when tab becomes visible
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [autoRefresh, doFetch]); // doFetch is stable, so this only runs when autoRefresh toggles
 

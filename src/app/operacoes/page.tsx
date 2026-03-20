@@ -153,10 +153,41 @@ export default function OperacoesPage() {
     fetchOperations();
   }, [fetchOperations]);
 
-  // Auto-refresh every 10 seconds
+  // Auto-refresh every 10 seconds — pauses when tab is backgrounded
   useEffect(() => {
-    const interval = setInterval(() => fetchOperations(), 10000);
-    return () => clearInterval(interval);
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (intervalId) return;
+      intervalId = setInterval(() => {
+        if (document.hidden) return;
+        fetchOperations();
+      }, 10000);
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        fetchOperations(); // immediate refresh when tab becomes visible
+        startPolling();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startPolling();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      stopPolling();
+    };
   }, [fetchOperations]);
 
   // Handle chip restart

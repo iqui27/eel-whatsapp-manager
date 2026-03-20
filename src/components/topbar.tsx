@@ -70,7 +70,7 @@ export function Topbar({
     }
   }, [externalNotifications]);
 
-  // Fetch real alert count from operations
+  // Fetch real alert count from operations — pauses when tab is backgrounded
   useEffect(() => {
     const fetchAlerts = async () => {
       try {
@@ -81,9 +81,42 @@ export function Topbar({
         }
       } catch { /* silent — non-critical */ }
     };
+
     void fetchAlerts();
-    const interval = setInterval(() => void fetchAlerts(), 60_000);
-    return () => clearInterval(interval);
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (intervalId) return;
+      intervalId = setInterval(() => {
+        if (document.hidden) return;
+        void fetchAlerts();
+      }, 60_000);
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        void fetchAlerts(); // immediate refresh when tab becomes visible
+        startPolling();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startPolling();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      stopPolling();
+    };
   }, []);
 
   // Compute effective alert label and tone
