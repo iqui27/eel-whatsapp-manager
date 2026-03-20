@@ -43,6 +43,7 @@ import {
   type CandidateProfileContext,
   validateCampaignTemplates,
 } from '@/lib/campaign-variables';
+import { SendConfigPanel, DEFAULT_SEND_CONFIG, type SendConfigValue } from '@/components/SendConfigPanel';
 
 // ─── WhatsApp Preview ─────────────────────────────────────────────────────────
 
@@ -177,7 +178,9 @@ export default function NovaCampanhaPage() {
   const [splitPct, setSplitPct] = useState(50);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [connectedChips, setConnectedChips] = useState<Chip[]>([]);
+  const [allChips, setAllChips] = useState<Chip[]>([]);
   const [selectedChipId, setSelectedChipId] = useState('auto');
+  const [sendConfig, setSendConfig] = useState<SendConfigValue>(DEFAULT_SEND_CONFIG);
   const [prefilledSegmentName, setPrefilledSegmentName] = useState<string | null>(null);
   const [isBootstrappingSegment, setIsBootstrappingSegment] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -206,6 +209,7 @@ export default function NovaCampanhaPage() {
 
         if (!cancelled && chipsRes.ok) {
           const chips: Chip[] = await chipsRes.json();
+          setAllChips(chips);
           setConnectedChips(chips.filter((chip) => chip.status === 'connected'));
         }
 
@@ -340,6 +344,25 @@ export default function NovaCampanhaPage() {
           abVariantB: abEnabled ? variantB : null,
           abSplitPercent: abEnabled ? splitPct : 50,
           variables: templateValidation.supportedVariables,
+          // Send config
+          sendRate: sendConfig.sendRate,
+          batchSize: sendConfig.batchSize,
+          minDelayMs: sendConfig.minDelayMs,
+          maxDelayMs: sendConfig.maxDelayMs,
+          typingDelayMin: sendConfig.typingDelayMin,
+          typingDelayMax: sendConfig.typingDelayMax,
+          maxDailyPerChip: sendConfig.maxDailyPerChip,
+          maxHourlyPerChip: sendConfig.maxHourlyPerChip,
+          pauseOnChipDegraded: sendConfig.pauseOnChipDegraded,
+          selectedChipIds: sendConfig.selectedChipIds,
+          chipStrategy: sendConfig.chipStrategy,
+          restPauseEvery: sendConfig.restPauseEvery,
+          restPauseDurationMs: sendConfig.restPauseDurationMs,
+          longBreakEvery: sendConfig.longBreakEvery,
+          longBreakDurationMs: sendConfig.longBreakDurationMs,
+          circuitBreakerThreshold: sendConfig.circuitBreakerThreshold,
+          windowStart: sendConfig.windowStart,
+          windowEnd: sendConfig.windowEnd,
         }),
       });
       if (res.ok) {
@@ -607,6 +630,13 @@ export default function NovaCampanhaPage() {
                     </CardContent>
                   )}
                 </Card>
+
+                {/* Send Config Panel */}
+                <SendConfigPanel
+                  value={sendConfig}
+                  onChange={setSendConfig}
+                  allChips={allChips}
+                />
               </div>
 
               {/* Right — WhatsApp preview */}

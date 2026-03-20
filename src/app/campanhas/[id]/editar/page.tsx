@@ -42,6 +42,7 @@ import {
   type CandidateProfileContext,
   validateCampaignTemplates,
 } from '@/lib/campaign-variables';
+import { SendConfigPanel, DEFAULT_SEND_CONFIG, type SendConfigValue } from '@/components/SendConfigPanel';
 
 const EMPTY_CANDIDATE_PROFILE: CandidateProfileContext = {
   candidateDisplayName: '',
@@ -174,7 +175,9 @@ export default function EditarCampanhaPage() {
   const [campaignStatus, setCampaignStatus] = useState<Campaign['status']>('draft');
   const [segments, setSegments] = useState<Segment[]>([]);
   const [connectedChips, setConnectedChips] = useState<Chip[]>([]);
+  const [allChips, setAllChips] = useState<Chip[]>([]);
   const [selectedChipId, setSelectedChipId] = useState('auto');
+  const [sendConfig, setSendConfig] = useState<SendConfigValue>(DEFAULT_SEND_CONFIG);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -210,6 +213,7 @@ export default function EditarCampanhaPage() {
 
       if (chipsRes.ok) {
         const chips: Chip[] = await chipsRes.json();
+        setAllChips(chips);
         setConnectedChips(chips.filter((chip) => chip.status === 'connected'));
       }
 
@@ -249,6 +253,27 @@ export default function EditarCampanhaPage() {
       setSplitPct(campaign.abSplitPercent ?? 50);
       setCampaignStatus(campaign.status ?? 'draft');
       setSelectedChipId(campaign.chipId ?? 'auto');
+      // Restore send config from DB
+      setSendConfig({
+        sendRate: (campaign.sendRate as SendConfigValue['sendRate']) ?? DEFAULT_SEND_CONFIG.sendRate,
+        batchSize: campaign.batchSize ?? DEFAULT_SEND_CONFIG.batchSize,
+        minDelayMs: campaign.minDelayMs ?? DEFAULT_SEND_CONFIG.minDelayMs,
+        maxDelayMs: campaign.maxDelayMs ?? DEFAULT_SEND_CONFIG.maxDelayMs,
+        typingDelayMin: campaign.typingDelayMin ?? DEFAULT_SEND_CONFIG.typingDelayMin,
+        typingDelayMax: campaign.typingDelayMax ?? DEFAULT_SEND_CONFIG.typingDelayMax,
+        maxDailyPerChip: campaign.maxDailyPerChip ?? DEFAULT_SEND_CONFIG.maxDailyPerChip,
+        maxHourlyPerChip: campaign.maxHourlyPerChip ?? DEFAULT_SEND_CONFIG.maxHourlyPerChip,
+        pauseOnChipDegraded: campaign.pauseOnChipDegraded ?? DEFAULT_SEND_CONFIG.pauseOnChipDegraded,
+        selectedChipIds: campaign.selectedChipIds ?? DEFAULT_SEND_CONFIG.selectedChipIds,
+        chipStrategy: (campaign.chipStrategy as SendConfigValue['chipStrategy']) ?? DEFAULT_SEND_CONFIG.chipStrategy,
+        restPauseEvery: campaign.restPauseEvery ?? DEFAULT_SEND_CONFIG.restPauseEvery,
+        restPauseDurationMs: campaign.restPauseDurationMs ?? DEFAULT_SEND_CONFIG.restPauseDurationMs,
+        longBreakEvery: campaign.longBreakEvery ?? DEFAULT_SEND_CONFIG.longBreakEvery,
+        longBreakDurationMs: campaign.longBreakDurationMs ?? DEFAULT_SEND_CONFIG.longBreakDurationMs,
+        circuitBreakerThreshold: campaign.circuitBreakerThreshold ?? DEFAULT_SEND_CONFIG.circuitBreakerThreshold,
+        windowStart: campaign.windowStart ?? DEFAULT_SEND_CONFIG.windowStart,
+        windowEnd: campaign.windowEnd ?? DEFAULT_SEND_CONFIG.windowEnd,
+      });
     } catch {
       toast.error('Erro ao carregar campanha');
     } finally {
@@ -323,6 +348,25 @@ export default function EditarCampanhaPage() {
           abVariantB: abEnabled ? variantB : null,
           abSplitPercent: abEnabled ? splitPct : 50,
           variables: templateValidation.supportedVariables,
+          // Send config
+          sendRate: sendConfig.sendRate,
+          batchSize: sendConfig.batchSize,
+          minDelayMs: sendConfig.minDelayMs,
+          maxDelayMs: sendConfig.maxDelayMs,
+          typingDelayMin: sendConfig.typingDelayMin,
+          typingDelayMax: sendConfig.typingDelayMax,
+          maxDailyPerChip: sendConfig.maxDailyPerChip,
+          maxHourlyPerChip: sendConfig.maxHourlyPerChip,
+          pauseOnChipDegraded: sendConfig.pauseOnChipDegraded,
+          selectedChipIds: sendConfig.selectedChipIds,
+          chipStrategy: sendConfig.chipStrategy,
+          restPauseEvery: sendConfig.restPauseEvery,
+          restPauseDurationMs: sendConfig.restPauseDurationMs,
+          longBreakEvery: sendConfig.longBreakEvery,
+          longBreakDurationMs: sendConfig.longBreakDurationMs,
+          circuitBreakerThreshold: sendConfig.circuitBreakerThreshold,
+          windowStart: sendConfig.windowStart,
+          windowEnd: sendConfig.windowEnd,
         }),
       });
 
@@ -609,6 +653,14 @@ export default function EditarCampanhaPage() {
                     </CardContent>
                   )}
                 </Card>
+
+                {/* Send Config Panel */}
+                <SendConfigPanel
+                  value={sendConfig}
+                  onChange={setSendConfig}
+                  allChips={allChips}
+                  disabled={isLocked}
+                />
               </div>
 
               <div className="h-fit lg:sticky lg:top-6">

@@ -9,13 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
 import {
   ArrowLeft,
   Calendar,
-  Clock,
   Users,
-  Zap,
   Send,
   AlertTriangle,
   CalendarCheck,
@@ -29,26 +26,7 @@ import {
   type CandidateProfileContext,
   validateCampaignTemplates,
 } from '@/lib/campaign-variables';
-
-// ─── Time window options ───────────────────────────────────────────────────────
-
-type TimeWindow = 'morning' | 'afternoon' | 'evening';
-
-const TIME_WINDOWS: { id: TimeWindow; label: string; time: string; icon: string }[] = [
-  { id: 'morning',   label: 'Manhã',  time: '8h–12h',  icon: '🌅' },
-  { id: 'afternoon', label: 'Tarde',  time: '13h–18h', icon: '☀️' },
-  { id: 'evening',   label: 'Noite',  time: '19h–21h', icon: '🌙' },
-];
-
-// ─── Send rate options ─────────────────────────────────────────────────────────
-
-type SendRate = 'slow' | 'normal' | 'fast';
-
-const SEND_RATES: { id: SendRate; label: string; rate: string; warning?: boolean }[] = [
-  { id: 'slow',   label: 'Lento',   rate: '15 msg/min' },
-  { id: 'normal', label: 'Normal',  rate: '30 msg/min' },
-  { id: 'fast',   label: 'Rápido',  rate: '60 msg/min', warning: true },
-];
+import { SendConfigPanel, DEFAULT_SEND_CONFIG, type SendConfigValue } from '@/components/SendConfigPanel';
 
 const EMPTY_CANDIDATE_PROFILE: CandidateProfileContext = {
   candidateDisplayName: '',
@@ -65,16 +43,15 @@ export default function AgendarCampanhaPage() {
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [segment, setSegment] = useState<Segment | null>(null);
+  const [allChips, setAllChips] = useState<Chip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
 
   // Scheduling state
   const today = new Date().toISOString().split('T')[0];
   const [scheduleDate, setScheduleDate] = useState(today);
-  const [selectedWindows, setSelectedWindows] = useState<TimeWindow[]>(['morning']);
-  const [sendRate, setSendRate] = useState<SendRate>('normal');
   const [selectedChipId, setSelectedChipId] = useState('auto');
-  const [connectedChips, setConnectedChips] = useState<Chip[]>([]);
+  const [sendConfig, setSendConfig] = useState<SendConfigValue>(DEFAULT_SEND_CONFIG);
   const [candidateProfile, setCandidateProfile] = useState<CandidateProfileContext>(EMPTY_CANDIDATE_PROFILE);
 
   const loadCampaign = useCallback(async () => {
@@ -92,7 +69,7 @@ export default function AgendarCampanhaPage() {
 
       if (chipsRes.ok) {
         const chips: Chip[] = await chipsRes.json();
-        setConnectedChips(chips.filter((chip) => chip.status === 'connected'));
+        setAllChips(chips);
       }
 
       if (settingsRes.ok) {
@@ -111,6 +88,27 @@ export default function AgendarCampanhaPage() {
         if (c) {
           setCampaign(c);
           setSelectedChipId(c.chipId ?? 'auto');
+          // Restore send config from campaign DB values
+          setSendConfig({
+            sendRate: (c.sendRate as SendConfigValue['sendRate']) ?? DEFAULT_SEND_CONFIG.sendRate,
+            batchSize: c.batchSize ?? DEFAULT_SEND_CONFIG.batchSize,
+            minDelayMs: c.minDelayMs ?? DEFAULT_SEND_CONFIG.minDelayMs,
+            maxDelayMs: c.maxDelayMs ?? DEFAULT_SEND_CONFIG.maxDelayMs,
+            typingDelayMin: c.typingDelayMin ?? DEFAULT_SEND_CONFIG.typingDelayMin,
+            typingDelayMax: c.typingDelayMax ?? DEFAULT_SEND_CONFIG.typingDelayMax,
+            maxDailyPerChip: c.maxDailyPerChip ?? DEFAULT_SEND_CONFIG.maxDailyPerChip,
+            maxHourlyPerChip: c.maxHourlyPerChip ?? DEFAULT_SEND_CONFIG.maxHourlyPerChip,
+            pauseOnChipDegraded: c.pauseOnChipDegraded ?? DEFAULT_SEND_CONFIG.pauseOnChipDegraded,
+            selectedChipIds: c.selectedChipIds ?? DEFAULT_SEND_CONFIG.selectedChipIds,
+            chipStrategy: (c.chipStrategy as SendConfigValue['chipStrategy']) ?? DEFAULT_SEND_CONFIG.chipStrategy,
+            restPauseEvery: c.restPauseEvery ?? DEFAULT_SEND_CONFIG.restPauseEvery,
+            restPauseDurationMs: c.restPauseDurationMs ?? DEFAULT_SEND_CONFIG.restPauseDurationMs,
+            longBreakEvery: c.longBreakEvery ?? DEFAULT_SEND_CONFIG.longBreakEvery,
+            longBreakDurationMs: c.longBreakDurationMs ?? DEFAULT_SEND_CONFIG.longBreakDurationMs,
+            circuitBreakerThreshold: c.circuitBreakerThreshold ?? DEFAULT_SEND_CONFIG.circuitBreakerThreshold,
+            windowStart: c.windowStart ?? DEFAULT_SEND_CONFIG.windowStart,
+            windowEnd: c.windowEnd ?? DEFAULT_SEND_CONFIG.windowEnd,
+          });
           if (c.segmentId) {
             const sres = await fetch(`/api/segments?id=${c.segmentId}`);
             if (sres.ok) {
@@ -128,14 +126,6 @@ export default function AgendarCampanhaPage() {
   }, [params.id, router]);
 
   useEffect(() => { loadCampaign(); }, [loadCampaign]);
-
-  const toggleWindow = (w: TimeWindow) => {
-    setSelectedWindows(prev =>
-      prev.includes(w)
-        ? prev.length > 1 ? prev.filter(x => x !== w) : prev // keep at least 1
-        : [...prev, w]
-    );
-  };
 
   const scheduledAtPreview = scheduleDate
     ? new Date(`${scheduleDate}T08:00:00`)
@@ -171,7 +161,7 @@ export default function AgendarCampanhaPage() {
 
     setIsSending(true);
     try {
-      const scheduledAt = new Date(`${scheduleDate}T08:00:00`).toISOString();
+      const scheduledAt = new Date(`${scheduleDate}T${sendConfig.windowStart}:00`).toISOString();
       const patchRes = await fetch('/api/campaigns', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -181,6 +171,25 @@ export default function AgendarCampanhaPage() {
           chipId: selectedChipId !== 'auto' ? selectedChipId : null,
           status: 'scheduled',
           variables: templateValidation.supportedVariables,
+          // Persist send config
+          sendRate: sendConfig.sendRate,
+          batchSize: sendConfig.batchSize,
+          minDelayMs: sendConfig.minDelayMs,
+          maxDelayMs: sendConfig.maxDelayMs,
+          typingDelayMin: sendConfig.typingDelayMin,
+          typingDelayMax: sendConfig.typingDelayMax,
+          maxDailyPerChip: sendConfig.maxDailyPerChip,
+          maxHourlyPerChip: sendConfig.maxHourlyPerChip,
+          pauseOnChipDegraded: sendConfig.pauseOnChipDegraded,
+          selectedChipIds: sendConfig.selectedChipIds,
+          chipStrategy: sendConfig.chipStrategy,
+          restPauseEvery: sendConfig.restPauseEvery,
+          restPauseDurationMs: sendConfig.restPauseDurationMs,
+          longBreakEvery: sendConfig.longBreakEvery,
+          longBreakDurationMs: sendConfig.longBreakDurationMs,
+          circuitBreakerThreshold: sendConfig.circuitBreakerThreshold,
+          windowStart: sendConfig.windowStart,
+          windowEnd: sendConfig.windowEnd,
         }),
       });
 
@@ -219,6 +228,34 @@ export default function AgendarCampanhaPage() {
     setIsSending(true);
 
     try {
+      // Persist send config before sending
+      await fetch('/api/campaigns', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: campaign.id,
+          sendRate: sendConfig.sendRate,
+          batchSize: sendConfig.batchSize,
+          minDelayMs: sendConfig.minDelayMs,
+          maxDelayMs: sendConfig.maxDelayMs,
+          typingDelayMin: sendConfig.typingDelayMin,
+          typingDelayMax: sendConfig.typingDelayMax,
+          maxDailyPerChip: sendConfig.maxDailyPerChip,
+          maxHourlyPerChip: sendConfig.maxHourlyPerChip,
+          pauseOnChipDegraded: sendConfig.pauseOnChipDegraded,
+          selectedChipIds: sendConfig.selectedChipIds,
+          chipStrategy: sendConfig.chipStrategy,
+          restPauseEvery: sendConfig.restPauseEvery,
+          restPauseDurationMs: sendConfig.restPauseDurationMs,
+          longBreakEvery: sendConfig.longBreakEvery,
+          longBreakDurationMs: sendConfig.longBreakDurationMs,
+          circuitBreakerThreshold: sendConfig.circuitBreakerThreshold,
+          windowStart: sendConfig.windowStart,
+          windowEnd: sendConfig.windowEnd,
+          variables: templateValidation.supportedVariables,
+        }),
+      });
+
       const payload = selectedChipId && selectedChipId !== 'auto' ? { chipId: selectedChipId } : {};
       const res = await fetch(`/api/campaigns/${campaign.id}/send`, {
         method: 'POST',
@@ -316,17 +353,6 @@ export default function AgendarCampanhaPage() {
                 <span className="text-xs text-muted-foreground italic">Nenhum selecionado</span>
               </div>
             )}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Chip de envio</span>
-              <span className="text-xs text-muted-foreground">
-                {selectedChipId === 'auto'
-                  ? 'Auto (primeiro chip conectado)'
-                  : (() => {
-                    const chip = connectedChips.find((c) => c.id === selectedChipId);
-                    return chip ? `${chip.name} (${chip.phone})` : 'Chip selecionado';
-                  })()}
-              </span>
-            </div>
             {campaign.abEnabled && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Teste A/B</span>
@@ -393,91 +419,12 @@ export default function AgendarCampanhaPage() {
           </CardContent>
         </Card>
 
-        {/* Time windows */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Clock className="h-4 w-4 text-primary" />
-              Janela de Envio
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-3">
-              {TIME_WINDOWS.map(w => {
-                const selected = selectedWindows.includes(w.id);
-                return (
-                  <button
-                    key={w.id}
-                    type="button"
-                    onClick={() => toggleWindow(w.id)}
-                    className={cn(
-                      'flex flex-col items-center gap-1.5 rounded-xl border px-4 py-4 transition-all',
-                      selected
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-border bg-background text-muted-foreground hover:border-primary/40',
-                    )}
-                  >
-                    <span className="text-xl">{w.icon}</span>
-                    <span className="text-sm font-medium">{w.label}</span>
-                    <span className="text-xs opacity-70">{w.time}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              Selecione uma ou mais janelas. O envio será distribuído igualmente.
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Send rate */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Zap className="h-4 w-4 text-primary" />
-              Velocidade de Envio
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {SEND_RATES.map(r => (
-              <label
-                key={r.id}
-                className={cn(
-                  'flex items-center justify-between rounded-lg border px-4 py-3 cursor-pointer transition-colors',
-                  sendRate === r.id
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-primary/40',
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    name="send-rate"
-                    value={r.id}
-                    checked={sendRate === r.id}
-                    onChange={() => setSendRate(r.id)}
-                    className="accent-primary"
-                  />
-                  <div>
-                    <span className="text-sm font-medium text-foreground">{r.label}</span>
-                    {r.warning && (
-                      <Badge className="ml-2 text-[10px] bg-amber-500/10 text-amber-600 border-amber-200">
-                        risco de bloqueio
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <span className="text-xs text-muted-foreground font-mono">{r.rate}</span>
-              </label>
-            ))}
-            {sendRate === 'fast' && (
-              <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-200 p-3 text-xs text-amber-700 mt-2">
-                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>Velocidade alta pode aumentar o risco de bloqueio do número. Recomendado apenas para chips aquecidos com histórico limpo.</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Send config panel — replaces decorative time windows and send rate */}
+        <SendConfigPanel
+          value={sendConfig}
+          onChange={setSendConfig}
+          allChips={allChips}
+        />
 
         <Separator />
 
