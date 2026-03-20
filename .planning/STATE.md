@@ -1,35 +1,41 @@
 ---
 gsd_state_version: 1.0
-milestone: v5.0
-milestone_name: "Milestone 5 — Performance Optimization + Campaign Management"
-current_phase: 35
-current_phase_name: campaign-management
-current_plan: 6
-status: complete
-stopped_at: "Phase 35 complete (6/6 plans) — Milestone 5 complete"
+milestone: v6.0
+milestone_name: "Milestone 6 — Dashboard Polish + Campanhas Overhaul + Chip Profiles"
+current_phase: 36
+current_phase_name: dashboard-editorial-polish
+current_plan: 0
+status: planning_complete
+stopped_at: "Milestone 6 planning complete — 10 plans across 6 phases (36-41), ready for execution"
 last_updated: "2026-03-20T00:00:00.000Z"
 last_activity: 2026-03-20
 progress:
-  total_phases: 35
+  total_phases: 41
   completed_phases: 35
-  total_plans: 116
+  total_plans: 126
   completed_plans: 108
-  percent: 100
+  percent: 85
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 35
-**Current Phase Name:** campaign-management
-**Current Plan:** 6 (COMPLETE)
-**Total Phases:** 35
-**Total Plans in Phase:** 6
-**Status:** COMPLETE ✅
-**Progress:** [██████████] 100% (35/35 phases complete)
+**Current Phase:** 36
+**Current Phase Name:** dashboard-editorial-polish
+**Current Plan:** 0 (planning complete, not yet executing)
+**Total Phases:** 41
+**Total Plans in Milestone 6:** 10 (across 6 phases)
+**Status:** PLANNING COMPLETE — ready for execution
+**Progress:** [████████░░] 85% (35/41 phases complete)
 **Last Activity:** 2026-03-20
-**Last Activity Description:** Phase 35 (Campaign Management Overhaul) — all 6 plans complete: quick fixes, schema expansion, send config UI, queue intelligence, proxy management, anti-ban dashboard
-**Stopped At:** Completed 35-06-PLAN.md (anti-ban dashboard: chip warm-up stages, error rates, circuit breaker panel)
+**Last Activity Description:** Milestone 6 planning — 10 plan files created across 6 phases (36-41) covering Dashboard Polish, Operações Layout, Chip Profiles, WhatsApp Foundation, Editor Overhaul, Campaign Management
+**Stopped At:** Planning complete — all 10 PLAN.md files written, ROADMAP updated
+
+**Milestone 6 Execution Plan:**
+- Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
+- Wave 2: 38-02, 39-02, 40-01
+- Wave 3: 40-02, 41-01
+- Wave 4: 41-02
 
 **Phase 34 (Remaining Performance Hardening) — COMPLETE** ✅
 - Plan 34-01: Cron overlap protection (DB lock table + withCronLock) ✅ commits: 62e8ac8, 0d4d8bf
@@ -550,11 +556,14 @@ src/components/
 
 ## Next Actions
 
-**Milestone 5 Complete — All 35 Phases Executed**
+**Milestone 6 — Ready for Execution**
 
-The EEL Eleicao electoral campaign dashboard is feature-complete across all planned milestones.
+Execute Wave 1 (parallel — no dependencies):
+1. `/gsd-execute-phase 36` — Dashboard Editorial Polish (1 plan)
+2. `/gsd-execute-phase 37` — Operações Layout & Data (1 plan)
+3. `/gsd-execute-phase 38` — Chip Profile Management (2 plans)
+4. `/gsd-execute-phase 39` — Campanhas WhatsApp Foundation (plan 01 only in Wave 1)
 
-Optional next steps (if needed):
-1. Deploy to production and run UAT on the new anti-ban dashboard
-2. Set `SYSLOG_MIN_LEVEL=info` on server `.env` to see info-level logs
-3. Start new Milestone 6 planning if additional features are required
+Then Wave 2: 38-02, 39-02, 40-01
+Then Wave 3: 40-02, 41-01
+Then Wave 4: 41-02
