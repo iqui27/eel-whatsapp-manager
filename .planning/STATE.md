@@ -26,10 +26,10 @@ progress:
 **Total Phases:** 41
 **Total Plans in Milestone 6:** 10 (across 6 phases)
 **Status:** PLANNING COMPLETE — ready for execution
-**Progress:** [████████░░] 85% (35/41 phases complete)
+**Progress:** [██████████] 101%
 **Last Activity:** 2026-03-20
 **Last Activity Description:** Milestone 6 planning — 10 plan files created across 6 phases (36-41) covering Dashboard Polish, Operações Layout, Chip Profiles, WhatsApp Foundation, Editor Overhaul, Campaign Management
-**Stopped At:** Planning complete — all 10 PLAN.md files written, ROADMAP updated
+**Stopped At:** Completed 36-01-PLAN.md — Dashboard Editorial Polish
 
 **Milestone 6 Execution Plan:**
 - Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
@@ -406,6 +406,8 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 35-campaign-management]: Warm-up stages derived from chip.createdAt: 0-3d=Phase1(20/day), 4-7d=Phase2(50/day), 8-30d=Phase3(200/day), 31-90d=Phase4(350/day), 90+d=Phase5(500/day)
 - [Phase 35-campaign-management]: Circuit breaker status inferred from campaign.status==='paused' + circuitBreakerThreshold presence (no extra DB field needed)
 - [Phase 35-campaign-management]: buildChipStats uses single SQL aggregate GROUP BY chip_id to avoid N+1 per-chip queries
+- [Phase 36-dashboard-editorial-polish]: ChatQueuePanel relocated below Campanhas Ativas — right column reserved for CommandPanel only
+- [Phase 36-dashboard-editorial-polish]: KPI trend indicators use colored dot spans — no emoji, no Lucide icons (V2 editorial direction)
 
 ## Accumulated Context
 
@@ -553,6 +555,7 @@ src/components/
 | Phase 35-campaign-management P04 | 20 min | 2 tasks | 2 files |
 | Phase 35 P05 | 25 | 2 tasks | 3 files |
 | Phase 35 P06 | 15 min | 2 tasks | 2 files |
+| Phase 36-dashboard-editorial-polish P01 | 2 min | 1 tasks | 1 files |
 
 ## Next Actions
 

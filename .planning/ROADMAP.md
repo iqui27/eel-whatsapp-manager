@@ -24,7 +24,7 @@
 | 13 | Zero-Pendency Release Closure | P0 | 11, 12 | 5 plans |
 | 31 | Diagnostic Fixes | P0 | 30 | 5/5 complete ✅ |
 | 32 | System Logs & Observability | P1 | 31 | 3/3 complete ✅ |
-| 36 | Dashboard Editorial Polish | P1 | — | 1 plan |
+| 36 | 1/1 | Complete   | 2026-03-20 | 1 plan |
 | 37 | Operações Layout & Data | P1 | — | 1 plan |
 | 38 | Chip Profile Management | P1 | — | 2 plans |
 | 39 | Campanhas WhatsApp Foundation | P0 | 38 | 2 plans |
@@ -985,7 +985,7 @@ Wave 4:                                   41-02 ←┘
 - DASH-V2-04: Dashboard layout is cohesive with V2 Editorial Light design tokens (#F8F6F1 bg, warm borders)
 
 **Depends on:** —
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 36-01-PLAN.md — KPI card V2 styling, ChatQueuePanel relocation below campaigns, Ações Rápidas link audit
