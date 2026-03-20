@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/warming",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/log-cleanup",
+      "schedule": "0 3 * * *"
     }
   ]
 }
