@@ -820,7 +820,8 @@ Plans:
 
 | Phase | Name | Priority | Depends On | Plans |
 |-------|------|----------|------------|-------|
-| 33 | 4/4 | Complete   | 2026-03-20 | 4 plans (2 waves) |
+| 33 | Performance Optimization | P0 | 32 | 4/4 complete ✅ |
+| 34 | Remaining Performance Hardening | P0 | 33 | 4 plans (1 wave) |
 
 ---
 
@@ -858,6 +859,36 @@ Plans:
 |------|-------|----------|-------|
 | 1 | 33-01, 33-02, 33-03 | Yes | No file overlaps between plans |
 | 2 | 33-04 | — | Depends on 33-03 (SSE optimization context) |
+
+---
+
+### Phase 34: Remaining Performance Hardening
+**Status:** Planned
+**Goal:** Close the remaining performance gaps — add cron overlap protection + maxDuration to all 8 cron routes, cap SSE connections (3/user, 50 global) with server-side max lifetime, cache SidebarLayout fetches via SWR to stop redundant requests on navigation, and add a daily log retention cron.
+
+**Requirements:** [CRONPERF-01, CRONPERF-02, CRONPERF-03, CRONPERF-04, CRONPERF-05, CRONPERF-06]
+
+- CRONPERF-01: cron_locks DB table with atomic upsert-based locking (name, locked_at, expires_at)
+- CRONPERF-02: All 8 cron routes export maxDuration and wrap business logic in withCronLock to prevent concurrent execution
+- CRONPERF-03: SSE connections capped at 3 per user and 50 globally with 429 responses for excess
+- CRONPERF-04: SSE connections auto-close after 5 minutes server-side (client reconnects seamlessly)
+- CRONPERF-05: SidebarLayout uses SWR with dedupingInterval for /api/auth/session (60s) and /api/chips (30s) — no raw useEffect fetches
+- CRONPERF-06: Daily log-cleanup cron deletes system_logs older than 30 days, registered in vercel.json
+
+**Depends on:** Phase 33
+**Plans:** 4 plans
+
+Plans:
+- [ ] 34-01-PLAN.md — Cron overlap protection (DB lock table + withCronLock wrapper + maxDuration for all 8 crons)
+- [ ] 34-02-PLAN.md — SSE connection limits (per-user + global cap + server max lifetime)
+- [ ] 34-03-PLAN.md — SidebarLayout SWR caching (install SWR + replace raw fetches)
+- [ ] 34-04-PLAN.md — Log retention cron (daily cleanup + vercel.json registration)
+
+### Phase 34 Wave Structure
+
+| Wave | Plans | Parallel | Notes |
+|------|-------|----------|-------|
+| 1 | 34-01, 34-02, 34-03, 34-04 | Yes | No file overlaps between plans |
 
 ---
 
