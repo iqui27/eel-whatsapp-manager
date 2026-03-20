@@ -61,3 +61,19 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ logs: rows, total: rows.length });
 }
+
+export async function DELETE(request: NextRequest) {
+  const auth = await requirePermission(request, 'operations.view', 'Sem permissão para deletar logs');
+  if (auth.response) return auth.response;
+
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+
+  if (!id) {
+    return NextResponse.json({ error: 'id is required' }, { status: 400 });
+  }
+
+  await db.delete(systemLogs).where(eq(systemLogs.id, id));
+
+  return NextResponse.json({ ok: true });
+}
