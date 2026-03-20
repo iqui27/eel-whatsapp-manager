@@ -722,8 +722,8 @@ export default function EditarCampanhaPage() {
                 />
           </div>
 
-          {/* Right column: fixed preview, does not scroll */}
-          <div className="hidden lg:block w-[380px] shrink-0 self-start">
+          {/* Right column: fills container height, scrolls if preview is tall */}
+          <div className="hidden lg:block w-[380px] shrink-0 overflow-y-auto">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold">
