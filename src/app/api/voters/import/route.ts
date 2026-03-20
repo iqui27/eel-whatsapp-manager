@@ -15,6 +15,7 @@ import {
   generateTagFromName,
 } from '@/lib/db-segments';
 import { normalizePhone } from '@/lib/phone';
+import { syslogInfo, syslogWarn, syslogError } from '@/lib/system-logger';
 
 // ─── Name normalization ───────────────────────────────────────────────────────
 // Converts ALL CAPS or all lowercase names to Title Case
@@ -77,6 +78,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'rows array is required' }, { status: 400 });
     }
 
+    syslogInfo('crm', `Import iniciado: ${rows.length} linha(s) recebida(s)`, {
+      rowCount: rows.length,
+      segmentMode: enrichment.segmentMode,
+      segmentId: enrichment.segmentId,
+    });
+
     // ── Scope check ──────────────────────────────────────────────────────────
     const scopedRows = rows.filter((row) =>
       isVoterInScope(auth.actor, {
@@ -86,6 +93,10 @@ export async function POST(request: NextRequest) {
       }),
     );
     if (scopedRows.length !== rows.length) {
+      syslogWarn('crm', `Import bloqueado: ${rows.length - scopedRows.length} eleitor(es) fora do escopo`, {
+        totalRows: rows.length,
+        scopedRows: scopedRows.length,
+      });
       return NextResponse.json(
         { error: 'A importação contém eleitores fora do seu escopo regional' },
         { status: 403 },
@@ -167,7 +178,10 @@ export async function POST(request: NextRequest) {
             segmentName = seg.name;
           }
         } catch (segErr) {
-          console.error('[import] Failed to add to existing segment:', segErr);
+          syslogError('crm', 'Import: falha ao adicionar ao segmento existente', {
+            segmentId: enrichment.segmentId,
+            error: segErr instanceof Error ? segErr.message : String(segErr),
+          });
         }
 
       } else if (enrichment.segmentMode === 'new' && enrichment.newSegmentName?.trim()) {
@@ -190,10 +204,20 @@ export async function POST(request: NextRequest) {
           await updateSegmentCount(newSeg.id);
           segmentName = newSeg.name;
         } catch (segErr) {
-          console.error('[import] Failed to create segment:', segErr);
+          syslogError('crm', 'Import: falha ao criar novo segmento', {
+            segmentName: enrichment.newSegmentName,
+            error: segErr instanceof Error ? segErr.message : String(segErr),
+          });
         }
       }
     }
+
+    syslogInfo('crm', `Import concluído: ${inserted.length} inserido(s), ${duplicateCount} duplicado(s)`, {
+      inserted: inserted.length,
+      duplicates: duplicateCount,
+      total: scopedRows.length,
+      segmentName,
+    });
 
     return NextResponse.json(
       {
@@ -205,7 +229,11 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error('Import voters error:', error);
-    return NextResponse.json({ error: 'Erro ao importar eleitores' }, { status: 500 });
+    const errMsg = error instanceof Error ? error.message : String(error);
+    syslogError('crm', `Import falhou: ${errMsg}`, {
+      error: errMsg,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    return NextResponse.json({ error: `Erro ao importar eleitores: ${errMsg}` }, { status: 500 });
   }
 }
