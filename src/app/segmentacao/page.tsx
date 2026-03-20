@@ -708,8 +708,8 @@ export default function SegmentacaoPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-          <div className="space-y-5">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px] min-w-0">
+          <div className="space-y-5 min-w-0 overflow-x-hidden">
             <Card ref={filterBuilderRef}>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
