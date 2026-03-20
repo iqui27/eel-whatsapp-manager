@@ -4,17 +4,17 @@ milestone: v5.0
 milestone_name: "Milestone 5 — Performance Optimization + Campaign Management"
 current_phase: 35
 current_phase_name: campaign-management
-current_plan: 1
-status: executing
-stopped_at: "Phase 34 complete (4/4 plans) — ready to execute Phase 35"
+current_plan: 6
+status: complete
+stopped_at: "Phase 35 complete (6/6 plans) — Milestone 5 complete"
 last_updated: "2026-03-20T00:00:00.000Z"
 last_activity: 2026-03-20
 progress:
   total_phases: 35
-  completed_phases: 34
+  completed_phases: 35
   total_plans: 116
-  completed_plans: 102
-  percent: 88
+  completed_plans: 108
+  percent: 100
 ---
 
 # EEL Eleicao — Project State
@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 35
 **Current Phase Name:** campaign-management
-**Current Plan:** 6
+**Current Plan:** 6 (COMPLETE)
 **Total Phases:** 35
 **Total Plans in Phase:** 6
-**Status:** Ready to execute
-**Progress:** [████████░░] 88% (34/35 phases complete)
+**Status:** COMPLETE ✅
+**Progress:** [██████████] 100% (35/35 phases complete)
 **Last Activity:** 2026-03-20
-**Last Activity Description:** Phase 34 (Remaining Performance Hardening) — all 4 plans complete: cron locks, SSE limits, SWR caching, log retention
-**Stopped At:** Completed 35-05-PLAN.md (proxy management: chips UI + evolution API pass-through)
+**Last Activity Description:** Phase 35 (Campaign Management Overhaul) — all 6 plans complete: quick fixes, schema expansion, send config UI, queue intelligence, proxy management, anti-ban dashboard
+**Stopped At:** Completed 35-06-PLAN.md (anti-ban dashboard: chip warm-up stages, error rates, circuit breaker panel)
 
 **Phase 34 (Remaining Performance Hardening) — COMPLETE** ✅
 - Plan 34-01: Cron overlap protection (DB lock table + withCronLock) ✅ commits: 62e8ac8, 0d4d8bf
@@ -37,13 +37,13 @@ progress:
 - Plan 34-03: SidebarLayout SWR caching (session 60s, chips 30s) ✅ commit: 78669bf
 - Plan 34-04: Log retention cron (daily at 3 AM UTC, 30-day retention) ✅ commit: 2dc3e1e
 
-**Phase 35 (Campaign Management Overhaul) — PLANNED** 🔵
-- Plan 35-01: Quick fixes (double sidebar + logger default + cron instrumentation) [Wave 1]
-- Plan 35-02: Campaign DB schema expansion (send config + proxy fields, migration 0014) [Wave 1]
-- Plan 35-03: Campaign send config UI (speed presets, time windows, multi-chip selection) [Wave 2]
-- Plan 35-04: Send queue intelligence (per-campaign config, presence simulation, circuit breaker) [Wave 2]
-- Plan 35-05: Proxy management (chips page UI + Evolution API proxy pass-through) [Wave 3]
-- Plan 35-06: Anti-ban dashboard (per-chip warm-up, error rates, recommendations) [Wave 3]
+**Phase 35 (Campaign Management Overhaul) — COMPLETE** ✅
+- Plan 35-01: Quick fixes (double sidebar + logger default + cron instrumentation) [Wave 1] ✅
+- Plan 35-02: Campaign DB schema expansion (send config + proxy fields, migration 0014) [Wave 1] ✅
+- Plan 35-03: Campaign send config UI (speed presets, time windows, multi-chip selection) [Wave 2] ✅
+- Plan 35-04: Send queue intelligence (per-campaign config, presence simulation, circuit breaker) [Wave 2] ✅
+- Plan 35-05: Proxy management (chips page UI + Evolution API proxy pass-through) [Wave 3] ✅
+- Plan 35-06: Anti-ban dashboard (per-chip warm-up, error rates, circuit breaker panel) [Wave 3] ✅
 
 Progress: [██████████] 100%
 
@@ -258,6 +258,12 @@ Progress: [██████████] 100%
 
 Last session: 2026-03-19T00:00:00.000Z
 
+## 🎉 MILESTONE 5 COMPLETE — ALL 35 PHASES EXECUTED
+
+Progress: [██████████] 100%
+
+Last session: 2026-03-20T00:00:00.000Z
+
 **Phase 33 (Performance Optimization) — COMPLETE** ✅
 - Plan 33-01: CSS @keyframes page transitions, lazy-loaded recharts, motion-safe polyfill ✅
 - Plan 33-02: In-memory session cache (60s TTL, 500 max) ✅
@@ -391,6 +397,9 @@ Last session: 2026-03-19T00:00:00.000Z
 - [Phase 35-campaign-management]: selectBestChip accepts optional CampaignChipConstraints — backward compatible, no constraints = existing affinity scoring
 - [Phase 35]: alwaysOnline changed from true to false in createInstance() — anti-ban best practice per Evolution API docs
 - [Phase 35]: updateInstanceSettings gracefully handles 404 for older Evolution API versions — proxy takes effect on next restart
+- [Phase 35-campaign-management]: Warm-up stages derived from chip.createdAt: 0-3d=Phase1(20/day), 4-7d=Phase2(50/day), 8-30d=Phase3(200/day), 31-90d=Phase4(350/day), 90+d=Phase5(500/day)
+- [Phase 35-campaign-management]: Circuit breaker status inferred from campaign.status==='paused' + circuitBreakerThreshold presence (no extra DB field needed)
+- [Phase 35-campaign-management]: buildChipStats uses single SQL aggregate GROUP BY chip_id to avoid N+1 per-chip queries
 
 ## Accumulated Context
 
@@ -537,12 +546,15 @@ src/components/
 | Phase 35-campaign-management P03 | 25 min | 2 tasks | 4 files |
 | Phase 35-campaign-management P04 | 20 min | 2 tasks | 2 files |
 | Phase 35 P05 | 25 | 2 tasks | 3 files |
+| Phase 35 P06 | 15 min | 2 tasks | 2 files |
 
 ## Next Actions
 
-**Milestone 4 Complete — All 32 Phases Executed and Deployed**
+**Milestone 5 Complete — All 35 Phases Executed**
+
+The EEL Eleicao electoral campaign dashboard is feature-complete across all planned milestones.
 
 Optional next steps (if needed):
-1. Set `SYSLOG_MIN_LEVEL=info` on server `.env` to see info-level logs on `/logs` page (currently only warn/error visible)
-2. Add log retention cron: `DELETE FROM system_logs WHERE created_at < NOW() - INTERVAL '7 days'`
-3. Start new Milestone 5 planning if new features are required
+1. Deploy to production and run UAT on the new anti-ban dashboard
+2. Set `SYSLOG_MIN_LEVEL=info` on server `.env` to see info-level logs
+3. Start new Milestone 6 planning if additional features are required

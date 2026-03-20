@@ -894,7 +894,7 @@ Plans:
 ---
 
 ### Phase 35: Campaign Management Overhaul
-**Status:** Planned
+**Status:** COMPLETE ✅
 **Goal:** Fix critical campaign bugs (double sidebar, invisible logs), expand campaign DB schema for per-campaign send configuration, build send config UI, refactor send queue to read per-campaign config with anti-ban protections (presence simulation, rest pauses, circuit breaker), add proxy management per chip, and create an anti-ban monitoring dashboard within campaign detail.
 
 **Requirements:** [CMPFIX-01, CMPFIX-02, CMPFIX-03, CMPFIX-04, CMPFIX-05, CMPFIX-06, CMPFIX-07, CMPFIX-08, CMPFIX-09, CMPFIX-10, CMPFIX-11, CMPFIX-12, CMPFIX-13, CMPFIX-14, CMPFIX-15, CMPFIX-16, CMPFIX-17]
@@ -918,15 +918,15 @@ Plans:
 - CMPFIX-17: Campaign detail page shows circuit breaker status and smart recommendations
 
 **Depends on:** Phase 34
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete ✅
 
 Plans:
 - [x] 35-01-PLAN.md — Quick fixes: double sidebar bug + system logger default to 'info' + instrument all 8 crons
 - [x] 35-02-PLAN.md — Campaign DB schema expansion (send config fields + proxy fields on chips) + migration 0013
 - [x] 35-03-PLAN.md — Campaign send config UI (speed presets, real time windows, multi-chip selection)
 - [x] 35-04-PLAN.md — Send queue intelligence (per-campaign config, presence simulation, rest pauses, circuit breaker)
-- [ ] 35-05-PLAN.md — Proxy management (chips page UI + Evolution API proxy pass-through)
-- [ ] 35-06-PLAN.md — Anti-ban dashboard (per-chip warm-up status, error rates, circuit breaker, recommendations)
+- [x] 35-05-PLAN.md — Proxy management (chips page UI + Evolution API proxy pass-through)
+- [x] 35-06-PLAN.md — Anti-ban dashboard (per-chip warm-up status, error rates, circuit breaker, recommendations)
 
 ### Phase 35 Wave Structure
 
