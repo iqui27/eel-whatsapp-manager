@@ -267,9 +267,6 @@ export default function EditarCampanhaPage() {
 
   const handleMessageChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(event.target.value);
-    const element = event.target;
-    element.style.height = 'auto';
-    element.style.height = `${Math.max(160, element.scrollHeight)}px`;
   };
 
   const insertVariable = useCallback(
@@ -518,7 +515,7 @@ export default function EditarCampanhaPage() {
                         onChange={handleMessageChange}
                         placeholder="Olá {nome}! Aqui é a equipe do {candidato}. Gostaríamos de contar com o seu apoio em {bairro}..."
                         className={cn(
-                          'min-h-[160px] w-full resize-none border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground transition-colors placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-70',
+                          'min-h-[160px] max-h-[320px] overflow-y-auto w-full resize-none border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground transition-colors placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-70',
                           !isLocked ? 'rounded-t-none rounded-b-lg' : 'rounded-lg',
                         )}
                         disabled={isLocked}
