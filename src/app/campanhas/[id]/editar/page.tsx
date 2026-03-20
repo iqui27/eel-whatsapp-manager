@@ -43,6 +43,8 @@ import {
 } from '@/lib/campaign-variables';
 import { SendConfigPanel, DEFAULT_SEND_CONFIG, type SendConfigValue } from '@/components/SendConfigPanel';
 import { WhatsAppPreview } from '@/components/whatsapp-preview';
+import { WhatsAppFormatToolbar } from '@/components/whatsapp-format-toolbar';
+import { GeminiMessageAssistant } from '@/components/gemini-message-assistant';
 
 const EMPTY_CANDIDATE_PROFILE: CandidateProfileContext = {
   candidateDisplayName: '',
@@ -301,8 +303,22 @@ export default function EditarCampanhaPage() {
   const candidateVariableSelected = templateValidation.supportedVariables.includes('{candidato}');
 
   const handleSave = async () => {
-    if (!campaignName.trim()) {
+    const trimmedName = campaignName.trim();
+    if (!trimmedName) {
       toast.error('Dê um nome para a campanha');
+      return;
+    }
+    if (trimmedName.length < 3 || trimmedName.length > 100) {
+      toast.error('Nome deve ter entre 3 e 100 caracteres');
+      return;
+    }
+
+    if (!message.trim()) {
+      toast.error('Mensagem não pode estar vazia');
+      return;
+    }
+    if (message.length > 65536) {
+      toast.error('Mensagem excede o limite do WhatsApp (65.536 caracteres)');
       return;
     }
 
@@ -312,7 +328,7 @@ export default function EditarCampanhaPage() {
     }
 
     if (endDate && startDate && endDate <= startDate) {
-      toast.error('A data de fim deve ser posterior à data de início');
+      toast.error('Data de fim deve ser posterior à data de início');
       return;
     }
 
@@ -528,12 +544,22 @@ export default function EditarCampanhaPage() {
                     )}
 
                     <div className="space-y-1.5">
+                      {!isLocked && (
+                        <WhatsAppFormatToolbar
+                          textareaRef={textareaRef}
+                          onTextChange={setMessage}
+                          currentText={message}
+                        />
+                      )}
                       <textarea
                         ref={textareaRef}
                         value={message}
                         onChange={handleMessageChange}
                         placeholder="Olá {nome}! Aqui é a equipe do {candidato}. Gostaríamos de contar com o seu apoio em {bairro}..."
-                        className="min-h-[160px] w-full resize-none rounded-lg border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground transition-colors placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-70"
+                        className={cn(
+                          'min-h-[160px] w-full resize-none border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground transition-colors placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-70',
+                          !isLocked ? 'rounded-t-none rounded-b-lg' : 'rounded-lg',
+                        )}
                         disabled={isLocked}
                       />
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -550,6 +576,16 @@ export default function EditarCampanhaPage() {
                         </span>
                       </div>
                     </div>
+
+                    {/* AI Assistant — hidden for locked campaigns */}
+                    {!isLocked && (
+                      <GeminiMessageAssistant
+                        currentMessage={message}
+                        onInsertMessage={setMessage}
+                        candidateName={candidateProfile.candidateDisplayName ?? undefined}
+                        segmentDescription={segments.find((s) => s.id === segmentId)?.name}
+                      />
+                    )}
 
                     <Separator />
                     <QualityChecks message={message} />

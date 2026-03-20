@@ -44,6 +44,8 @@ import {
 } from '@/lib/campaign-variables';
 import { SendConfigPanel, DEFAULT_SEND_CONFIG, type SendConfigValue } from '@/components/SendConfigPanel';
 import { WhatsAppPreview } from '@/components/whatsapp-preview';
+import { WhatsAppFormatToolbar } from '@/components/whatsapp-format-toolbar';
+import { GeminiMessageAssistant } from '@/components/gemini-message-assistant';
 
 // ─── Candidate profile empty state ────────────────────────────────────────────
 
@@ -289,8 +291,22 @@ export default function NovaCampanhaPage() {
   const candidateVariableSelected = templateValidation.supportedVariables.includes('{candidato}');
 
   const saveDraft = async (): Promise<string | null> => {
-    if (!campaignName.trim()) {
+    const trimmedName = campaignName.trim();
+    if (!trimmedName) {
       toast.error('Dê um nome para a campanha');
+      return null;
+    }
+    if (trimmedName.length < 3 || trimmedName.length > 100) {
+      toast.error('Nome deve ter entre 3 e 100 caracteres');
+      return null;
+    }
+
+    if (!message.trim()) {
+      toast.error('Mensagem não pode estar vazia');
+      return null;
+    }
+    if (message.length > 65536) {
+      toast.error('Mensagem excede o limite do WhatsApp (65.536 caracteres)');
       return null;
     }
 
@@ -300,7 +316,7 @@ export default function NovaCampanhaPage() {
     }
 
     if (endDate && startDate && endDate <= startDate) {
-      toast.error('A data de fim deve ser posterior à data de início');
+      toast.error('Data de fim deve ser posterior à data de início');
       return null;
     }
 
@@ -497,14 +513,19 @@ export default function NovaCampanhaPage() {
                       </div>
                     )}
 
-                    {/* Textarea */}
+                    {/* Formatting toolbar + Textarea */}
                     <div className="space-y-1.5">
+                      <WhatsAppFormatToolbar
+                        textareaRef={textareaRef}
+                        onTextChange={setMessage}
+                        currentText={message}
+                      />
                       <textarea
                         ref={textareaRef}
                         value={message}
                         onChange={handleMessageChange}
                         placeholder="Olá {nome}! Aqui é a equipe do {candidato}. Gostaríamos de contar com o seu apoio em {bairro}..."
-                        className="w-full min-h-[160px] resize-none rounded-lg border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        className="w-full min-h-[160px] resize-none rounded-t-none rounded-b-lg border border-border bg-background px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
                       />
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span className="italic">
@@ -519,6 +540,14 @@ export default function NovaCampanhaPage() {
                         </span>
                       </div>
                     </div>
+
+                    {/* AI Assistant */}
+                    <GeminiMessageAssistant
+                      currentMessage={message}
+                      onInsertMessage={setMessage}
+                      candidateName={candidateProfile.candidateDisplayName ?? undefined}
+                      segmentDescription={segments.find(s => s.id === segmentId)?.name}
+                    />
 
                     {/* Quality indicators */}
                     <Separator />
