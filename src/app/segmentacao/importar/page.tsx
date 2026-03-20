@@ -960,9 +960,21 @@ export default function ImportarPage() {
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10 mx-auto">
                     <AlertTriangle className="h-8 w-8 text-red-600" />
                   </div>
-                  <div>
+                  <div className="w-full max-w-sm">
                     <h2 className="text-xl font-semibold text-red-600">Erro na importação</h2>
-                    <p className="text-sm text-muted-foreground mt-1">{importResult.error}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Não foi possível importar os dados. Verifique o arquivo e tente novamente.
+                    </p>
+                    {importResult.error && (
+                      <details className="mt-3 text-left">
+                        <summary className="text-xs text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors">
+                          Detalhes técnicos
+                        </summary>
+                        <p className="mt-1 text-xs text-red-700 bg-red-50 rounded p-2 break-words whitespace-pre-wrap font-mono leading-relaxed">
+                          {importResult.error}
+                        </p>
+                      </details>
+                    )}
                   </div>
                   <Button onClick={reset} variant="outline">
                     <RotateCcw className="mr-2 h-4 w-4" />

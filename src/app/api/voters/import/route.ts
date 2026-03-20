@@ -17,6 +17,28 @@ import {
 import { normalizePhone } from '@/lib/phone';
 import { syslogInfo, syslogWarn, syslogError } from '@/lib/system-logger';
 
+// ─── Error helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Extracts a concise, human-readable message from any error.
+ *
+ * Drizzle wraps raw DB errors as:
+ *   Error: Failed query: insert into "voters" (…very long SQL…)
+ * The actual PostgreSQL error lives in `error.cause`.
+ * We surface the cause when present; otherwise truncate to 200 chars.
+ */
+function extractErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return String(error).slice(0, 200);
+
+  // Drizzle "Failed query:" wrapper — the real error is in cause
+  if (error.message.startsWith('Failed query:') && error.cause instanceof Error) {
+    return error.cause.message.slice(0, 300);
+  }
+
+  // Generic long message — truncate
+  return error.message.slice(0, 300);
+}
+
 // ─── Name normalization ───────────────────────────────────────────────────────
 // Converts ALL CAPS or all lowercase names to Title Case
 // Handles Brazilian particles: de, da, do, das, dos, e
@@ -230,10 +252,11 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    syslogError('crm', `Import falhou: ${errMsg}`, {
+    const cleanMsg = extractErrorMessage(error);
+    syslogError('crm', `Import falhou: ${cleanMsg}`, {
       error: errMsg,
       stack: error instanceof Error ? error.stack : undefined,
     });
-    return NextResponse.json({ error: `Erro ao importar eleitores: ${errMsg}` }, { status: 500 });
+    return NextResponse.json({ error: cleanMsg }, { status: 500 });
   }
 }
