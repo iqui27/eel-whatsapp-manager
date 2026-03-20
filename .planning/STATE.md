@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 35
 **Current Phase Name:** campaign-management
-**Current Plan:** 1
+**Current Plan:** 2
 **Total Phases:** 35
 **Total Plans in Phase:** 6
-**Status:** Phase 34 complete — ready to execute Phase 35
+**Status:** Ready to execute
 **Progress:** [████████░░] 88% (34/35 phases complete)
 **Last Activity:** 2026-03-20
 **Last Activity Description:** Phase 34 (Remaining Performance Hardening) — all 4 plans complete: cron locks, SSE limits, SWR caching, log retention
-**Stopped At:** Phase 34 complete (4/4 plans) — ready to execute Phase 35
+**Stopped At:** Completed 35-01-PLAN.md (quick fixes: double sidebar + cron instrumentation)
 
 **Phase 34 (Remaining Performance Hardening) — COMPLETE** ✅
 - Plan 34-01: Cron overlap protection (DB lock table + withCronLock) ✅ commits: 62e8ac8, 0d4d8bf
@@ -379,6 +379,8 @@ Last session: 2026-03-19T00:00:00.000Z
 - [Phase 34-remaining-performance]: SSE connection limits: 3/user, 50 global, 5-minute max lifetime — prevents DB pool exhaustion from unbounded SSE connections
 - [Phase 34-remaining-performance]: SWR chosen over React Query for SidebarLayout — 4KB vs 13KB gzipped; no provider wrapper needed for simple dedup use case
 - [Phase 34-remaining-performance]: Log retention 30 days via daily cron (not trigger-based) — simple, predictable, schedulable in vercel.json
+- [Phase 35-campaign-management]: layout.tsx is now a passthrough — each campaign sub-page owns its own SidebarLayout wrapper
+- [Phase 35-campaign-management]: SYSLOG_MIN_LEVEL default changed from 'warn' to 'info' — cron activity visible in /logs without env override
 
 ## Accumulated Context
 
@@ -520,6 +522,7 @@ src/components/
 | Phase 34-remaining-performance P34-02 | 10 min | 1 task | 1 file |
 | Phase 34-remaining-performance P34-03 | 12 min | 2 tasks | 3 files |
 | Phase 34-remaining-performance P34-04 | 8 min | 2 tasks | 2 files |
+| Phase 35-campaign-management P01 | 7 min | 2 tasks | 12 files |
 
 ## Next Actions
 

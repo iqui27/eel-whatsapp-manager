@@ -822,7 +822,7 @@ Plans:
 |-------|------|----------|------------|-------|
 | 33 | Performance Optimization | P0 | 32 | 4/4 complete ✅ |
 | 34 | Remaining Performance Hardening | P0 | 33 | 4 plans (1 wave) |
-| 35 | Campaign Management Overhaul | P0 | 34 | 6 plans (3 waves) |
+| 35 | 1/6 | In Progress|  | 6 plans (3 waves) |
 
 ---
 
@@ -918,7 +918,7 @@ Plans:
 - CMPFIX-17: Campaign detail page shows circuit breaker status and smart recommendations
 
 **Depends on:** Phase 34
-**Plans:** 6 plans
+**Plans:** 1/6 plans executed
 
 Plans:
 - [ ] 35-01-PLAN.md — Quick fixes: double sidebar bug + system logger default to 'info' + instrument all 8 crons
