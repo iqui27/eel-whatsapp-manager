@@ -79,6 +79,7 @@ interface EnrichmentOptions {
   newSegmentName?: string;
   optInStatus?: 'pending' | 'active' | 'none';
   crmNotes?: string;
+  customFields?: { key: string; value: string }[];
 }
 
 interface ImportBody {
@@ -156,6 +157,16 @@ export async function POST(request: NextRequest) {
     });
     const duplicateCount = normalizedScopedRows.length - newRows.length;
 
+    // ── Merge custom fields into crmNotes ────────────────────────────────────
+    const customFieldsLine = (enrichment.customFields ?? [])
+      .filter(f => f.key?.trim() && f.value?.trim())
+      .map(f => `${f.key.trim()}: ${f.value.trim()}`)
+      .join(' | ');
+    const effectiveCrmNotes = [customFieldsLine, enrichment.crmNotes ?? '']
+      .filter(Boolean)
+      .join('\n')
+      .trim() || undefined;
+
     // ── Apply enrichment to each row ─────────────────────────────────────────
     const globalTags = enrichment.tags ?? [];
     const enrichedRows: NewVoter[] = newRows.map((row) => {
@@ -171,8 +182,8 @@ export async function POST(request: NextRequest) {
           ? enrichment.optInStatus
           : (row.optInStatus ?? 'pending');
 
-      // CRM notes — append enrichment note below row note
-      const notes = [row.crmNotes ?? '', enrichment.crmNotes ?? '']
+      // CRM notes — append enrichment note (including custom fields) below row note
+      const notes = [row.crmNotes ?? '', effectiveCrmNotes ?? '']
         .filter(Boolean)
         .join('\n')
         .trim() || null;

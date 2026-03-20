@@ -65,6 +65,7 @@ interface EnrichmentOptions {
   newSegmentName: string;                 // name for new segment
   optInStatus: 'pending' | 'active' | 'none'; // default opt-in
   crmNotes: string;                       // notes appended to every voter
+  customFields: { key: string; value: string }[]; // extra key-value labels
 }
 
 const DEFAULT_ENRICHMENT: EnrichmentOptions = {
@@ -74,6 +75,7 @@ const DEFAULT_ENRICHMENT: EnrichmentOptions = {
   newSegmentName: '',
   optInStatus: 'pending',
   crmNotes: '',
+  customFields: [],
 };
 
 interface ValidationResult {
@@ -298,6 +300,9 @@ export default function ImportarPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [cfKey, setCfKey] = useState('');
+  const [cfValue, setCfValue] = useState('');
+  const [isGeneratingNote, setIsGeneratingNote] = useState(false);
 
   // Load segments + existing tags when entering enrichment step
   useEffect(() => {
@@ -419,6 +424,47 @@ export default function ImportarPage() {
   };
 
   const requiredMapped = VOTER_FIELDS.filter(f => f.required).every(f => !!mapping[f.key]);
+  const addCustomField = () => {
+    const k = cfKey.trim();
+    const v = cfValue.trim();
+    if (!k || !v) return;
+    if (enrichment.customFields.some(f => f.key.toLowerCase() === k.toLowerCase())) return;
+    setEnrichment(en => ({ ...en, customFields: [...en.customFields, { key: k, value: v }] }));
+    setCfKey('');
+    setCfValue('');
+  };
+
+  const removeCustomField = (key: string) =>
+    setEnrichment(en => ({ ...en, customFields: en.customFields.filter(f => f.key !== key) }));
+
+  const generateNoteWithGemini = async () => {
+    setIsGeneratingNote(true);
+    try {
+      const prompt = `Crie uma nota CRM curta e objetiva (máximo 120 caracteres) descrevendo a origem desta importação de contatos.
+Informações:
+- Arquivo: ${file?.name ?? 'desconhecido'}
+- Total de registros: ${rawRows.length}
+- Colunas detectadas: ${headers.slice(0, 8).join(', ')}${headers.length > 8 ? ` e mais ${headers.length - 8}` : ''}
+- Data: ${new Date().toLocaleDateString('pt-BR')}
+
+Retorne apenas a nota, sem aspas, sem explicações.`;
+      const res = await fetch('/api/gemini/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'generate', prompt, maxLength: 120 }),
+      });
+      if (res.ok) {
+        const data = await res.json() as { result?: { message?: string } };
+        const note = data.result?.message?.trim();
+        if (note) setEnrichment(en => ({ ...en, crmNotes: note }));
+      }
+    } catch {
+      // silently ignore — user can type manually
+    } finally {
+      setIsGeneratingNote(false);
+    }
+  };
+
   const enrichmentValid =
     enrichment.segmentMode !== 'new' || enrichment.newSegmentName.trim().length >= 2;
   const requiredFields = VOTER_FIELDS.filter(f => f.required);
@@ -819,10 +865,27 @@ export default function ImportarPage() {
             {/* Notas CRM */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Nota CRM global</CardTitle>
-                <CardDescription>
-                  Texto adicionado ao campo de notas de todos os registros — útil para identificar a origem
-                </CardDescription>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-base">Nota CRM global</CardTitle>
+                    <CardDescription className="mt-1">
+                      Texto adicionado ao campo de notas de todos os registros — útil para identificar a origem
+                    </CardDescription>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 gap-1.5 text-xs"
+                    onClick={generateNoteWithGemini}
+                    disabled={isGeneratingNote}
+                  >
+                    {isGeneratingNote
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Sparkles className="h-3.5 w-3.5 text-violet-500" />}
+                    Gerar com IA
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <textarea
@@ -835,8 +898,66 @@ export default function ImportarPage() {
               </CardContent>
             </Card>
 
+            {/* Campos customizados */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Campos customizados</CardTitle>
+                <CardDescription>
+                  Rótulos chave-valor adicionados como metadados na nota de todos os registros — ex: Evento, Turma, Região
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {enrichment.customFields.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {enrichment.customFields.map(f => (
+                      <span
+                        key={f.key}
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-1 text-xs"
+                      >
+                        <span className="font-medium text-foreground">{f.key}:</span>
+                        <span className="text-muted-foreground">{f.value}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeCustomField(f.key)}
+                          className="ml-0.5 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    value={cfKey}
+                    onChange={e => setCfKey(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomField(); } }}
+                    placeholder="Chave (ex: Evento)"
+                    className="text-sm h-8 w-36 shrink-0"
+                  />
+                  <Input
+                    value={cfValue}
+                    onChange={e => setCfValue(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomField(); } }}
+                    placeholder="Valor (ex: Voluntariado)"
+                    className="text-sm h-8 flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addCustomField}
+                    disabled={!cfKey.trim() || !cfValue.trim()}
+                    className="h-8 px-2"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Resumo */}
-            {(enrichment.tags.length > 0 || enrichment.segmentMode !== 'none' || enrichment.crmNotes) && (
+            {(enrichment.tags.length > 0 || enrichment.segmentMode !== 'none' || enrichment.crmNotes || enrichment.customFields.length > 0) && (
               <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
                 <p className="text-xs font-semibold text-foreground">Resumo do enriquecimento:</p>
                 <div className="space-y-1 text-xs text-muted-foreground">
@@ -856,6 +977,9 @@ export default function ImportarPage() {
                   )}
                   {enrichment.crmNotes && (
                     <p>• Nota CRM: <span className="text-foreground font-medium truncate">{enrichment.crmNotes.slice(0, 60)}{enrichment.crmNotes.length > 60 ? '…' : ''}</span></p>
+                  )}
+                  {enrichment.customFields.length > 0 && (
+                    <p>• Campos: <span className="text-foreground font-medium">{enrichment.customFields.map(f => `${f.key}: ${f.value}`).join(' | ')}</span></p>
                   )}
                 </div>
               </div>
