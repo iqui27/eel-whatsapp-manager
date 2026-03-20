@@ -29,7 +29,7 @@
 | 38 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 39 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 40 | 2/2 | Complete    | 2026-03-20 | 2 plans |
-| 41 | 2/2 | Complete   | 2026-03-20 | 2 plans |
+| 41 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 
 ---
 
