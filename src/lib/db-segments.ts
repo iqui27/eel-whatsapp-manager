@@ -129,13 +129,14 @@ export async function setSegmentVoters(
   segmentId: string,
   voterIds: string[],
 ): Promise<void> {
+  // segment_voters has 2 columns → max safe params = 65534/2 = 32767, use 5000
+  const CHUNK = 5_000;
   await db.transaction(async (tx) => {
-    // Remove all existing associations for this segment
     await tx.delete(segmentVoters).where(eq(segmentVoters.segmentId, segmentId));
-    // Insert new ones
-    if (voterIds.length > 0) {
+    for (let i = 0; i < voterIds.length; i += CHUNK) {
+      const chunk = voterIds.slice(i, i + CHUNK);
       await tx.insert(segmentVoters).values(
-        voterIds.map((voterId) => ({ segmentId, voterId })),
+        chunk.map((voterId) => ({ segmentId, voterId })),
       );
     }
   });

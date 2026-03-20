@@ -135,11 +135,17 @@ export async function POST(request: NextRequest) {
     }));
 
     const incomingPhones = normalizedScopedRows.map((r) => r.phone).filter(Boolean);
-    const existingRecords = await db
-      .select({ phone: voters.phone })
-      .from(voters)
-      .where(inArray(voters.phone, incomingPhones));
-    const existingPhones = new Set(existingRecords.map((e) => e.phone));
+    // inArray with huge arrays causes stack overflow — chunk into batches of 5000
+    const PHONE_CHUNK = 5_000;
+    const existingPhones = new Set<string>();
+    for (let i = 0; i < incomingPhones.length; i += PHONE_CHUNK) {
+      const chunk = incomingPhones.slice(i, i + PHONE_CHUNK);
+      const rows = await db
+        .select({ phone: voters.phone })
+        .from(voters)
+        .where(inArray(voters.phone, chunk));
+      for (const r of rows) existingPhones.add(r.phone);
+    }
 
     // Also deduplicate within the batch itself (same phone appearing multiple times)
     const seenInBatch = new Set<string>();
