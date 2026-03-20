@@ -4,17 +4,17 @@ milestone: v5.0
 milestone_name: "Milestone 5 — Performance Optimization + Campaign Management"
 current_phase: 35
 current_phase_name: campaign-management
-current_plan: 0
-status: planning_complete
-stopped_at: "Phase 35 planned — 6 plans in 3 waves ready for execution (Phase 34 also ready)"
+current_plan: 1
+status: executing
+stopped_at: "Phase 34 complete (4/4 plans) — ready to execute Phase 35"
 last_updated: "2026-03-20T00:00:00.000Z"
 last_activity: 2026-03-20
 progress:
   total_phases: 35
-  completed_phases: 33
-  total_plans: 112
-  completed_plans: 98
-  percent: 87
+  completed_phases: 34
+  total_plans: 116
+  completed_plans: 102
+  percent: 88
 ---
 
 # EEL Eleicao — Project State
@@ -22,24 +22,24 @@ progress:
 ## Current Execution
 **Current Phase:** 35
 **Current Phase Name:** campaign-management
-**Current Plan:** 0
+**Current Plan:** 1
 **Total Phases:** 35
 **Total Plans in Phase:** 6
-**Status:** Ready to execute (Phase 34 also ready — 4 plans)
-**Progress:** [████████░░] 87% (33/35 phases complete)
+**Status:** Phase 34 complete — ready to execute Phase 35
+**Progress:** [████████░░] 88% (34/35 phases complete)
 **Last Activity:** 2026-03-20
-**Last Activity Description:** Phase 35 planned — 6 plans for campaign management overhaul (double sidebar fix, send config, anti-ban protections, proxy management)
-**Stopped At:** Phase 35 planned — execute Phase 34 first, then Phase 35
+**Last Activity Description:** Phase 34 (Remaining Performance Hardening) — all 4 plans complete: cron locks, SSE limits, SWR caching, log retention
+**Stopped At:** Phase 34 complete (4/4 plans) — ready to execute Phase 35
 
-**Phase 34 (Remaining Performance Hardening) — PLANNED** 🔵
-- Plan 34-01: Cron overlap protection (DB lock table + withCronLock)
-- Plan 34-02: SSE connection limits (3/user, 50 global, 5min max)
-- Plan 34-03: SidebarLayout SWR caching
-- Plan 34-04: Log retention cron (daily, 30-day retention)
+**Phase 34 (Remaining Performance Hardening) — COMPLETE** ✅
+- Plan 34-01: Cron overlap protection (DB lock table + withCronLock) ✅ commits: 62e8ac8, 0d4d8bf
+- Plan 34-02: SSE connection limits (3/user, 50 global, 5min max) ✅ commit: f2dea8c
+- Plan 34-03: SidebarLayout SWR caching (session 60s, chips 30s) ✅ commit: 78669bf
+- Plan 34-04: Log retention cron (daily at 3 AM UTC, 30-day retention) ✅ commit: 2dc3e1e
 
 **Phase 35 (Campaign Management Overhaul) — PLANNED** 🔵
 - Plan 35-01: Quick fixes (double sidebar + logger default + cron instrumentation) [Wave 1]
-- Plan 35-02: Campaign DB schema expansion (send config + proxy fields, migration 0013) [Wave 1]
+- Plan 35-02: Campaign DB schema expansion (send config + proxy fields, migration 0014) [Wave 1]
 - Plan 35-03: Campaign send config UI (speed presets, time windows, multi-chip selection) [Wave 2]
 - Plan 35-04: Send queue intelligence (per-campaign config, presence simulation, circuit breaker) [Wave 2]
 - Plan 35-05: Proxy management (chips page UI + Evolution API proxy pass-through) [Wave 3]
@@ -47,7 +47,7 @@ progress:
 
 Progress: [██████████] 100%
 
-Last session: 2026-03-19T00:00:00.000Z
+Last session: 2026-03-20T00:00:00.000Z
 
 ## Current Position
 **Phase 01 (V2 Shell) — COMPLETE** ✅
@@ -258,6 +258,18 @@ Progress: [██████████] 100%
 
 Last session: 2026-03-19T00:00:00.000Z
 
+**Phase 33 (Performance Optimization) — COMPLETE** ✅
+- Plan 33-01: CSS @keyframes page transitions, lazy-loaded recharts, motion-safe polyfill ✅
+- Plan 33-02: In-memory session cache (60s TTL, 500 max) ✅
+- Plan 33-03: Visibility guards on all 6 polling intervals + SSE optimization (5s poll, voter cache) ✅
+- Plan 33-04: DB indexes (voters, message_queue, conversion_events), SQL-level voter pagination ✅
+
+**Phase 34 (Remaining Performance Hardening) — COMPLETE** ✅
+- Plan 34-01: Cron overlap protection — cron_locks DB table + withCronLock helper + all 8 routes wrapped ✅
+- Plan 34-02: SSE connection limits (3/user, 50 global, 5min max lifetime) ✅
+- Plan 34-03: SidebarLayout SWR caching (session 60s, chips 30s) ✅
+- Plan 34-04: Log retention cron (daily at 3 AM UTC, 30-day retention) ✅
+
 ## Decisions Made
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
 - [x] Database: Supabase PostgreSQL (already in use)
@@ -362,6 +374,11 @@ Last session: 2026-03-19T00:00:00.000Z
 - [Phase 33-performance-optimization]: All 6 polling intervals use visibilitychange guard — zero API calls from backgrounded tabs
 - [Phase 33-performance-optimization]: SSE poll interval 1.5s -> 5s with voter cache — DB queries reduced ~70% per connection
 - [Phase 33-performance-optimization]: filterVotersPaginated() added alongside filterVoters() — non-breaking, compliance callers unaffected
+- [Phase 34-remaining-performance]: DB-based cron lock (cron_locks table, INSERT...ON CONFLICT DO NOTHING) chosen over Redis — no extra infra, postgres already available
+- [Phase 34-remaining-performance]: Cron lock TTL = 1.5x maxDuration (e.g. 60s max → 90000ms TTL) as safety margin for crashed/hung jobs
+- [Phase 34-remaining-performance]: SSE connection limits: 3/user, 50 global, 5-minute max lifetime — prevents DB pool exhaustion from unbounded SSE connections
+- [Phase 34-remaining-performance]: SWR chosen over React Query for SidebarLayout — 4KB vs 13KB gzipped; no provider wrapper needed for simple dedup use case
+- [Phase 34-remaining-performance]: Log retention 30 days via daily cron (not trigger-based) — simple, predictable, schedulable in vercel.json
 
 ## Accumulated Context
 
@@ -499,6 +516,10 @@ src/components/
 | Phase 33-performance-optimization P33-02 | 3 min | 1 tasks | 1 files |
 | Phase 33-performance-optimization P33-03 | 7 min | 2 tasks | 7 files |
 | Phase 33-performance-optimization P33-04 | 5 min | 2 tasks | 6 files |
+| Phase 34-remaining-performance P34-01 | 15 min | 2 tasks | 10 files |
+| Phase 34-remaining-performance P34-02 | 10 min | 1 task | 1 file |
+| Phase 34-remaining-performance P34-03 | 12 min | 2 tasks | 3 files |
+| Phase 34-remaining-performance P34-04 | 8 min | 2 tasks | 2 files |
 
 ## Next Actions
 
