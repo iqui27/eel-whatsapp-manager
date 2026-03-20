@@ -29,7 +29,7 @@ progress:
 **Progress:** [██████████] 104%
 **Last Activity:** 2026-03-20
 **Last Activity Description:** Phase 40 complete, transitioned to Phase 41
-**Stopped At:** Completed 40-02-PLAN.md — campaign editor formatting toolbar + AI assistant integration
+**Stopped At:** Completed 41-01-PLAN.md — campaign list enrichment + activate/pause controls
 
 **Milestone 6 Execution Plan:**
 - Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
@@ -427,6 +427,8 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 40-campanhas-editor-overhaul]: GeminiMessageAssistant is fully self-contained — receives currentMessage as prop, stores last 3 generations in component state
 - [Phase 40]: WhatsApp format toolbar uses native title tooltips — Tooltip shadcn component not available
 - [Phase 40]: GeminiMessageAssistant hidden (not just disabled) for locked campaigns — cleaner UX
+- [Phase 41]: Status-only PUT requests bypass template validation and go through transition guard — keeps concerns separate
+- [Phase 41]: Resume from paused always goes to scheduled — safest, cron picks it up
 
 ## Accumulated Context
 
@@ -582,6 +584,7 @@ src/components/
 | Phase 37-operacoes-layout-data P01 | 4 min | 2 tasks | 4 files |
 | Phase 40-campanhas-editor-overhaul P01 | 3 min | 2 tasks | 3 files |
 | Phase 40 P02 | 4 min | 2 tasks | 3 files |
+| Phase 41-campanhas-management-analytics P01 | 3 min | 2 tasks | 3 files |
 
 ## Next Actions
 
