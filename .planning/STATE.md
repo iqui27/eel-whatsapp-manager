@@ -26,10 +26,10 @@ progress:
 **Total Phases:** 41
 **Total Plans in Milestone 6:** 10 (across 6 phases)
 **Status:** PLANNING COMPLETE — ready for execution
-**Progress:** [██████████] 101%
+**Progress:** [██████████] 104%
 **Last Activity:** 2026-03-20
 **Last Activity Description:** Milestone 6 planning — 10 plan files created across 6 phases (36-41) covering Dashboard Polish, Operações Layout, Chip Profiles, WhatsApp Foundation, Editor Overhaul, Campaign Management
-**Stopped At:** Completed 38-01-PLAN.md — chip profile management backend
+**Stopped At:** Completed 37-01-PLAN.md
 
 **Milestone 6 Execution Plan:**
 - Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
@@ -414,6 +414,8 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 38-chip-profile-management]: Evolution API profile endpoints use /chat/ namespace: fetchProfilePictureUrl (POST), updateProfileName (POST), updateProfilePicture (POST), fetchProfile (GET)
 - [Phase 38-chip-profile-management]: Profile sync in health cron rate-limited via chip.updatedAt — skips chips updated within last hour to avoid excessive API calls
 - [Phase 38-chip-profile-management]: updateProfile action added to existing PUT /api/chips handler — consistent with restart action pattern from Phase 14
+- [Phase 37-operacoes-layout-data]: MessageFeed auto-refresh fixed to /api/dashboard/messages (was polling non-existent /api/operations/messages)
+- [Phase 37-operacoes-layout-data]: QuickActionsPanel corrected /settings → /configuracoes for V2 electoral nav consistency
 
 ## Accumulated Context
 
@@ -564,6 +566,7 @@ src/components/
 | Phase 36-dashboard-editorial-polish P01 | 2 min | 1 tasks | 1 files |
 | Phase 39-campanhas-whatsapp-foundation P01 | 15 | 2 tasks | 2 files |
 | Phase 38-chip-profile-management P01 | 3 | 2 tasks | 6 files |
+| Phase 37-operacoes-layout-data P01 | 4 min | 2 tasks | 4 files |
 
 ## Next Actions
 

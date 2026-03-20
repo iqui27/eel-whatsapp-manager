@@ -25,7 +25,7 @@
 | 31 | Diagnostic Fixes | P0 | 30 | 5/5 complete ✅ |
 | 32 | System Logs & Observability | P1 | 31 | 3/3 complete ✅ |
 | 36 | 1/1 | Complete   | 2026-03-20 | 1 plan |
-| 37 | Operações Layout & Data | P1 | — | 1 plan |
+| 37 | 1/1 | Complete   | 2026-03-20 | 1 plan |
 | 38 | 1/2 | In Progress|  | 2 plans |
 | 39 | 1/2 | In Progress|  | 2 plans |
 | 40 | Campanhas Editor Overhaul | P0 | 39, 40-01 | 2 plans |
@@ -1004,7 +1004,7 @@ Plans:
 - OPS-V2-04: No emoji indicators — all status uses colored dots or text badges per project conventions
 
 **Depends on:** —
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 37-01-PLAN.md — Operações layout/styling fix for all components + real data verification (2 tasks)
