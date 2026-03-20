@@ -406,40 +406,6 @@ export default function NovaCampanhaPage() {
               onChange={e => setCampaignName(e.target.value)}
               className="flex-1 min-w-[260px] max-w-[480px] text-base font-medium border-0 shadow-none focus-visible:ring-0 px-0 placeholder:font-normal"
             />
-            <div className="ml-auto flex items-center gap-2">
-              <select
-                className="rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring min-w-[180px]"
-                value={segmentId}
-                onChange={e => setSegmentId(e.target.value)}
-              >
-                <option value="">Nenhum segmento</option>
-                {segments.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-              {segmentId && (
-                <Badge variant="secondary" className="text-xs">
-                  {segments.find(s => s.id === segmentId)?.audienceCount
-                    ? `~${segments.find(s => s.id === segmentId)?.audienceCount} eleitores`
-                    : 'Segmento selecionado'}
-                </Badge>
-              )}
-              <div className="min-w-[240px]">
-                <Select value={selectedChipId} onValueChange={setSelectedChipId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Chip de envio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">Auto (primeiro chip conectado)</SelectItem>
-                    {connectedChips.map(chip => (
-                      <SelectItem key={chip.id} value={chip.id}>
-                        {chip.name} ({chip.phone})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
           </div>
         </div>
 
