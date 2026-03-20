@@ -611,6 +611,101 @@ export async function fetchAllGroups(
   return res.json();
 }
 
+// ─── Profile Management ───────────────────────────────────────────────────────
+
+/**
+ * Get current profile picture URL for an instance (self profile).
+ * Evolution API v2: POST /chat/fetchProfilePictureUrl/{instanceName}
+ * Body: { number: "" } — empty string = fetch own profile picture
+ */
+export async function getProfilePicture(
+  apiUrl: string,
+  apiKey: string,
+  instanceName: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${baseUrl(apiUrl)}/chat/fetchProfilePictureUrl/${encodeURIComponent(instanceName)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: apiKey },
+        body: JSON.stringify({ number: '' }),
+      },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data?.profilePictureUrl as string) ?? (data?.picUrl as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Set the WhatsApp display name for an instance.
+ * Evolution API v2: POST /chat/updateProfileName/{instanceName}
+ * Body: { name: string }
+ */
+export async function setProfileName(
+  apiUrl: string,
+  apiKey: string,
+  instanceName: string,
+  name: string,
+): Promise<void> {
+  const res = await fetch(
+    `${baseUrl(apiUrl)}/chat/updateProfileName/${encodeURIComponent(instanceName)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: apiKey },
+      body: JSON.stringify({ name }),
+    },
+  );
+  await throwIfNotOk(res, 'setProfileName');
+}
+
+/**
+ * Set the profile picture for an instance (from URL or base64).
+ * Evolution API v2: POST /chat/updateProfilePicture/{instanceName}
+ * Body: { picture: string } — URL or base64-encoded image
+ */
+export async function setProfilePicture(
+  apiUrl: string,
+  apiKey: string,
+  instanceName: string,
+  pictureUrl: string,
+): Promise<void> {
+  const res = await fetch(
+    `${baseUrl(apiUrl)}/chat/updateProfilePicture/${encodeURIComponent(instanceName)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: apiKey },
+      body: JSON.stringify({ picture: pictureUrl }),
+    },
+  );
+  await throwIfNotOk(res, 'setProfilePicture');
+}
+
+/**
+ * Get profile status text (WhatsApp "about" / bio) for an instance.
+ * Evolution API v2: GET /chat/fetchProfile/{instanceName}
+ */
+export async function getProfileStatus(
+  apiUrl: string,
+  apiKey: string,
+  instanceName: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${baseUrl(apiUrl)}/chat/fetchProfile/${encodeURIComponent(instanceName)}`,
+      { headers: { apikey: apiKey } },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data?.status as string) ?? (data?.isBusiness as boolean ? data?.description as string : null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
 /** Test connectivity — returns { ok, message } */
