@@ -27,7 +27,7 @@
 | 36 | 1/1 | Complete   | 2026-03-20 | 1 plan |
 | 37 | Operações Layout & Data | P1 | — | 1 plan |
 | 38 | Chip Profile Management | P1 | — | 2 plans |
-| 39 | Campanhas WhatsApp Foundation | P0 | 38 | 2 plans |
+| 39 | 1/2 | In Progress|  | 2 plans |
 | 40 | Campanhas Editor Overhaul | P0 | 39, 40-01 | 2 plans |
 | 41 | Campanhas Management & Analytics | P0 | 39, 40, 41-01 | 2 plans |
 
@@ -1054,7 +1054,7 @@ Plans:
 - WA-08: Campaign schema has startDate and endDate fields
 
 **Depends on:** 38-01 (for chip profile data in preview)
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 39-01-PLAN.md — WhatsApp format parser + shared WhatsAppPreview component

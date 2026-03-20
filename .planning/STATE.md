@@ -29,7 +29,7 @@ progress:
 **Progress:** [██████████] 101%
 **Last Activity:** 2026-03-20
 **Last Activity Description:** Milestone 6 planning — 10 plan files created across 6 phases (36-41) covering Dashboard Polish, Operações Layout, Chip Profiles, WhatsApp Foundation, Editor Overhaul, Campaign Management
-**Stopped At:** Completed 36-01-PLAN.md — Dashboard Editorial Polish
+**Stopped At:** Completed 39-campanhas-whatsapp-foundation 39-01-PLAN.md
 
 **Milestone 6 Execution Plan:**
 - Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
@@ -408,6 +408,9 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 35-campaign-management]: buildChipStats uses single SQL aggregate GROUP BY chip_id to avoid N+1 per-chip queries
 - [Phase 36-dashboard-editorial-polish]: ChatQueuePanel relocated below Campanhas Ativas — right column reserved for CommandPanel only
 - [Phase 36-dashboard-editorial-polish]: KPI trend indicators use colored dot spans — no emoji, no Lucide icons (V2 editorial direction)
+- [Phase 39-campanhas-whatsapp-foundation]: Tokenizer uses priority-based span-coverage to prevent overlapping format markers; codeblocks claimed first
+- [Phase 39-campanhas-whatsapp-foundation]: WhatsAppPreview uses SVG check marks (no emoji) for delivery status indicators
+- [Phase 39-campanhas-whatsapp-foundation]: Link preview card shows domain only (not full OG preview) matching plan spec for simplicity
 
 ## Accumulated Context
 
@@ -556,6 +559,8 @@ src/components/
 | Phase 35 P05 | 25 | 2 tasks | 3 files |
 | Phase 35 P06 | 15 min | 2 tasks | 2 files |
 | Phase 36-dashboard-editorial-polish P01 | 2 min | 1 tasks | 1 files |
+| Phase 39-campanhas-whatsapp-foundation P01 | 15 | 2 tasks | 2 files |
+| Phase 38-chip-profile-management P01 | 3 | 2 tasks | 6 files |
 
 ## Next Actions
 
