@@ -286,7 +286,9 @@ export async function PUT(request: NextRequest) {
     const campaign = await updateCampaign(id, updates);
     return NextResponse.json(campaign);
   } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
     console.error('PUT campaigns error:', error);
+    syslogError('campaign', `Erro ao atualizar campanha: ${msg}`, { error: msg });
     return NextResponse.json({ error: 'Erro ao atualizar campanha' }, { status: 500 });
   }
 }

@@ -481,8 +481,9 @@ export default function EditarCampanhaPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-6">
-          <div className="space-y-6">
+        <div className="flex-1 overflow-hidden flex gap-6 p-6">
+          {/* Left column: scrollable content */}
+          <div className="flex-1 min-w-0 overflow-y-auto space-y-4 pb-4">
             {isLocked && (
               <div className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -494,10 +495,7 @@ export default function EditarCampanhaPage() {
                 </div>
               </div>
             )}
-
-            <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
-              <div className="space-y-4">
-                <Card className="h-full">
+                <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-base">
                       <MessageSquare className="h-4 w-4 text-primary" />
@@ -722,29 +720,28 @@ export default function EditarCampanhaPage() {
                   allChips={allChips}
                   disabled={isLocked}
                 />
-              </div>
+          </div>
 
-              <div className="h-fit lg:sticky lg:top-6">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                      <Smartphone className="h-4 w-4 text-primary" />
-                      Prévia WhatsApp
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2">
-                    <WhatsAppPreview
-                      message={resolveCampaignTemplate(message, previewContext)}
-                      profileName={selectedChipProfile?.profileName}
-                      profilePictureUrl={selectedChipProfile?.profilePictureUrl}
-                    />
-                    <p className="mt-2 px-2 text-center text-[10px] text-muted-foreground">
-                      As variáveis são substituídas por valores reais no envio
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+          {/* Right column: fixed preview, does not scroll */}
+          <div className="hidden lg:block w-[380px] shrink-0 self-start">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <Smartphone className="h-4 w-4 text-primary" />
+                  Prévia WhatsApp
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-2">
+                <WhatsAppPreview
+                  message={resolveCampaignTemplate(message, previewContext)}
+                  profileName={selectedChipProfile?.profileName}
+                  profilePictureUrl={selectedChipProfile?.profilePictureUrl}
+                />
+                <p className="mt-2 px-2 text-center text-[10px] text-muted-foreground">
+                  As variáveis são substituídas por valores reais no envio
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
