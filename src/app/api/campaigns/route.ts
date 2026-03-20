@@ -12,6 +12,115 @@ import {
 } from '@/lib/db-campaigns';
 import type { Campaign } from '@/db/schema';
 import { getTemplateValidationMessage, validateCampaignTemplates } from '@/lib/campaign-variables';
+import { db, chips, messageQueue } from '@/db';
+import { eq, and, inArray, sql } from 'drizzle-orm';
+
+// ─── Warm-up stage helper ─────────────────────────────────────────────────────
+
+function getWarmupStage(createdAt: Date | null | undefined): {
+  stage: string;
+  recommendedDailyMax: number;
+} {
+  if (!createdAt) return { stage: 'Fase 4 — Maduro', recommendedDailyMax: 350 };
+  const daysSince = Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
+  if (daysSince <= 3)  return { stage: 'Fase 1 — Aquecimento Inicial', recommendedDailyMax: 20 };
+  if (daysSince <= 7)  return { stage: 'Fase 2 — Acelerando', recommendedDailyMax: 50 };
+  if (daysSince <= 30) return { stage: 'Fase 3 — Ativo', recommendedDailyMax: 200 };
+  if (daysSince <= 90) return { stage: 'Fase 4 — Maduro', recommendedDailyMax: 350 };
+  return { stage: 'Fase 5 — Veterano', recommendedDailyMax: 500 };
+}
+
+// ─── Chip stats enrichment ────────────────────────────────────────────────────
+
+interface ChipStat {
+  chipId: string;
+  chipName: string;
+  healthStatus: string;
+  warmupStage: string;
+  recommendedDailyMax: number;
+  messagesSentToday: number;
+  messagesSentThisHour: number;
+  dailyLimit: number;
+  hourlyLimit: number;
+  errorRate: number;       // 0-100 percentage
+  hasProxy: boolean;
+  sentForCampaign: number; // Total sent for THIS campaign via this chip
+}
+
+async function buildChipStats(campaign: Campaign): Promise<{
+  chipStats: ChipStat[];
+  circuitBreakerStatus: 'active' | 'tripped' | 'disabled';
+}> {
+  // Determine which chips to show
+  const selectedIds = Array.isArray(campaign.selectedChipIds) && campaign.selectedChipIds.length > 0
+    ? campaign.selectedChipIds
+    : null;
+
+  const chipRows = selectedIds
+    ? await db.select().from(chips).where(inArray(chips.id, selectedIds))
+    : await db.select().from(chips).where(eq(chips.enabled, true));
+
+  if (chipRows.length === 0) {
+    const cbStatus = !campaign.circuitBreakerThreshold
+      ? 'disabled'
+      : campaign.status === 'paused'
+        ? 'tripped'
+        : 'active';
+    return { chipStats: [], circuitBreakerStatus: cbStatus };
+  }
+
+  const chipIds = chipRows.map((c) => c.id);
+
+  // Query per-chip error rates and sent count for this campaign
+  type QueueCountRow = { chipId: string | null; total: number; failed: number; sentForCampaign: number };
+  const queueCounts: QueueCountRow[] = await db.execute(sql`
+    SELECT
+      chip_id as "chipId",
+      COUNT(*) as total,
+      COUNT(*) FILTER (WHERE status = 'failed') as failed,
+      COUNT(*) FILTER (WHERE status IN ('sent', 'delivered', 'read')) as "sentForCampaign"
+    FROM message_queue
+    WHERE campaign_id = ${campaign.id}
+      AND chip_id = ANY(${sql`ARRAY[${sql.join(chipIds.map((id) => sql`${id}::uuid`), sql`, `)}]`})
+    GROUP BY chip_id
+  `) as unknown as QueueCountRow[];
+
+  const queueMap = new Map<string, QueueCountRow>();
+  for (const row of queueCounts) {
+    if (row.chipId) queueMap.set(row.chipId, row);
+  }
+
+  const chipStats: ChipStat[] = chipRows.map((chip) => {
+    const q = queueMap.get(chip.id);
+    const total = q ? Number(q.total) : 0;
+    const failed = q ? Number(q.failed) : 0;
+    const sentForCampaign = q ? Number(q.sentForCampaign) : 0;
+    const errorRate = total > 0 ? Math.round((failed / total) * 100) : 0;
+    const { stage, recommendedDailyMax } = getWarmupStage(chip.createdAt);
+    return {
+      chipId: chip.id,
+      chipName: chip.name,
+      healthStatus: chip.healthStatus ?? 'disconnected',
+      warmupStage: stage,
+      recommendedDailyMax,
+      messagesSentToday: chip.messagesSentToday ?? 0,
+      messagesSentThisHour: chip.messagesSentThisHour ?? 0,
+      dailyLimit: chip.dailyLimit ?? 200,
+      hourlyLimit: chip.hourlyLimit ?? 25,
+      errorRate,
+      hasProxy: !!chip.proxyHost,
+      sentForCampaign,
+    };
+  });
+
+  const circuitBreakerStatus: 'active' | 'tripped' | 'disabled' = !campaign.circuitBreakerThreshold
+    ? 'disabled'
+    : campaign.status === 'paused'
+      ? 'tripped'
+      : 'active';
+
+  return { chipStats, circuitBreakerStatus };
+}
 
 function normalizeCampaignChipId(chipId: unknown) {
   return chipId === 'auto' || chipId === '' ? null : chipId;
@@ -54,9 +163,12 @@ export async function GET(request: NextRequest) {
       const campaign = include === 'deliveryEvents'
         ? await getCampaignWithDeliveryEvents(id)
         : await getCampaign(id);
-      return campaign
-        ? NextResponse.json([campaign])
-        : NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
+      if (!campaign) {
+        return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
+      }
+      // Enrich single-campaign response with chip anti-ban stats
+      const { chipStats, circuitBreakerStatus } = await buildChipStats(campaign);
+      return NextResponse.json([{ ...campaign, chipStats, circuitBreakerStatus }]);
     }
     const data = status
       ? await getCampaignsByStatus(status as NonNullable<Campaign['status']>)
