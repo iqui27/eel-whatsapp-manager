@@ -7,7 +7,7 @@ import { SUPPORTED_CAMPAIGN_VARIABLES } from '@/lib/campaign-variables';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface WhatsAppFormatToolbarProps {
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   onTextChange: (newText: string) => void;
   currentText: string;
   className?: string;
