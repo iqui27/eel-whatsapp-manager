@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
+import useSWR from 'swr';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -33,6 +34,13 @@ import { CommandPalette } from './command-palette';
 import { Topbar } from './topbar';
 import { cn } from '@/lib/utils';
 import { actorLabel, pagePermission, type SessionActor } from '@/lib/authorization';
+
+// SWR fetcher — throws on non-2xx so SWR can retry/error properly
+const fetcher = (url: string) =>
+  fetch(url).then((res) => {
+    if (!res.ok) throw new Error(`${res.status}`);
+    return res.json();
+  });
 
 type PageId =
   | 'dashboard'
@@ -406,103 +414,56 @@ export default function SidebarLayout({
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [chipStatus, setChipStatus] = useState<ShellChipStatus>({
-    enabledCount: 0,
-    connectedCount: 0,
-    loading: true,
-  });
-  const [sessionActor, setSessionActor] = useState<SessionActor | null>(null);
-  const [sessionLoading, setSessionLoading] = useState(true);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
   };
 
-  useEffect(() => {
-    let active = true;
+  // ─── Session ──────────────────────────────────────────────────────────────
+  const { data: sessionData, isLoading: sessionLoading } = useSWR<SessionResponse>(
+    '/api/auth/session',
+    fetcher,
+    {
+      dedupingInterval: 60000,      // Don't re-fetch within 60 seconds
+      revalidateOnFocus: false,     // Don't re-fetch on tab focus
+      revalidateOnReconnect: true,  // Do re-fetch when network reconnects
+      errorRetryCount: 2,
+      keepPreviousData: true,
+    },
+  );
+  const sessionActor = sessionData?.actor ?? null;
 
-    const loadSession = async () => {
-      setSessionLoading(true);
-      try {
-        const res = await fetch('/api/auth/session');
-        if (!res.ok) {
-          if (active) {
-            setSessionActor(null);
-          }
-          return;
-        }
+  // ─── Chip status ──────────────────────────────────────────────────────────
+  interface ChipFromAPI {
+    enabled?: boolean;
+    status?: string;
+  }
 
-        const data = await res.json() as SessionResponse;
-        if (!active) return;
-        setSessionActor(data.actor);
-      } catch {
-        if (active) {
-          setSessionActor(null);
-        }
-      } finally {
-        if (active) {
-          setSessionLoading(false);
-        }
-      }
+  const { data: chipsData, isLoading: chipsLoading } = useSWR<ChipFromAPI[]>(
+    '/api/chips',
+    fetcher,
+    {
+      dedupingInterval: 30000,      // Chip status can change more frequently
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      errorRetryCount: 2,
+      keepPreviousData: true,
+    },
+  );
+
+  const chipStatus = useMemo<ShellChipStatus>(() => {
+    if (chipsLoading || !chipsData) {
+      return { enabledCount: 0, connectedCount: 0, loading: chipsLoading };
+    }
+    const enabledChips = chipsData.filter((c) => c.enabled !== false);
+    const connectedChips = enabledChips.filter((c) => c.status === 'connected');
+    return {
+      enabledCount: enabledChips.length,
+      connectedCount: connectedChips.length,
+      loading: false,
     };
-
-    void loadSession();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-
-    const loadChipStatus = async () => {
-      try {
-        const res = await fetch('/api/chips');
-        if (!res.ok) {
-          if (active) {
-            setChipStatus({
-              enabledCount: 0,
-              connectedCount: 0,
-              loading: false,
-            });
-          }
-          return;
-        }
-
-        const data = await res.json();
-        const enabledChips = Array.isArray(data)
-          ? data.filter((chip: { enabled?: boolean }) => chip.enabled !== false)
-          : [];
-        const connectedChips = enabledChips.filter(
-          (chip: { status?: string }) => chip.status === 'connected',
-        );
-
-        if (!active) return;
-
-        setChipStatus({
-          enabledCount: enabledChips.length,
-          connectedCount: connectedChips.length,
-          loading: false,
-        });
-      } catch {
-        if (!active) return;
-
-        setChipStatus({
-          enabledCount: 0,
-          connectedCount: 0,
-          loading: false,
-        });
-      }
-    };
-
-    void loadChipStatus();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  }, [chipsData, chipsLoading]);
 
   const allNavItems = [...electoralNavItems, ...legacyNavItems];
   const currentItem = allNavItems.find((n) => n.id === currentPage);
