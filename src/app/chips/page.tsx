@@ -6,8 +6,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Flame, Trash2, Smartphone, Loader2, X, RefreshCw,
   RotateCcw, AlertTriangle, Wifi, WifiOff, Clock, ChevronDown, Layers,
-  Pencil, Check, Shield, ChevronRight,
+  Pencil, Check, Shield, ChevronRight, UserCircle,
 } from 'lucide-react';
+import { ChipProfileEditor } from '@/components/chip-profile-editor';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import SidebarLayout from '@/components/SidebarLayout';
@@ -57,6 +58,10 @@ interface Chip {
   proxyProtocol: 'http' | 'https' | 'socks4' | 'socks5' | null;
   proxyUsername: string | null;
   proxyPassword: string | null;
+  // Profile fields (Phase 38)
+  profileName: string | null;
+  profilePictureUrl: string | null;
+  profileStatus: string | null;
 }
 
 // ─── Health status config ─────────────────────────────────────────────────────
@@ -148,6 +153,48 @@ function progressColor(pct: number): string {
   if (pct >= 0.9) return 'bg-red-500';
   if (pct >= 0.7) return 'bg-yellow-500';
   return 'bg-green-500';
+}
+
+function chipInitials(chip: Chip): string {
+  const src = chip.profileName ?? chip.name ?? chip.instanceName ?? '?';
+  return src
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
+function ChipAvatar({ chip, size = 36 }: { chip: Chip; size?: number }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (chip.profilePictureUrl && !imgError) {
+    return (
+      <img
+        src={chip.profilePictureUrl}
+        alt={chip.profileName ?? chip.name}
+        width={size}
+        height={size}
+        onError={() => setImgError(true)}
+        className="rounded-full object-cover shrink-0"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="rounded-full bg-primary/10 flex items-center justify-center shrink-0"
+      style={{ width: size, height: size }}
+    >
+      {chip.profilePictureUrl ? (
+        <Smartphone className="h-4 w-4 text-primary" />
+      ) : (
+        <span className="text-primary font-semibold select-none" style={{ fontSize: size * 0.35 }}>
+          {chipInitials(chip)}
+        </span>
+      )}
+    </div>
+  );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -243,6 +290,8 @@ export default function ChipsPage() {
   const [editingSegmentsId, setEditingSegmentsId] = useState<string | null>(null);
   const [editingSegments, setEditingSegments] = useState<string[]>([]);
   const [savingSegments, setSavingSegments] = useState(false);
+  // Profile editing state for existing chips
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   // Proxy editing state for existing chips
   const [editingProxyId, setEditingProxyId] = useState<string | null>(null);
   const [editingProxy, setEditingProxy] = useState({
@@ -950,9 +999,7 @@ export default function ChipsPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="relative shrink-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
-                          <Smartphone className="h-4 w-4 text-primary" />
-                        </div>
+                        <ChipAvatar chip={chip} size={36} />
                         {/* Live status dot */}
                         <span className={cn(
                           'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card',
@@ -960,11 +1007,23 @@ export default function ChipsPage() {
                         )} />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-sm text-foreground truncate">{chip.name}</p>
+                        <p className="font-semibold text-sm text-foreground truncate">
+                          {chip.profileName ?? chip.name}
+                        </p>
+                        {chip.profileName && chip.profileName !== chip.name && (
+                          <p className="text-[10px] text-muted-foreground truncate">{chip.name}</p>
+                        )}
                         <p className="text-xs text-muted-foreground font-mono">{chip.phone}</p>
                       </div>
                     </div>
-                    <HealthBadge status={chip.healthStatus ?? 'disconnected'} />
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <HealthBadge status={chip.healthStatus ?? 'disconnected'} />
+                      {!chip.profileName && (
+                        <span className="text-[10px] text-amber-600 font-medium whitespace-nowrap">
+                          Perfil nao configurado
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Instance name */}
@@ -1183,6 +1242,41 @@ export default function ChipsPage() {
                       >
                         <Pencil className="h-2.5 w-2.5" />
                         {chip.proxyHost ? 'Editar' : 'Adicionar'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Profile editor — collapsible */}
+                  {editingProfileId === chip.id ? (
+                    <div className="space-y-2">
+                      <ChipProfileEditor
+                        chip={chip}
+                        onSave={() => {
+                          setEditingProfileId(null);
+                          fetchChips(true);
+                        }}
+                      />
+                      <button
+                        onClick={() => setEditingProfileId(null)}
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                        Fechar editor de perfil
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 group/profile">
+                      <UserCircle className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-[10px] text-muted-foreground">
+                        {chip.profileName ? chip.profileName : 'Perfil nao configurado'}
+                      </span>
+                      <button
+                        onClick={() => setEditingProfileId(chip.id)}
+                        title="Editar perfil"
+                        className="ml-auto opacity-0 group-hover/profile:opacity-100 flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+                      >
+                        <Pencil className="h-2.5 w-2.5" />
+                        {chip.profileName ? 'Editar' : 'Configurar'}
                       </button>
                     </div>
                   )}
