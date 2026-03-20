@@ -311,7 +311,6 @@ export default function CampaignDetailPage() {
   const [chips, setChips] = useState<Chip[]>([]);
   const [segment, setSegment] = useState<Segment | null>(null);
   const [antiBanStats, setAntiBanStats] = useState<AntiBanStats | null>(null);
-  const [messageExpanded, setMessageExpanded] = useState(false);
   const [notFoundFlag, setNotFoundFlag] = useState(false);
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastStatusRef = useRef<string | null>(null);
@@ -475,8 +474,6 @@ export default function CampaignDetailPage() {
 
   // Message preview
   const template = campaign?.template ?? '';
-  const templateShort = template.slice(0, 200);
-  const templateTruncated = template.length > 200;
 
   // Date range
   const startDate = campaign?.startDate;
@@ -655,20 +652,9 @@ export default function CampaignDetailPage() {
           <div className="border rounded-lg p-4 space-y-1.5 sm:col-span-2 lg:col-span-1">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Mensagem</p>
             {campaign ? (
-              <div className="space-y-1">
-                <p className="text-sm leading-relaxed line-clamp-3">
-                  {messageExpanded ? template : templateShort}
-                  {!messageExpanded && templateTruncated && '...'}
-                </p>
-                {templateTruncated && (
-                  <button
-                    onClick={() => setMessageExpanded((v) => !v)}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    {messageExpanded ? 'Mostrar menos' : 'Ver completa'}
-                  </button>
-                )}
-              </div>
+              <pre className="whitespace-pre-wrap text-sm leading-relaxed max-h-48 overflow-y-auto font-sans">
+                {template}
+              </pre>
             ) : (
               <p className="text-sm text-muted-foreground">Carregando...</p>
             )}
