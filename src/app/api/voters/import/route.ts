@@ -182,8 +182,8 @@ export async function POST(request: NextRequest) {
           ? enrichment.optInStatus
           : (row.optInStatus ?? 'pending');
 
-      // CRM notes — append enrichment note (including custom fields) below row note
-      const notes = [row.crmNotes ?? '', effectiveCrmNotes ?? '']
+      // CRM notes — per-row custom fields (from column mapping) + global enrichment note
+      const notes = [row.__customFields ?? '', row.crmNotes ?? '', effectiveCrmNotes ?? '']
         .filter(Boolean)
         .join('\n')
         .trim() || null;

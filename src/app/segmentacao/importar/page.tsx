@@ -65,7 +65,6 @@ interface EnrichmentOptions {
   newSegmentName: string;                 // name for new segment
   optInStatus: 'pending' | 'active' | 'none'; // default opt-in
   crmNotes: string;                       // notes appended to every voter
-  customFields: { key: string; value: string }[]; // extra key-value labels
 }
 
 const DEFAULT_ENRICHMENT: EnrichmentOptions = {
@@ -75,7 +74,6 @@ const DEFAULT_ENRICHMENT: EnrichmentOptions = {
   newSegmentName: '',
   optInStatus: 'pending',
   crmNotes: '',
-  customFields: [],
 };
 
 interface ValidationResult {
@@ -300,8 +298,9 @@ export default function ImportarPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [cfKey, setCfKey] = useState('');
-  const [cfValue, setCfValue] = useState('');
+  const [customMappings, setCustomMappings] = useState<{ label: string; column: string }[]>([]);
+  const [cfLabel, setCfLabel] = useState('');
+  const [cfColumn, setCfColumn] = useState('');
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
 
   // Load segments + existing tags when entering enrichment step
@@ -353,6 +352,17 @@ export default function ImportarPage() {
           mapped[field.key] = customValues[field.key].trim();
         }
       }
+      // Extract per-row custom mapping values
+      const customParts = customMappings
+        .filter(cm => cm.label.trim() && cm.column)
+        .map(cm => {
+          const val = row[cm.column]?.trim();
+          return val ? `${cm.label.trim()}: ${val}` : '';
+        })
+        .filter(Boolean);
+      if (customParts.length > 0) {
+        mapped.__customFields = customParts.join(' | ');
+      }
       const hasContent = Object.values(mapped).some(v => v.trim());
       if (!hasContent) continue;
       const issues: string[] = [];
@@ -368,7 +378,7 @@ export default function ImportarPage() {
       qualityScore: total > 0 ? Math.round((validRows.length / total) * 100) : 0,
     });
     setStep('validacao');
-  }, [rawRows, mapping, customValues]);
+  }, [rawRows, mapping, customValues, customMappings]);
 
   const runImport = useCallback(async () => {
     if (!validationResult || isProcessing) return; // guard double-click
@@ -418,24 +428,28 @@ export default function ImportarPage() {
     setMapping({});
     setCustomValues({});
     setEnrichment(DEFAULT_ENRICHMENT);
+    setCustomMappings([]);
+    setCfLabel('');
+    setCfColumn('');
     setValidationResult(null);
     setImportResult(null);
     setProgress(0);
   };
 
   const requiredMapped = VOTER_FIELDS.filter(f => f.required).every(f => !!mapping[f.key]);
-  const addCustomField = () => {
-    const k = cfKey.trim();
-    const v = cfValue.trim();
-    if (!k || !v) return;
-    if (enrichment.customFields.some(f => f.key.toLowerCase() === k.toLowerCase())) return;
-    setEnrichment(en => ({ ...en, customFields: [...en.customFields, { key: k, value: v }] }));
-    setCfKey('');
-    setCfValue('');
+
+  const addCustomMapping = () => {
+    const label = cfLabel.trim();
+    const column = cfColumn;
+    if (!label || !column) return;
+    if (customMappings.some(m => m.label.toLowerCase() === label.toLowerCase())) return;
+    setCustomMappings(prev => [...prev, { label, column }]);
+    setCfLabel('');
+    setCfColumn('');
   };
 
-  const removeCustomField = (key: string) =>
-    setEnrichment(en => ({ ...en, customFields: en.customFields.filter(f => f.key !== key) }));
+  const removeCustomMapping = (label: string) =>
+    setCustomMappings(prev => prev.filter(m => m.label !== label));
 
   const generateNoteWithGemini = async () => {
     setIsGeneratingNote(true);
@@ -645,6 +659,56 @@ Retorne apenas a nota, sem aspas, sem explicações.`;
                   </TableBody>
                 </Table>
               </div>
+              {/* Campos customizados */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Campos customizados</p>
+                {customMappings.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {customMappings.map(m => (
+                      <span
+                        key={m.label}
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-1 text-xs"
+                      >
+                        <span className="font-medium text-foreground">{m.label}:</span>
+                        <span className="text-muted-foreground">{m.column}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeCustomMapping(m.label)}
+                          className="ml-0.5 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    value={cfLabel}
+                    onChange={e => setCfLabel(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomMapping(); } }}
+                    placeholder="Nome do campo (ex: Turma)"
+                    className="text-sm h-8 w-40 shrink-0"
+                  />
+                  <select
+                    className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring h-8"
+                    value={cfColumn}
+                    onChange={e => setCfColumn(e.target.value)}
+                  >
+                    <option value="">(selecione a coluna)</option>
+                    {headers.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={addCustomMapping}
+                    disabled={!cfLabel.trim() || !cfColumn}
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-border bg-background text-muted-foreground hover:bg-muted/50 disabled:opacity-40 shrink-0"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
               {/* Preview */}
               {rawRows.length > 0 && (
                 <div className="rounded-lg border border-border overflow-hidden">
@@ -898,66 +962,8 @@ Retorne apenas a nota, sem aspas, sem explicações.`;
               </CardContent>
             </Card>
 
-            {/* Campos customizados */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Campos customizados</CardTitle>
-                <CardDescription>
-                  Rótulos chave-valor adicionados como metadados na nota de todos os registros — ex: Evento, Turma, Região
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {enrichment.customFields.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {enrichment.customFields.map(f => (
-                      <span
-                        key={f.key}
-                        className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-1 text-xs"
-                      >
-                        <span className="font-medium text-foreground">{f.key}:</span>
-                        <span className="text-muted-foreground">{f.value}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeCustomField(f.key)}
-                          className="ml-0.5 text-muted-foreground hover:text-foreground"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  <Input
-                    value={cfKey}
-                    onChange={e => setCfKey(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomField(); } }}
-                    placeholder="Chave (ex: Evento)"
-                    className="text-sm h-8 w-36 shrink-0"
-                  />
-                  <Input
-                    value={cfValue}
-                    onChange={e => setCfValue(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomField(); } }}
-                    placeholder="Valor (ex: Voluntariado)"
-                    className="text-sm h-8 flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addCustomField}
-                    disabled={!cfKey.trim() || !cfValue.trim()}
-                    className="h-8 px-2"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Resumo */}
-            {(enrichment.tags.length > 0 || enrichment.segmentMode !== 'none' || enrichment.crmNotes || enrichment.customFields.length > 0) && (
+            {(enrichment.tags.length > 0 || enrichment.segmentMode !== 'none' || enrichment.crmNotes) && (
               <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
                 <p className="text-xs font-semibold text-foreground">Resumo do enriquecimento:</p>
                 <div className="space-y-1 text-xs text-muted-foreground">
@@ -977,9 +983,6 @@ Retorne apenas a nota, sem aspas, sem explicações.`;
                   )}
                   {enrichment.crmNotes && (
                     <p>• Nota CRM: <span className="text-foreground font-medium truncate">{enrichment.crmNotes.slice(0, 60)}{enrichment.crmNotes.length > 60 ? '…' : ''}</span></p>
-                  )}
-                  {enrichment.customFields.length > 0 && (
-                    <p>• Campos: <span className="text-foreground font-medium">{enrichment.customFields.map(f => `${f.key}: ${f.value}`).join(' | ')}</span></p>
                   )}
                 </div>
               </div>
