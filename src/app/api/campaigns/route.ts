@@ -15,7 +15,7 @@ import type { Campaign } from '@/db/schema';
 import { getTemplateValidationMessage, validateCampaignTemplates } from '@/lib/campaign-variables';
 import { db, chips, messageQueue } from '@/db';
 import { eq, and, inArray, sql } from 'drizzle-orm';
-import { syslogInfo, syslogError } from '@/lib/system-logger';
+import { syslogWarn, syslogError } from '@/lib/system-logger';
 
 // ─── Warm-up stage helper ─────────────────────────────────────────────────────
 
@@ -247,7 +247,7 @@ export async function PUT(request: NextRequest) {
       const oldStatus = existingCampaign.status ?? 'draft';
       try {
         const updated = await updateCampaignStatus(id, newStatus);
-        syslogInfo('campaign', 'Campaign status changed', {
+        syslogWarn('campaign', 'Campaign status changed', {
           campaignId: id,
           campaignName: existingCampaign.name,
           from: oldStatus,
@@ -291,12 +291,19 @@ export async function PUT(request: NextRequest) {
     updates.startDate = toDate(updates.startDate);
     updates.endDate = toDate(updates.endDate);
 
+    console.log('[campaign PUT] dates before save — startDate:', updates.startDate, '| endDate:', updates.endDate);
+
     const campaign = await updateCampaign(id, updates);
-    syslogInfo('campaign', 'Campaign updated', {
+
+    console.log('[campaign PUT] dates after save — startDate:', campaign?.startDate, '| endDate:', campaign?.endDate);
+
+    syslogWarn('campaign', 'Campaign updated', {
       campaignId: id,
       campaignName: existingCampaign.name,
       startDate: updates.startDate instanceof Date ? updates.startDate.toISOString() : updates.startDate,
       endDate: updates.endDate instanceof Date ? updates.endDate.toISOString() : updates.endDate,
+      savedStartDate: campaign?.startDate ?? null,
+      savedEndDate: campaign?.endDate ?? null,
     });
     return NextResponse.json(campaign);
   } catch (error) {
