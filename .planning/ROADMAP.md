@@ -814,7 +814,50 @@ Plans:
 
 ---
 
-## 🎉 MILESTONE 4 COMPLETE — ALL 32 PHASES EXECUTED AND DEPLOYED
+## Milestone 5: Performance Optimization
+
+> Fix all performance bottlenecks identified in the comprehensive audit — bundle size, auth caching, polling, SSE, DB queries.
+
+| Phase | Name | Priority | Depends On | Plans |
+|-------|------|----------|------------|-------|
+| 33 | Performance Optimization | P0 | 32 | 4 plans (2 waves) |
+
+---
+
+### Phase 33: Performance Optimization
+**Status:** Planned
+**Goal:** Eliminate the top performance bottlenecks across bundle, auth, polling, SSE, and database layers — reduce initial JS bundle by ~60KB, eliminate redundant DB queries via auth session cache, stop background tab polling, optimize SSE from 1.5s to 5s with voter caching, and add SQL-level pagination for voters.
+
+**Requirements:** [PERF-01, PERF-02, PERF-03, PERF-04, PERF-05, PERF-06, PERF-07, PERF-08, PERF-09, PERF-10, PERF-11, PERF-12]
+
+- PERF-01: next.config.ts has optimizePackageImports for lucide-react, radix-ui, recharts, date-fns
+- PERF-02: Dead dependencies pg, @types/pg, @supabase/supabase-js removed from package.json
+- PERF-03: framer-motion removed from template.tsx critical path (CSS animation replacement)
+- PERF-04: recharts lazy-loaded via next/dynamic on /relatorios page only
+- PERF-05: Auth session cache with 60s TTL eliminates DB round trips on repeated API calls
+- PERF-06: Expired session purge moved from login-time to lazy background task
+- PERF-07: All 6 client-side polling intervals pause when browser tab is hidden
+- PERF-08: SSE poll interval increased from 1.5s to 5s
+- PERF-09: SSE voter lookups cached per-cycle and trackedConversationIds capped
+- PERF-10: voters.createdAt and conversations.updatedAt indexes added
+- PERF-11: filterVoters() supports SQL-level LIMIT/OFFSET pagination
+- PERF-12: /api/voters uses SQL pagination instead of JS slice of full table
+
+**Depends on:** Phase 32
+**Plans:** 4 plans in 2 waves
+
+Plans:
+- [ ] 33-01-PLAN.md — Config, Bundle & Dead Code Cleanup (next.config, dead deps, framer-motion, recharts lazy)
+- [ ] 33-02-PLAN.md — Auth Session Cache (in-memory TTL cache, lazy purge)
+- [ ] 33-03-PLAN.md — Polling Hardening + SSE Optimization (visibility guards, SSE interval, voter cache)
+- [ ] 33-04-PLAN.md — DB Query Optimization (missing indexes, SQL pagination for voters)
+
+### Phase 33 Wave Structure
+
+| Wave | Plans | Parallel | Notes |
+|------|-------|----------|-------|
+| 1 | 33-01, 33-02, 33-03 | Yes | No file overlaps between plans |
+| 2 | 33-04 | — | Depends on 33-03 (SSE optimization context) |
 
 ---
 
