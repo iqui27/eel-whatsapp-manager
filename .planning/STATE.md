@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 35
 **Current Phase Name:** campaign-management
-**Current Plan:** 2
+**Current Plan:** 3
 **Total Phases:** 35
 **Total Plans in Phase:** 6
 **Status:** Ready to execute
 **Progress:** [████████░░] 88% (34/35 phases complete)
 **Last Activity:** 2026-03-20
 **Last Activity Description:** Phase 34 (Remaining Performance Hardening) — all 4 plans complete: cron locks, SSE limits, SWR caching, log retention
-**Stopped At:** Completed 35-01-PLAN.md (quick fixes: double sidebar + cron instrumentation)
+**Stopped At:** Completed 35-02-PLAN.md (schema expansion: campaigns send config + chips proxy)
 
 **Phase 34 (Remaining Performance Hardening) — COMPLETE** ✅
 - Plan 34-01: Cron overlap protection (DB lock table + withCronLock) ✅ commits: 62e8ac8, 0d4d8bf
@@ -381,6 +381,8 @@ Last session: 2026-03-19T00:00:00.000Z
 - [Phase 34-remaining-performance]: Log retention 30 days via daily cron (not trigger-based) — simple, predictable, schedulable in vercel.json
 - [Phase 35-campaign-management]: layout.tsx is now a passthrough — each campaign sub-page owns its own SidebarLayout wrapper
 - [Phase 35-campaign-management]: SYSLOG_MIN_LEVEL default changed from 'warn' to 'info' — cron activity visible in /logs without env override
+- [Phase 35]: Migration numbered 0014 (not 0013 as planned) — cron_locks already used 0013 in Phase 34
+- [Phase 35]: All 21 new schema columns have defaults matching current hardcoded values in send-queue cron — no data loss on migration
 
 ## Accumulated Context
 
@@ -523,6 +525,7 @@ src/components/
 | Phase 34-remaining-performance P34-03 | 12 min | 2 tasks | 3 files |
 | Phase 34-remaining-performance P34-04 | 8 min | 2 tasks | 2 files |
 | Phase 35-campaign-management P01 | 7 min | 2 tasks | 12 files |
+| Phase 35 P02 | 12 min | 2 tasks | 2 files |
 
 ## Next Actions
 
