@@ -441,11 +441,49 @@ export default function EditarCampanhaPage() {
               className="min-w-[260px] max-w-[480px] flex-1 border-0 px-0 text-base font-medium shadow-none focus-visible:ring-0 placeholder:font-normal"
               disabled={isLocked}
             />
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <select
+                className="min-w-[180px] rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                value={segmentId}
+                onChange={(event) => setSegmentId(event.target.value)}
+                disabled={isLocked}
+              >
+                <option value="">Nenhum segmento</option>
+                {segments.map((segment) => (
+                  <option key={segment.id} value={segment.id}>
+                    {segment.name}
+                  </option>
+                ))}
+              </select>
+              {segmentId && (
+                <Badge variant="secondary" className="text-xs">
+                  {segments.find((segment) => segment.id === segmentId)?.audienceCount
+                    ? `~${segments.find((segment) => segment.id === segmentId)?.audienceCount} eleitores`
+                    : 'Segmento selecionado'}
+                </Badge>
+              )}
+              <div className="min-w-[240px]">
+                <Select value={selectedChipId} onValueChange={setSelectedChipId} disabled={isLocked}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Chip de envio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto (primeiro chip conectado)</SelectItem>
+                    {connectedChips.map((chip) => (
+                      <SelectItem key={chip.id} value={chip.id}>
+                        {chip.name} ({chip.phone})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-6">
-          <div className="space-y-6">
+        <div className="flex-1 overflow-hidden flex gap-6 p-6">
+          {/* Left column: scrollable content */}
+          <div className="flex-1 min-w-0 overflow-y-auto space-y-4 pb-4">
             {isLocked && (
               <div className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -457,9 +495,6 @@ export default function EditarCampanhaPage() {
                 </div>
               </div>
             )}
-
-            <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
-              <div className="space-y-4">
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-base">
@@ -678,33 +713,6 @@ export default function EditarCampanhaPage() {
                   </CardContent>
                 </Card>
 
-                {/* Segmento */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Segmento</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <select
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                      value={segmentId}
-                      onChange={(e) => setSegmentId(e.target.value)}
-                      disabled={isLocked}
-                    >
-                      <option value="">Nenhum segmento</option>
-                      {segments.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                    {segmentId && (
-                      <p className="text-xs text-muted-foreground">
-                        {segments.find((s) => s.id === segmentId)?.audienceCount
-                          ? `~${segments.find((s) => s.id === segmentId)?.audienceCount} eleitores no segmento`
-                          : 'Segmento selecionado'}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-
                 {/* Send Config Panel */}
                 <SendConfigPanel
                   value={sendConfig}
@@ -712,29 +720,28 @@ export default function EditarCampanhaPage() {
                   allChips={allChips}
                   disabled={isLocked}
                 />
-              </div>
+          </div>
 
-              <div className="h-fit lg:sticky lg:top-6 max-h-[calc(100vh-120px)] overflow-y-auto">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                      <Smartphone className="h-4 w-4 text-primary" />
-                      Prévia WhatsApp
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex flex-col items-center p-4 gap-2">
-                    <WhatsAppPreview
-                      message={resolveCampaignTemplate(message, previewContext)}
-                      profileName={selectedChipProfile?.profileName}
-                      profilePictureUrl={selectedChipProfile?.profilePictureUrl}
-                    />
-                    <p className="text-center text-[10px] text-muted-foreground">
-                      As variáveis são substituídas por valores reais no envio
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+          {/* Right column: fixed preview, does not scroll */}
+          <div className="hidden lg:block w-[380px] shrink-0 self-start">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <Smartphone className="h-4 w-4 text-primary" />
+                  Prévia WhatsApp
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-2">
+                <WhatsAppPreview
+                  message={resolveCampaignTemplate(message, previewContext)}
+                  profileName={selectedChipProfile?.profileName}
+                  profilePictureUrl={selectedChipProfile?.profilePictureUrl}
+                />
+                <p className="mt-2 px-2 text-center text-[10px] text-muted-foreground">
+                  As variáveis são substituídas por valores reais no envio
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
