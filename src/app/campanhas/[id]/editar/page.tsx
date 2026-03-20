@@ -441,43 +441,6 @@ export default function EditarCampanhaPage() {
               className="min-w-[260px] max-w-[480px] flex-1 border-0 px-0 text-base font-medium shadow-none focus-visible:ring-0 placeholder:font-normal"
               disabled={isLocked}
             />
-            <div className="ml-auto flex flex-wrap items-center gap-2">
-              <select
-                className="min-w-[180px] rounded-md border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                value={segmentId}
-                onChange={(event) => setSegmentId(event.target.value)}
-                disabled={isLocked}
-              >
-                <option value="">Nenhum segmento</option>
-                {segments.map((segment) => (
-                  <option key={segment.id} value={segment.id}>
-                    {segment.name}
-                  </option>
-                ))}
-              </select>
-              {segmentId && (
-                <Badge variant="secondary" className="text-xs">
-                  {segments.find((segment) => segment.id === segmentId)?.audienceCount
-                    ? `~${segments.find((segment) => segment.id === segmentId)?.audienceCount} eleitores`
-                    : 'Segmento selecionado'}
-                </Badge>
-              )}
-              <div className="min-w-[240px]">
-                <Select value={selectedChipId} onValueChange={setSelectedChipId} disabled={isLocked}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Chip de envio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">Auto (primeiro chip conectado)</SelectItem>
-                    {connectedChips.map((chip) => (
-                      <SelectItem key={chip.id} value={chip.id}>
-                        {chip.name} ({chip.phone})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
           </div>
         </div>
 
