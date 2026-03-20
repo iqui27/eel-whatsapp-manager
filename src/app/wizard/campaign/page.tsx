@@ -47,6 +47,7 @@ import {
   type CandidateProfileContext,
   validateCampaignTemplates,
 } from '@/lib/campaign-variables';
+import { WhatsAppPreview } from '@/components/whatsapp-preview';
 
 const EMPTY_CANDIDATE_PROFILE: CandidateProfileContext = {
   candidateDisplayName: '',
@@ -54,62 +55,6 @@ const EMPTY_CANDIDATE_PROFILE: CandidateProfileContext = {
   candidateParty: '',
   candidateRegion: '',
 };
-
-// ─── WhatsApp Preview ─────────────────────────────────────────────────────────
-
-function WhatsAppPreview({
-  message,
-  previewContext,
-}: {
-  message: string;
-  previewContext: Partial<Record<CampaignVariableKey, string>>;
-}) {
-  const preview = resolveCampaignTemplate(message, previewContext);
-  const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-  return (
-    <div className="flex flex-col h-full rounded-2xl overflow-hidden border border-border shadow-sm">
-      {/* WA top bar */}
-      <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: '#128C7E' }}>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white text-sm font-bold shrink-0">
-          EE
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-white leading-tight">EEL Eleição</div>
-          <div className="text-xs text-white/70">online</div>
-        </div>
-        <Smartphone className="h-4 w-4 text-white/60" />
-      </div>
-
-      {/* WA chat area */}
-      <div
-        className="flex-1 overflow-y-auto p-4 space-y-2 min-h-[200px]"
-        style={{ backgroundColor: '#ECE5DD' }}
-      >
-        {preview.trim() ? (
-          <div className="flex justify-start">
-            <div
-              className="relative max-w-[280px] rounded-tr-2xl rounded-br-2xl rounded-bl-2xl bg-white px-3.5 py-2.5 shadow-sm"
-            >
-              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{preview}</p>
-              <div className="flex items-center justify-end gap-1 mt-1.5">
-                <span className="text-[10px] text-gray-400">{now}</span>
-                <svg className="h-3 w-3 text-blue-500" viewBox="0 0 16 11" fill="currentColor">
-                  <path d="M11.071.653a.75.75 0 0 1 .05 1.059L5.64 8.24a.75.75 0 0 1-1.089.03L1.43 5.15a.75.75 0 1 1 1.06-1.062l2.578 2.578L10.012.704a.75.75 0 0 1 1.059-.05z"/>
-                  <path d="M14.571.653a.75.75 0 0 1 .05 1.059L9.14 8.24a.75.75 0 0 1-1.058.05.75.75 0 0 0 1.03-.02l5.4-6.558a.75.75 0 0 1 1.059-.059z"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400 italic pt-8">
-            Digite uma mensagem para ver a prévia
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ─── Quality Checks ───────────────────────────────────────────────────────────
 
@@ -242,6 +187,7 @@ export default function WizardCampaignPage() {
   });
   const templateValidationMessage = getTemplateValidationMessage(templateValidation);
   const previewContext = buildCampaignPreviewContext({ candidateProfile });
+  const selectedChip = chipId !== 'auto' ? chips.find(c => c.id === chipId) : connectedChips[0];
   
   // Insert variable at cursor
   const insertVariable = useCallback((variable: string) => {
@@ -525,7 +471,11 @@ export default function WizardCampaignPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-2">
-              <WhatsAppPreview message={message} previewContext={previewContext} />
+              <WhatsAppPreview
+                message={resolveCampaignTemplate(message, previewContext)}
+                profileName={selectedChip?.profileName ?? undefined}
+                profilePictureUrl={selectedChip?.profilePictureUrl ?? undefined}
+              />
               <p className="text-[10px] text-muted-foreground text-center mt-2 px-2">
                 As variáveis são substituídas por valores reais no envio
               </p>
