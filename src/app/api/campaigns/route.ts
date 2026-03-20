@@ -207,6 +207,9 @@ export async function POST(request: NextRequest) {
     }
 
     body.variables = validation.supportedVariables;
+    const toDatePost = (v: unknown) => (typeof v === 'string' && v ? new Date(v) : null);
+    body.startDate = toDatePost(body.startDate);
+    body.endDate = toDatePost(body.endDate);
 
     const campaign = await addCampaign(body);
     return NextResponse.json(campaign, { status: 201 });
@@ -282,6 +285,11 @@ export async function PUT(request: NextRequest) {
     }
 
     updates.variables = validation.supportedVariables;
+
+    // Convert date strings to Date objects (Drizzle requires Date, not string)
+    const toDate = (v: unknown) => (typeof v === 'string' && v ? new Date(v) : null);
+    updates.startDate = toDate(updates.startDate);
+    updates.endDate = toDate(updates.endDate);
 
     const campaign = await updateCampaign(id, updates);
     return NextResponse.json(campaign);
