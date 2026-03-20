@@ -29,7 +29,7 @@
 | 38 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 39 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 40 | 2/2 | Complete    | 2026-03-20 | 2 plans |
-| 41 | 1/2 | In Progress|  | 2 plans |
+| 41 | 2/2 | Complete   | 2026-03-20 | 2 plans |
 
 ---
 
@@ -1116,7 +1116,7 @@ Plans:
 - MGMT-09: Campaign detail page is navigable from the campaign list
 
 **Depends on:** 39-02 (date range schema), 40-02 (editor), 41-01 (list enhancements)
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 41-01-PLAN.md — Enriched campaign list + activate/pause controls + status transitions

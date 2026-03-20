@@ -29,7 +29,7 @@ progress:
 **Progress:** [██████████] 104%
 **Last Activity:** 2026-03-20
 **Last Activity Description:** Phase 40 complete, transitioned to Phase 41
-**Stopped At:** Completed 41-01-PLAN.md — campaign list enrichment + activate/pause controls
+**Stopped At:** Completed 41-02-PLAN.md — campaign detail analytics + AI insights panel
 
 **Milestone 6 Execution Plan:**
 - Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
@@ -429,6 +429,8 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 40]: GeminiMessageAssistant hidden (not just disabled) for locked campaigns — cleaner UX
 - [Phase 41]: Status-only PUT requests bypass template validation and go through transition guard — keeps concerns separate
 - [Phase 41]: Resume from paused always goes to scheduled — safest, cron picks it up
+- [Phase 41]: Campaign detail page converted to client component for AI refresh + 30s auto-refresh
+- [Phase 41]: AI analysis fetched on-demand with in-memory cache keyed by campaignId:totalSent — invalidates on new message deliveries
 
 ## Accumulated Context
 
@@ -585,6 +587,7 @@ src/components/
 | Phase 40-campanhas-editor-overhaul P01 | 3 min | 2 tasks | 3 files |
 | Phase 40 P02 | 4 min | 2 tasks | 3 files |
 | Phase 41-campanhas-management-analytics P01 | 3 min | 2 tasks | 3 files |
+| Phase 41 P02 | 4 min | 2 tasks | 3 files |
 
 ## Next Actions
 
