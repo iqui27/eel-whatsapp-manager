@@ -118,6 +118,8 @@ export default function EditarCampanhaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [candidateProfile, setCandidateProfile] = useState<CandidateProfileContext>(EMPTY_CANDIDATE_PROFILE);
   const [selectedChipProfile, setSelectedChipProfile] = useState<{
     profileName?: string;
@@ -202,6 +204,15 @@ export default function EditarCampanhaPage() {
       setSplitPct(campaign.abSplitPercent ?? 50);
       setCampaignStatus(campaign.status ?? 'draft');
       setSelectedChipId(campaign.chipId ?? 'auto');
+      // Restore date range from DB
+      const toDateInput = (v: Date | string | null | undefined) => {
+        if (!v) return '';
+        const d = new Date(v);
+        if (isNaN(d.getTime())) return '';
+        return d.toISOString().split('T')[0];
+      };
+      setStartDate(toDateInput(campaign.startDate));
+      setEndDate(toDateInput(campaign.endDate));
       // Restore send config from DB
       setSendConfig({
         sendRate: (campaign.sendRate as SendConfigValue['sendRate']) ?? DEFAULT_SEND_CONFIG.sendRate,
@@ -300,6 +311,11 @@ export default function EditarCampanhaPage() {
       return;
     }
 
+    if (endDate && startDate && endDate <= startDate) {
+      toast.error('A data de fim deve ser posterior à data de início');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const response = await fetch('/api/campaigns', {
@@ -315,6 +331,8 @@ export default function EditarCampanhaPage() {
           abVariantB: abEnabled ? variantB : null,
           abSplitPercent: abEnabled ? splitPct : 50,
           variables: templateValidation.supportedVariables,
+          startDate: startDate || null,
+          endDate: endDate || null,
           // Send config
           sendRate: sendConfig.sendRate,
           batchSize: sendConfig.batchSize,
@@ -619,6 +637,46 @@ export default function EditarCampanhaPage() {
                       </div>
                     </CardContent>
                   )}
+                </Card>
+
+                {/* Date Range */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Período da Campanha</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-xs text-muted-foreground">
+                      Opcional — deixe em branco para campanhas pontuais sem janela de vigência.
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="start-date" className="text-xs font-medium">Data de início</Label>
+                        <Input
+                          id="start-date"
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          disabled={isLocked}
+                          className="text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="end-date" className="text-xs font-medium">Data de fim</Label>
+                        <Input
+                          id="end-date"
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          min={startDate || undefined}
+                          disabled={isLocked}
+                          className="text-sm"
+                        />
+                      </div>
+                    </div>
+                    {endDate && startDate && endDate <= startDate && (
+                      <p className="text-xs text-red-600">A data de fim deve ser posterior à data de início.</p>
+                    )}
+                  </CardContent>
                 </Card>
 
                 {/* Send Config Panel */}

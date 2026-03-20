@@ -234,6 +234,9 @@ export const campaigns = pgTable('campaigns', {
   segmentId: uuid('segment_id').references(() => segments.id, { onDelete: 'set null' }),
   chipId: uuid('chip_id').references(() => chips.id, { onDelete: 'set null' }),
   scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
+  // ─── Date range (Phase 39) ────────────────────────────────────────────────
+  startDate: timestamp('start_date', { withTimezone: true }),
+  endDate: timestamp('end_date', { withTimezone: true }),
   windowStart: time('window_start').default('08:00'),
   windowEnd: time('window_end').default('22:00'),
   // ─── Send configuration (Phase 35) ────────────────────────────────────────

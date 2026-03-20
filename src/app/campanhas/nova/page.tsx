@@ -119,6 +119,8 @@ export default function NovaCampanhaPage() {
   const [allChips, setAllChips] = useState<Chip[]>([]);
   const [selectedChipId, setSelectedChipId] = useState('auto');
   const [sendConfig, setSendConfig] = useState<SendConfigValue>(DEFAULT_SEND_CONFIG);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [prefilledSegmentName, setPrefilledSegmentName] = useState<string | null>(null);
   const [isBootstrappingSegment, setIsBootstrappingSegment] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -297,6 +299,11 @@ export default function NovaCampanhaPage() {
       return null;
     }
 
+    if (endDate && startDate && endDate <= startDate) {
+      toast.error('A data de fim deve ser posterior à data de início');
+      return null;
+    }
+
     setIsSaving(true);
     try {
       const res = await fetch('/api/campaigns', {
@@ -305,6 +312,8 @@ export default function NovaCampanhaPage() {
         body: JSON.stringify({
           name: campaignName.trim(),
           template: message,
+          startDate: startDate || null,
+          endDate: endDate || null,
           segmentId: segmentId || null,
           chipId: selectedChipId !== 'auto' ? selectedChipId : null,
           status: 'draft',
@@ -597,6 +606,44 @@ export default function NovaCampanhaPage() {
                       </div>
                     </CardContent>
                   )}
+                </Card>
+
+                {/* Date Range */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Período da Campanha</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-xs text-muted-foreground">
+                      Opcional — deixe em branco para campanhas pontuais sem janela de vigência.
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="start-date" className="text-xs font-medium">Data de início</Label>
+                        <Input
+                          id="start-date"
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="end-date" className="text-xs font-medium">Data de fim</Label>
+                        <Input
+                          id="end-date"
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          min={startDate || undefined}
+                          className="text-sm"
+                        />
+                      </div>
+                    </div>
+                    {endDate && startDate && endDate <= startDate && (
+                      <p className="text-xs text-red-600">A data de fim deve ser posterior à data de início.</p>
+                    )}
+                  </CardContent>
                 </Card>
 
                 {/* Send Config Panel */}
