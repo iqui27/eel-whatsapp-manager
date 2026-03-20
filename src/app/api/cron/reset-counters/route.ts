@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resetDailyCounters, resetHourlyCounters } from '@/lib/db-chips';
 import { isLocalInternalRequest, readCronToken, resolveServerEnv } from '@/lib/server-env';
+import { withCronLock } from '@/lib/cron-lock';
+
+export const maxDuration = 30;
 
 /**
  * GET /api/cron/reset-counters
@@ -30,19 +33,30 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type') ?? 'daily';
 
-  if (type === 'hourly') {
-    await resetHourlyCounters();
+  const lockResult = await withCronLock('reset-counters', 60000, async () => {
+    if (type === 'hourly') {
+      await resetHourlyCounters();
+      return NextResponse.json({
+        timestamp: new Date().toISOString(),
+        reset: 'hourly',
+        message: 'Hourly counters reset',
+      });
+    } else {
+      await resetDailyCounters();
+      return NextResponse.json({
+        timestamp: new Date().toISOString(),
+        reset: 'daily',
+        message: 'Daily + hourly counters reset',
+      });
+    }
+  });
+
+  if (!lockResult.locked) {
     return NextResponse.json({
-      timestamp: new Date().toISOString(),
-      reset: 'hourly',
-      message: 'Hourly counters reset',
-    });
-  } else {
-    await resetDailyCounters();
-    return NextResponse.json({
-      timestamp: new Date().toISOString(),
-      reset: 'daily',
-      message: 'Daily + hourly counters reset',
+      message: 'Execução anterior ainda em andamento',
+      skipped: true,
     });
   }
+
+  return lockResult.result;
 }
