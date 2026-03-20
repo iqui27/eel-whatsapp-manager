@@ -29,7 +29,7 @@ progress:
 **Progress:** [██████████] 104%
 **Last Activity:** 2026-03-20
 **Last Activity Description:** Phase 39 complete, transitioned to Phase 40
-**Stopped At:** Completed 40-01-PLAN.md — Gemini AI message writing assistant
+**Stopped At:** Completed 40-02-PLAN.md — campaign editor formatting toolbar + AI assistant integration
 
 **Milestone 6 Execution Plan:**
 - Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
@@ -425,6 +425,8 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 40-campanhas-editor-overhaul]: generateMessage/improveMessage/rewriteMessage added to gemini.ts alongside existing analyzeMessage/profileLead
 - [Phase 40-campanhas-editor-overhaul]: Rate limiting uses in-memory Map keyed by session cookie — no Redis needed for per-instance rate limiting
 - [Phase 40-campanhas-editor-overhaul]: GeminiMessageAssistant is fully self-contained — receives currentMessage as prop, stores last 3 generations in component state
+- [Phase 40]: WhatsApp format toolbar uses native title tooltips — Tooltip shadcn component not available
+- [Phase 40]: GeminiMessageAssistant hidden (not just disabled) for locked campaigns — cleaner UX
 
 ## Accumulated Context
 
@@ -579,6 +581,7 @@ src/components/
 | Phase 38-chip-profile-management P02 | 3 min | 2 tasks | 2 files |
 | Phase 37-operacoes-layout-data P01 | 4 min | 2 tasks | 4 files |
 | Phase 40-campanhas-editor-overhaul P01 | 3 min | 2 tasks | 3 files |
+| Phase 40 P02 | 4 min | 2 tasks | 3 files |
 
 ## Next Actions
 

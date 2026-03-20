@@ -28,7 +28,7 @@
 | 37 | 1/1 | Complete    | 2026-03-20 | 1 plan |
 | 38 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 39 | 2/2 | Complete    | 2026-03-20 | 2 plans |
-| 40 | 1/2 | In Progress|  | 2 plans |
+| 40 | 2/2 | Complete   | 2026-03-20 | 2 plans |
 | 41 | Campanhas Management & Analytics | P0 | 39, 40, 41-01 | 2 plans |
 
 ---
@@ -1084,7 +1084,7 @@ Plans:
 - EDIT-07: Data validation prevents saving campaigns with empty templates or invalid date ranges
 
 **Depends on:** 39-01 (WhatsApp preview), 39-02 (shared preview integration)
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 40-01-PLAN.md — Gemini message generation functions + API endpoint + GeminiMessageAssistant UI
