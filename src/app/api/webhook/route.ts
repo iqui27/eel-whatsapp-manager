@@ -135,8 +135,30 @@ export async function POST(request: NextRequest) {
 
   // ─── messages.upsert — store inbound messages as conversations ──────────────
   if (event === 'messages.upsert') {
-    const data = body.data as Record<string, unknown> | undefined;
-    const messages = (data?.messages as unknown[]) ?? [];
+    // Evolution API v2 sends body.data as a single message object { key, message, ... }
+    // Evolution API v1 / webhook_by_events sends body.data = { messages: [...] }
+    // Some variants send body.data as an array directly.
+    // Normalise to always be an array.
+    const rawUpsertData = body.data;
+    let messages: unknown[];
+    if (Array.isArray(rawUpsertData)) {
+      messages = rawUpsertData;
+    } else if (
+      rawUpsertData &&
+      typeof rawUpsertData === 'object' &&
+      Array.isArray((rawUpsertData as Record<string, unknown>).messages)
+    ) {
+      messages = (rawUpsertData as Record<string, unknown>).messages as unknown[];
+    } else if (
+      rawUpsertData &&
+      typeof rawUpsertData === 'object' &&
+      'key' in (rawUpsertData as object)
+    ) {
+      // Single message object (Evolution API v2)
+      messages = [rawUpsertData];
+    } else {
+      messages = [];
+    }
 
     for (const raw of messages) {
       const msg = raw as Record<string, unknown>;
@@ -421,7 +443,21 @@ export async function POST(request: NextRequest) {
 
   // ─── messages.update — delivery status tracking (Phase 17) ───────────────────
   if (event === 'messages.update') {
-    const updates = (body.data as unknown[]) ?? [];
+    // Normalise body.data to array — Evolution API v2 sends a single object,
+    // v1 / webhook_by_events may send an array.
+    const rawUpdateData = body.data;
+    let updates: unknown[];
+    if (Array.isArray(rawUpdateData)) {
+      updates = rawUpdateData;
+    } else if (
+      rawUpdateData &&
+      typeof rawUpdateData === 'object' &&
+      'key' in (rawUpdateData as object)
+    ) {
+      updates = [rawUpdateData];
+    } else {
+      updates = [];
+    }
     console.log('[webhook] messages.update received:', updates.length, 'update(s) on instance', instanceName);
 
     for (const rawUpdate of updates) {
