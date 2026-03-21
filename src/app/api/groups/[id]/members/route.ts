@@ -8,6 +8,8 @@ import { db } from '@/db';
 import { voters } from '@/db/schema';
 import { inArray } from 'drizzle-orm';
 import { normalizePhone } from '@/lib/phone';
+import { getGroupSendersByGroupJid } from '@/lib/db-group-sender-cache';
+import { findVoterByPhone } from '@/lib/db-voters';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -58,6 +60,27 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       phone: p.id.replace('@s.whatsapp.net', '').replace(/\D/g, ''),
     }));
 
+    // Load group sender cache — maps known phones that have sent messages in this group.
+    // Used to resolve @lid participants to voter names.
+    const senderCache = await getGroupSendersByGroupJid(group.groupJid);
+    // Build phone→voterName map from the cache using findVoterByPhone for dual-format support
+    const cachePhoneToName: Record<string, string> = {};
+    for (const entry of senderCache) {
+      const voter = await findVoterByPhone(entry.normalizedPhone);
+      if (voter) {
+        cachePhoneToName[entry.normalizedPhone] = voter.name;
+        // Also store the alternative format (12↔13 digit) as a convenience key
+        if (entry.normalizedPhone.length === 12) {
+          const with9 = entry.normalizedPhone.slice(0, 4) + '9' + entry.normalizedPhone.slice(4);
+          cachePhoneToName[with9] = voter.name;
+        } else if (entry.normalizedPhone.length === 13) {
+          const without9 = entry.normalizedPhone.slice(0, 4) + entry.normalizedPhone.slice(5);
+          cachePhoneToName[without9] = voter.name;
+        }
+      }
+    }
+    console.log(`[api/groups/${id}/members] known from sender cache: ${Math.round(Object.keys(cachePhoneToName).length / 2)} voters`);
+
     // Batch voter name lookup with dual-format phone support (Brazilian 9th-digit variation)
     // Filter to phone JIDs only (skip @lid — already stripped to raw digits without @s.whatsapp.net guard)
     const normalizedPhones = participants
@@ -101,11 +124,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Enrich each participant with voter name (null if no match)
     const enriched = participants.map(p => {
-      const norm = normalizePhone(p.phone);
-      return {
-        ...p,
-        voterName: nameByPhone[norm] ?? null,
-      };
+      const isLid = p.id.endsWith('@lid');
+      // For @s.whatsapp.net: use nameByPhone from batch voter query, with cache as fallback
+      if (!isLid) {
+        const norm = normalizePhone(p.phone);
+        return { ...p, voterName: nameByPhone[norm] ?? cachePhoneToName[norm] ?? null };
+      }
+      // For @lid: p.phone is the numeric lid ID (not a real phone).
+      // We cannot map @lid ID → phone directly.
+      // Current approach: @lid stays null (WhatsApp privacy limitation).
+      // The cache is used indirectly — when the same person sent a message,
+      // their @s.whatsapp.net JID was stored and their name appears in other UI.
+      // Future: if WhatsApp ever provides @lid ↔ @s.whatsapp.net mapping, plug it in here.
+      return { ...p, voterName: null };
     });
 
     return NextResponse.json({ participants: enriched });
