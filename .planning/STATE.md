@@ -6,30 +6,30 @@ current_phase: 36
 current_phase_name: dashboard-editorial-polish
 current_plan: 0
 status: planning_complete
-stopped_at: "Completed 39-02-PLAN.md — campaign WhatsApp preview refactor + date range"
-last_updated: "2026-03-20T17:00:00.000Z"
-last_activity: 2026-03-20
+stopped_at: "Completed 42-01-PLAN.md — groups polish cache fix + card layout + chip proxy sync"
+last_updated: "2026-03-21T06:33:00.000Z"
+last_activity: 2026-03-21
 progress:
-  total_phases: 41
+  total_phases: 42
   completed_phases: 35
-  total_plans: 126
-  completed_plans: 108
-  percent: 85
+  total_plans: 127
+  completed_plans: 109
+  percent: 86
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 41
-**Current Phase Name:** campanhas management analytics
-**Current Plan:** Not started
-**Total Phases:** 41
-**Total Plans in Milestone 6:** 10 (across 6 phases)
-**Status:** Milestone complete
-**Progress:** [██████████] 104%
-**Last Activity:** 2026-03-20
-**Last Activity Description:** Phase 41 complete
-**Stopped At:** Completed 42-02-PLAN.md — voter name enrichment in members API + auto opt-in on group join
+**Current Phase:** 42
+**Current Phase Name:** groups-polish-conversion-tracking
+**Current Plan:** 01 complete
+**Total Phases:** 42
+**Total Plans in Phase 42:** 2 (42-01, 42-02)
+**Status:** In progress
+**Progress:** [██████████] 86%
+**Last Activity:** 2026-03-21
+**Last Activity Description:** Phase 42 Plan 01 complete — groups cache invalidation, card layout fix, chip proxy sync
+**Stopped At:** Completed 42-01-PLAN.md — groups polish cache fix + card layout + chip proxy sync
 
 **Milestone 6 Execution Plan:**
 - Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
@@ -433,6 +433,9 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 41]: AI analysis fetched on-demand with in-memory cache keyed by campaignId:totalSent — invalidates on new message deliveries
 - [Phase 42-groups-polish-conversion-tracking]: Drizzle inArray batch lookup for voter names in members API (one round-trip for 800+ members)
 - [Phase 42-groups-polish-conversion-tracking]: Auto opt-in on group join (webhook) uses logConsent with dual-format phone matching for Brazilian 9th-digit variation
+- [Phase 42-01]: invalidateGroupCache guarded with if (group.segmentTag) — not all groups have a segment
+- [Phase 42-01]: fetchInstances called once outside chip loop to avoid N API calls — O(1) map lookup per chip
+- [Phase 42-01]: Chip sync proxy direction is Evolution→DB only; DB→Evolution happens at createInstance time
 
 ## Accumulated Context
 

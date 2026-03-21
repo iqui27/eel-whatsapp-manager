@@ -30,7 +30,7 @@
 | 39 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 40 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 41 | 2/2 | Complete    | 2026-03-20 | 2 plans |
-| 42 | 2/2 | Complete   | 2026-03-21 | TBD |
+| 42 | Groups Polish + Conversion Tracking | In progress | — | 2 plans (1/2 complete) |
 
 ---
 
