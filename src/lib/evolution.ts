@@ -14,6 +14,14 @@ export interface EvolutionInstance {
   number?: string;
   profileName?: string;
   profilePicUrl?: string;
+  // Proxy settings as configured in Evolution (may be present if set directly via Evolution UI)
+  proxy?: {
+    host?: string;
+    port?: string | number;
+    protocol?: string;
+    username?: string;
+    password?: string;
+  };
 }
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting';
