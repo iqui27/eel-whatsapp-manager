@@ -66,6 +66,19 @@ export async function updateGroupSize(
   return group ?? null;
 }
 
+/** Update group metadata (name, description, segmentTag) */
+export async function updateGroupMeta(
+  id: string,
+  data: { name?: string; description?: string | null; segmentTag?: string | null },
+): Promise<WhatsappGroup | null> {
+  const [group] = await db
+    .update(whatsappGroups)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(whatsappGroups.id, id))
+    .returning();
+  return group ?? null;
+}
+
 /** Update group invite link */
 export async function updateGroupInvite(
   id: string, 

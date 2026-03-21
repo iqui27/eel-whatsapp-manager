@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { campaigns, campaignDeliveryEvents, chips, messageQueue } from '@/db/schema';
-import { eq, sql, desc } from 'drizzle-orm';
+import { eq, sql, desc, inArray } from 'drizzle-orm';
 import type { FunnelData } from '../funnel/route';
 import { analyzeCampaignPerformance, type CampaignPerformanceAnalysis } from '@/lib/gemini';
 
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
     }
 
-    // Get funnel data
+    // Get funnel data — prefer messageQueue; fall back to campaign record + delivery events
     const [queueStats] = await db
       .select({
         total: sql<number>`count(*)`,
@@ -74,11 +74,27 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .from(messageQueue)
       .where(eq(messageQueue.campaignId, id));
 
-    const total = queueStats?.total || 0;
-    const sent = queueStats?.sent || 0;
-    const delivered = queueStats?.delivered || 0;
-    const read = queueStats?.read || 0;
-    const failed = queueStats?.failed || 0;
+    const hasQueueData = (queueStats?.total || 0) > 0;
+
+    let total: number, sent: number, delivered: number, read: number, failed: number;
+
+    if (hasQueueData) {
+      total     = queueStats!.total     || 0;
+      sent      = queueStats!.sent      || 0;
+      delivered = queueStats!.delivered || 0;
+      read      = queueStats!.read      || 0;
+      failed    = queueStats!.failed    || 0;
+    } else {
+      // Campaign was sent via executeCampaignSend (direct delivery, not queue-based)
+      // Use counters stored on the campaign record itself
+      const totalDelivered = campaign.totalDelivered || 0;
+      const totalFailed    = campaign.totalFailed    || 0;
+      total     = campaign.totalSent    || 0;
+      sent      = totalDelivered + totalFailed;
+      delivered = totalDelivered;
+      read      = 0;
+      failed    = totalFailed;
+    }
 
     const funnel: FunnelData = {
       campaignId: id,
@@ -108,35 +124,73 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .orderBy(desc(campaignDeliveryEvents.createdAt))
       .limit(100);
 
-    // Get chip breakdown
-    const chipStats = await db
-      .select({
-        chipId: messageQueue.chipId,
-        sent: sql<number>`count(*) filter (where ${messageQueue.status} in ('sent', 'delivered', 'read', 'failed'))`,
-        delivered: sql<number>`count(*) filter (where ${messageQueue.status} in ('delivered', 'read'))`,
-        failed: sql<number>`count(*) filter (where ${messageQueue.status} = 'failed')`,
-      })
-      .from(messageQueue)
-      .where(eq(messageQueue.campaignId, id))
-      .groupBy(messageQueue.chipId);
+    // Get chip breakdown — from messageQueue when available, else from campaignDeliveryEvents
+    let chipBreakdown: ChipBreakdownItem[];
 
-    // Get chip names
-    const chipIds = chipStats.filter(s => s.chipId).map(s => s.chipId as string);
-    const chipRecords = chipIds.length > 0 
-      ? await db.select().from(chips).where(sql`${chips.id} in ${chipIds}`)
-      : [];
+    if (hasQueueData) {
+      const chipStats = await db
+        .select({
+          chipId: messageQueue.chipId,
+          sent: sql<number>`count(*) filter (where ${messageQueue.status} in ('sent', 'delivered', 'read', 'failed'))`,
+          delivered: sql<number>`count(*) filter (where ${messageQueue.status} in ('delivered', 'read'))`,
+          failed: sql<number>`count(*) filter (where ${messageQueue.status} = 'failed')`,
+        })
+        .from(messageQueue)
+        .where(eq(messageQueue.campaignId, id))
+        .groupBy(messageQueue.chipId);
 
-    const chipMap = new Map(chipRecords.map(c => [c.id, c.name]));
+      const chipIds = chipStats.filter(s => s.chipId).map(s => s.chipId as string);
+      const chipRecords = chipIds.length > 0
+        ? await db.select().from(chips).where(inArray(chips.id, chipIds))
+        : [];
+      const chipMap = new Map(chipRecords.map(c => [c.id, c.name]));
 
-    const chipBreakdown: ChipBreakdownItem[] = chipStats.map(stat => ({
-      chipId: stat.chipId,
-      chipName: stat.chipId ? (chipMap.get(stat.chipId) || 'Unknown') : 'Unassigned',
-      sent: stat.sent || 0,
-      delivered: stat.delivered || 0,
-      failed: stat.failed || 0,
-      deliveryRate: stat.sent > 0 ? Math.round(((stat.delivered || 0) / stat.sent) * 100) : 0,
-      failureRate: stat.sent > 0 ? Math.round(((stat.failed || 0) / stat.sent) * 100) : 0,
-    }));
+      chipBreakdown = chipStats.map(stat => ({
+        chipId: stat.chipId,
+        chipName: stat.chipId ? (chipMap.get(stat.chipId) || 'Unknown') : 'Unassigned',
+        sent: stat.sent || 0,
+        delivered: stat.delivered || 0,
+        failed: stat.failed || 0,
+        deliveryRate: stat.sent > 0 ? Math.round(((stat.delivered || 0) / stat.sent) * 100) : 0,
+        failureRate: stat.sent > 0 ? Math.round(((stat.failed || 0) / stat.sent) * 100) : 0,
+      }));
+    } else {
+      // Build chip breakdown from delivery events (direct send flow)
+      const eventStats = await db
+        .select({
+          chipId: campaignDeliveryEvents.chipId,
+          sentCount: sql<number>`count(*) filter (where ${campaignDeliveryEvents.eventType} = 'message_sent')`,
+          failedCount: sql<number>`count(*) filter (where ${campaignDeliveryEvents.eventType} = 'message_failed')`,
+        })
+        .from(campaignDeliveryEvents)
+        .where(
+          eq(campaignDeliveryEvents.campaignId, id),
+        )
+        .groupBy(campaignDeliveryEvents.chipId);
+
+      const chipIds = eventStats.filter(s => s.chipId).map(s => s.chipId as string);
+      const chipRecords = chipIds.length > 0
+        ? await db.select().from(chips).where(inArray(chips.id, chipIds))
+        : [];
+      const chipMap = new Map(chipRecords.map(c => [c.id, c.name]));
+
+      chipBreakdown = eventStats
+        .filter(stat => (stat.sentCount || 0) + (stat.failedCount || 0) > 0)
+        .map(stat => {
+          const s = stat.sentCount || 0;
+          const f = stat.failedCount || 0;
+          const total = s + f;
+          return {
+            chipId: stat.chipId,
+            chipName: stat.chipId ? (chipMap.get(stat.chipId) || 'Unknown') : 'Unassigned',
+            sent: total,
+            delivered: s,
+            failed: f,
+            deliveryRate: total > 0 ? Math.round((s / total) * 100) : 0,
+            failureRate: total > 0 ? Math.round((f / total) * 100) : 0,
+          };
+        });
+    }
 
     // Generate alerts
     const alerts: Alert[] = [];

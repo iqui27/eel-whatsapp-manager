@@ -20,13 +20,21 @@ function formatEventTime(date: Date | null): string {
 function getEventIcon(eventType: string): string {
   switch (eventType) {
     case 'sent':
+    case 'message_sent':
       return '📤';
     case 'delivered':
       return '✓';
     case 'read':
       return '✓✓';
     case 'failed':
+    case 'message_failed':
       return '✗';
+    case 'send_started':
+      return '▶';
+    case 'send_completed':
+      return '✔';
+    case 'send_failed':
+      return '⚠';
     default:
       return '•';
   }
@@ -35,16 +43,27 @@ function getEventIcon(eventType: string): string {
 function getEventColor(eventType: string): string {
   switch (eventType) {
     case 'sent':
+    case 'message_sent':
       return 'text-blue-600 bg-blue-50';
     case 'delivered':
       return 'text-green-600 bg-green-50';
     case 'read':
       return 'text-purple-600 bg-purple-50';
     case 'failed':
+    case 'message_failed':
       return 'text-red-600 bg-red-50';
+    case 'send_started':
+    case 'send_completed':
+      return 'text-gray-500 bg-gray-50';
+    case 'send_failed':
+      return 'text-orange-600 bg-orange-50';
     default:
       return 'text-gray-600 bg-gray-50';
   }
+}
+
+function isSystemEvent(eventType: string): boolean {
+  return ['send_started', 'send_completed', 'send_failed'].includes(eventType);
 }
 
 export function DeliveryTimeline({ events, maxEvents = 50 }: DeliveryTimelineProps) {
@@ -87,7 +106,9 @@ export function DeliveryTimeline({ events, maxEvents = 50 }: DeliveryTimelinePro
               >
                 <span className="font-mono text-lg">{getEventIcon(event.eventType)}</span>
                 <span className="flex-1 truncate">
-                  {event.voterPhone || 'Número desconhecido'}
+                  {isSystemEvent(event.eventType)
+                    ? (event.message || event.eventType)
+                    : (event.voterPhone || 'Número desconhecido')}
                 </span>
                 <span className="text-xs opacity-75">
                   {formatEventTime(event.createdAt)}

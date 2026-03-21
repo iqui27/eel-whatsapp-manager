@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { chips, voters, type Campaign, type Voter } from '@/db/schema';
+import { chips, voters, segments, type Campaign, type Voter } from '@/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { addCampaignDeliveryEvent, getCampaign, updateCampaign } from '@/lib/db-campaigns';
 import { loadConfig } from '@/lib/db-config';
@@ -10,6 +10,7 @@ import {
   validateCampaignTemplates,
 } from '@/lib/campaign-variables';
 import { getSegmentVoterIds } from '@/lib/db-segments';
+import { getGroupForSegment } from '@/lib/db-groups';
 import { sendText } from '@/lib/evolution';
 
 type DeliveryError = Error & { status?: number };
@@ -54,6 +55,7 @@ function resolveRuntimeTemplate(
   voter: Voter,
   candidateProfile: NonNullable<Awaited<ReturnType<typeof loadConfig>>>,
   executionDate: Date,
+  groupInviteLink?: string,
 ) {
   return resolveCampaignTemplate(
     template,
@@ -62,6 +64,7 @@ function resolveRuntimeTemplate(
       voter,
       scheduledAt: executionDate,
       now: executionDate,
+      groupInviteLink,
     }),
   );
 }
@@ -99,6 +102,17 @@ async function resolveExecutionContext(
     throw createDeliveryError('Segmento sem eleitores para envio', 400);
   }
 
+  // Resolve group invite link if template uses {link_grupo}
+  let groupInviteLink = '';
+  if (campaign.template.includes('{link_grupo}')) {
+    const [segment] = await db.select().from(segments).where(eq(segments.id, campaign.segmentId)).limit(1);
+    const segmentTag = segment?.segmentTag ?? null;
+    if (segmentTag) {
+      const group = await getGroupForSegment(segmentTag);
+      groupInviteLink = group?.inviteUrl ?? '';
+    }
+  }
+
   const segmentVoters = await db
     .select()
     .from(voters)
@@ -119,7 +133,22 @@ async function resolveExecutionContext(
       : undefined
   ) ?? connectedChips[0] ?? null;
 
-  if (!selectedChip?.instanceName && !selectedChip?.name && !config.instanceName) {
+  // Resolve the Evolution API instance name.
+  // When a chip is explicitly found, use its instanceName/name only — never fall back to
+  // config.instanceName, which would silently send via the wrong phone.
+  let chipInstanceName: string;
+  if (selectedChip) {
+    const chipInstance = selectedChip.instanceName || selectedChip.name;
+    if (!chipInstance) {
+      throw createDeliveryError(
+        `Chip selecionado não tem instanceName configurado. Configure o nome da instância Evolution API para este chip.`,
+        400,
+      );
+    }
+    chipInstanceName = chipInstance;
+  } else if (config.instanceName) {
+    chipInstanceName = config.instanceName;
+  } else {
     throw createDeliveryError('Nenhum chip conectado disponível', 400);
   }
 
@@ -128,7 +157,8 @@ async function resolveExecutionContext(
     config,
     segmentVoters,
     selectedChip,
-    chipInstanceName: selectedChip?.instanceName || selectedChip?.name || config.instanceName,
+    chipInstanceName,
+    groupInviteLink,
   };
 }
 
@@ -150,6 +180,7 @@ export async function executeCampaignSend({
     segmentVoters,
     selectedChip,
     chipInstanceName,
+    groupInviteLink,
   } = await resolveExecutionContext(campaignId, requestedChipId, skipScheduleGuard);
 
   const audience = segmentVoters.length;
@@ -199,7 +230,7 @@ export async function executeCampaignSend({
   try {
     for (const voter of segmentVoters) {
       const phone = normalizePhone(voter.phone);
-      const text = resolveRuntimeTemplate(campaign.template, voter, config, executionDate);
+      const text = resolveRuntimeTemplate(campaign.template, voter, config, executionDate, groupInviteLink);
 
       if (!phone) {
         failed += 1;

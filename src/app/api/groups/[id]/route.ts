@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  getGroupById, 
-  updateGroupSize, 
-  updateGroupInvite, 
+import {
+  getGroupById,
+  updateGroupSize,
+  updateGroupInvite,
+  updateGroupMeta,
   setGroupStatus,
-  deleteGroupRecord 
+  deleteGroupRecord
 } from '@/lib/db-groups';
 
 interface RouteParams {
@@ -66,10 +67,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // General metadata update
-    if (name || description) {
-      // For general updates, we'd need a more flexible update function
-      // For now, just return the existing group
-      return NextResponse.json({ group: existing, message: 'No updates applied' });
+    if (name !== undefined || description !== undefined || body.segmentTag !== undefined) {
+      const updated = await updateGroupMeta(id, {
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description: description || null }),
+        ...(body.segmentTag !== undefined && { segmentTag: body.segmentTag || null }),
+      });
+      return NextResponse.json({ group: updated });
     }
 
     return NextResponse.json({ group: existing });

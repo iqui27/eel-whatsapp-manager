@@ -13,7 +13,11 @@ interface GroupsPageProps {
   }>;
 }
 
-async function GroupsList({ status, campaignId }: { status?: 'active' | 'full' | 'archived'; campaignId?: string }) {
+async function GroupsList({ status, campaignId, segments }: {
+  status?: 'active' | 'full' | 'archived';
+  campaignId?: string;
+  segments: { id: string; name: string; segmentTag: string | null }[];
+}) {
   const groups = await listGroups({ status, campaignId });
 
   if (groups.length === 0) {
@@ -30,7 +34,7 @@ async function GroupsList({ status, campaignId }: { status?: 'active' | 'full' |
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {groups.map((group) => (
-        <GroupCard key={group.id} group={group} />
+        <GroupCard key={group.id} group={group} segments={segments} />
       ))}
     </div>
   );
@@ -101,7 +105,7 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
 
       {/* Groups Grid */}
       <Suspense fallback={<div className="text-center py-12">Carregando...</div>}>
-        <GroupsList status={status} campaignId={campaignId} />
+        <GroupsList status={status} campaignId={campaignId} segments={segments} />
       </Suspense>
     </div>
   );

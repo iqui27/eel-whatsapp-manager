@@ -6,10 +6,18 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Copy, Check, RefreshCw, Archive, Tag, Layers, Users, ChevronRight } from 'lucide-react';
+import { Copy, Check, RefreshCw, Archive, Tag, Layers, Users, ChevronRight, Pencil } from 'lucide-react';
+import { EditGroupDialog } from '@/components/edit-group-dialog';
+
+interface SegmentInfo {
+  id: string;
+  name: string;
+  segmentTag: string | null;
+}
 
 interface GroupCardProps {
   group: WhatsappGroup;
+  segments?: SegmentInfo[];
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -55,7 +63,8 @@ function CapacityBar({ current, max }: { current: number; max: number }) {
   );
 }
 
-export function GroupCard({ group }: GroupCardProps) {
+export function GroupCard({ group, segments = [] }: GroupCardProps) {
+  const segmentName = segments.find(s => s.segmentTag === group.segmentTag)?.name;
   const [copied, setCopied] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -116,9 +125,9 @@ export function GroupCard({ group }: GroupCardProps) {
           {group.segmentTag && (
             <span className="flex items-center gap-1">
               <Layers className="h-3 w-3 shrink-0" />
-              <code className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded">
-                {group.segmentTag}
-              </code>
+              <span className="text-xs">
+                {segmentName ?? <code className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded">{group.segmentTag}</code>}
+              </span>
             </span>
           )}
         </div>
@@ -186,7 +195,8 @@ export function GroupCard({ group }: GroupCardProps) {
             Arquivar
           </Button>
         )}
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1.5">
+          <EditGroupDialog group={group} segments={segments} />
           <Link href={`/grupos/${group.id}`}>
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
               Ver detalhes
