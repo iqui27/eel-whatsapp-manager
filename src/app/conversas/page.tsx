@@ -175,7 +175,7 @@ const QueueItem = memo(({
 
 // ─── Chat Bubble ──────────────────────────────────────────────────────────────
 
-const ChatBubble = memo(({ msg, pending = false }: { msg: ConversationMessage; pending?: boolean }) => {
+const ChatBubble = memo(function ChatBubble({ msg, pending = false }: { msg: ConversationMessage; pending?: boolean }) {
   const isAgent = msg.sender === 'agent';
   const isBot   = msg.sender === 'bot';
   return (

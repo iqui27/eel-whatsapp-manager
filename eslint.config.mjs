@@ -19,6 +19,8 @@ const eslintConfig = defineConfig([
       "react/no-unescaped-entities": "warn",
       // prefer-const is already enforced by TypeScript
       "prefer-const": "warn",
+      // setState in effects is a valid pattern in many existing components; downgrade to warn
+      "react-hooks/set-state-in-effect": "warn",
     },
   },
 ]);

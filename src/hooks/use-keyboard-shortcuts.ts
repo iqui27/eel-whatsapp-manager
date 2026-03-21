@@ -4,7 +4,7 @@
  * Global keyboard shortcuts for navigation and actions.
  */
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 
 export interface KeyboardShortcut {
   key: string;
@@ -30,7 +30,9 @@ export function useKeyboardShortcuts({
   onNavigate,
 }: UseKeyboardShortcutsOptions) {
   const shortcutsRef = useRef(shortcuts);
-  shortcutsRef.current = shortcuts;
+  useLayoutEffect(() => {
+    shortcutsRef.current = shortcuts;
+  });
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     // Ignore if typing in an input field
