@@ -4,16 +4,16 @@ milestone: v7.0
 milestone_name: "Milestone 7 — Phone Resolution + Group Identity"
 current_phase: 43
 current_phase_name: phone-resolution-group-identity
-current_plan: 1
+current_plan: 2
 status: in_progress
-stopped_at: "Completed 43-01-PLAN.md — phone resolution + group sender cache infrastructure"
-last_updated: "2026-03-21T07:00:00.000Z"
+stopped_at: "Completed 43-02-PLAN.md — members API cache enrichment + GROUP_PARTICIPANTS_UPDATE join cache write"
+last_updated: "2026-03-21T07:24:00Z"
 last_activity: 2026-03-21
 progress:
   total_phases: 43
   completed_phases: 35
-  total_plans: 128
-  completed_plans: 110
+  total_plans: 129
+  completed_plans: 111
   percent: 86
 ---
 
@@ -22,14 +22,14 @@ progress:
 ## Current Execution
 **Current Phase:** 43
 **Current Phase Name:** phone-resolution-group-identity
-**Current Plan:** 43-01 complete
+**Current Plan:** 43-02 complete
 **Total Phases:** 43
-**Total Plans in Phase 43:** 1 (43-01)
+**Total Plans in Phase 43:** 2 (43-01, 43-02)
 **Status:** In progress
 **Progress:** [██████████] 86%
 **Last Activity:** 2026-03-21
-**Last Activity Description:** Phase 43 Plan 01 complete — group sender cache + webhook wiring
-**Stopped At:** Completed 43-01-PLAN.md — phone resolution + group sender cache infrastructure
+**Last Activity Description:** Phase 43 Plan 02 complete — members API cache enrichment + GROUP_PARTICIPANTS_UPDATE join cache write
+**Stopped At:** Completed 43-02-PLAN.md — members API cache enrichment + GROUP_PARTICIPANTS_UPDATE join cache write
 
 **Milestone 6 Execution Plan:**
 - Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
@@ -439,6 +439,9 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 43-01]: Migration created at drizzle/ (not migrations/) — matches project drizzle.config.ts out dir
 - [Phase 43-01]: normalizedSender hoisted to outer scope so it is accessible after message insert for cache write
 - [Phase 43-01]: group_sender_cache uses composite unique (group_jid, sender_jid) for ON CONFLICT DO UPDATE
+- [Phase 43-02]: @lid participants remain voterName: null — WhatsApp does not expose @lid↔phone mapping; documented in code for future resolution
+- [Phase 43-02]: cachePhoneToName used as fallback for @s.whatsapp.net participants — resilience against normalizePhone format variants
+- [Phase 43-02]: GROUP_PARTICIPANTS_UPDATE cache write placed after auto opt-in loop, before campaign conversion tracking
 
 ## Accumulated Context
 
@@ -598,6 +601,7 @@ src/components/
 | Phase 41 P02 | 4 min | 2 tasks | 3 files |
 | Phase 42-groups-polish-conversion-tracking P02 | 15 | 2 tasks | 2 files |
 | Phase 43-phone-resolution-group-identity P01 | 10 min | 3 tasks | 4 files |
+| Phase 43-phone-resolution-group-identity P02 | 8 min | 2 tasks | 2 files |
 
 ## Next Actions
 

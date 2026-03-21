@@ -31,7 +31,7 @@
 | 40 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 41 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 42 | Groups Polish + Conversion Tracking | Complete    | 2026-03-21 | 2 plans (1/2 complete) |
-| 43 | 1/2 | In Progress|  | 2 plans |
+| 43 | 2/2 | In Progress|  | 2 plans |
 
 ---
 
@@ -1171,8 +1171,8 @@ Plans:
 **Depends on:** Phase 42 (Groups Polish — dual-format `findVoterByPhone` in db-voters)
 **Plans:** 1/2 plans executed
 Plans:
-- [ ] 43-01-PLAN.md — Fix webhook phone lookup (findVoterByPhone) + group_sender_cache table + cache population
-- [ ] 43-02-PLAN.md — Members API @lid resolution via cache + GROUP_PARTICIPANTS_UPDATE cache writes
+- [x] 43-01-PLAN.md — Fix webhook phone lookup (findVoterByPhone) + group_sender_cache table + cache population
+- [x] 43-02-PLAN.md — Members API @lid resolution via cache + GROUP_PARTICIPANTS_UPDATE cache writes
 
 ---
 
