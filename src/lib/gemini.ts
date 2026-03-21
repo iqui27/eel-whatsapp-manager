@@ -31,8 +31,30 @@ export interface AnalysisContext {
   voterName?: string;
   voterTags?: string[];
   previousMessages?: string[];
+  conversationThread?: ConversationTurn[];  // NEW — structured thread, preferred over previousMessages
   campaignContext?: string;
 }
+
+export interface ConversationTurn {
+  role: 'Eleitor' | 'Campanha' | 'Atendente';
+  content: string;
+  timestamp: string; // ISO string
+}
+
+export const CAMPAIGN_TAG_TAXONOMY = [
+  // Posicionamento político
+  'apoiador', 'indeciso', 'opositor',
+  // Temas de interesse
+  'saúde', 'educação', 'segurança', 'emprego', 'transporte', 'moradia', 'meio-ambiente',
+  // Engajamento
+  'ativo', 'inativo', 'respondeu', 'sem-resposta',
+  // Qualidade do contato
+  'número-errado', 'não-pertence', 'bloqueado', 'opt-out',
+  // Classificação geral
+  'liderança-comunitária', 'idoso', 'jovem', 'trabalhador',
+] as const;
+
+export type CampaignTag = typeof CAMPAIGN_TAG_TAXONOMY[number];
 
 // ─── Gemini Client ────────────────────────────────────────────────────────────
 
@@ -71,7 +93,9 @@ Analise a seguinte mensagem de um eleitor e retorne um JSON com:
 
 1. "sentiment": "positive" | "neutral" | "negative" - O sentimento geral da mensagem
 2. "intent": "support" | "question" | "complaint" | "interest" | "spam" | "other" - A intenção do eleitor
-3. "suggestedTags": string[] - Tags relevantes para categorizar o eleitor (ex: "apoiador", "dúvida-saúde", "reclamação")
+3. "suggestedTags": string[] - Escolha de 1 a 3 tags da lista abaixo que melhor classificam este eleitor.
+   LISTA PERMITIDA: {{TAXONOMY}}
+   Use APENAS tags desta lista. Não invente novas tags.
 4. "recommendedAction": "follow_up" | "send_offer" | "add_to_group" | "escalate" | "remove" | "none" - Ação recomendada
 5. "confidence": número de 0 a 100 - Confiança na análise
 6. "summary": string - Resumo breve da mensagem e contexto
@@ -111,20 +135,27 @@ export async function analyzeMessage(
     if (context?.voterTags?.length) {
       contextParts.push(`Tags atuais: ${context.voterTags.join(', ')}`);
     }
-    if (context?.previousMessages?.length) {
+    if (context?.conversationThread?.length) {
+      const threadLines = context.conversationThread.map(
+        turn => `[${turn.timestamp.slice(0, 16).replace('T', ' ')}] ${turn.role}: ${turn.content}`
+      );
+      contextParts.push(`Histórico da conversa:\n${threadLines.join('\n')}`);
+    } else if (context?.previousMessages?.length) {
       contextParts.push(`Mensagens anteriores:\n${context.previousMessages.slice(-3).join('\n')}`);
     }
     if (context?.campaignContext) {
       contextParts.push(`Contexto da campanha: ${context.campaignContext}`);
     }
-    
-    const contextStr = contextParts.length > 0 
+
+    const contextStr = contextParts.length > 0
       ? contextParts.join('\n')
       : 'Sem contexto adicional.';
-    
+
+    const taxonomyStr = CAMPAIGN_TAG_TAXONOMY.join(', ');
     const prompt = ANALYSIS_PROMPT
       .replace('{{CONTEXT}}', contextStr)
-      .replace('{{MESSAGE}}', messageText);
+      .replace('{{MESSAGE}}', messageText)
+      .replace('{{TAXONOMY}}', taxonomyStr);
     
     const result = await model.generateContent(prompt);
     const response = result.response.text();
@@ -139,12 +170,15 @@ export async function analyzeMessage(
     
     const parsed = JSON.parse(jsonMatch[0]);
 
+    const rawTags: string[] = parsed.suggestedTags || [];
+    const filteredTags = rawTags.filter(t => (CAMPAIGN_TAG_TAXONOMY as readonly string[]).includes(t));
+
     syslog({ level: 'info', category: 'gemini', message: `analyzeMessage — ${parsed.sentiment ?? '?'} / ${parsed.intent ?? '?'}`, durationMs: Date.now() - start, details: { model: modelName, voter: context?.voterName, confidence: parsed.confidence } });
-    
+
     return {
       sentiment: parsed.sentiment || 'neutral',
       intent: parsed.intent || 'other',
-      suggestedTags: parsed.suggestedTags || [],
+      suggestedTags: filteredTags,
       recommendedAction: parsed.recommendedAction || 'none',
       confidence: parsed.confidence || 50,
       summary: parsed.summary || '',
