@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/api-auth';
 import { db } from '@/db';
-import { messageQueue, campaigns, chips, voters, conversations } from '@/db/schema';
+import { messageQueue, campaigns, chips, voters, conversations, campaignDeliveryEvents } from '@/db/schema';
 import { and, eq, inArray, desc, count } from 'drizzle-orm';
 
 interface RouteParams {
@@ -105,22 +105,97 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .limit(limit)
       .offset(offset);
 
+    // When messageQueue is empty, check if this is a legacy campaign (sent via campaign-delivery.ts)
+    // Legacy campaigns record in campaignDeliveryEvents, never in messageQueue.
+    // NOTE: legacy campaigns are not retroactively trackable for read/delivered status —
+    // they display as 'sent' only. This is a known limitation of the direct-send path.
     if (messages.length === 0) {
+      // Count legacy events
+      const [legacyCountResult] = await db
+        .select({ count: count() })
+        .from(campaignDeliveryEvents)
+        .where(
+          and(
+            eq(campaignDeliveryEvents.campaignId, id),
+            eq(campaignDeliveryEvents.eventType, 'message_sent')
+          )
+        );
+
+      const legacyTotal = legacyCountResult?.count ?? 0;
+
+      if (legacyTotal === 0) {
+        // Truly empty — no messages in either table
+        return NextResponse.json({
+          campaign: {
+            id: campaign.id,
+            name: campaign.name,
+            status: campaign.status ?? 'draft',
+            totalSent: campaign.totalSent ?? 0,
+            totalDelivered: campaign.totalDelivered ?? 0,
+            totalRead: campaign.totalRead ?? 0,
+            totalFailed: campaign.totalFailed ?? 0,
+            createdAt: campaign.createdAt?.toISOString() ?? new Date().toISOString(),
+          },
+          messages: [],
+          total: 0,
+          page,
+          totalPages: 0,
+        } as CampaignMessagesResponse);
+      }
+
+      // Legacy campaign — fetch from campaignDeliveryEvents
+      const legacyTotalPages = Math.ceil(legacyTotal / limit);
+      const legacyEvents = await db
+        .select()
+        .from(campaignDeliveryEvents)
+        .where(
+          and(
+            eq(campaignDeliveryEvents.campaignId, id),
+            eq(campaignDeliveryEvents.eventType, 'message_sent')
+          )
+        )
+        .orderBy(desc(campaignDeliveryEvents.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      // Map legacy events to MessageRow shape
+      const legacyRows: MessageRow[] = legacyEvents.map(evt => {
+        const meta = evt.metadata as Record<string, unknown> | null;
+        return {
+          id: evt.id,
+          chipId: evt.chipId ?? null,
+          chipName: (meta?.chipName as string) ?? null,
+          voterId: evt.voterId ?? null,
+          voterName: (meta?.voterName as string) ?? null,
+          voterPhone: evt.voterPhone ?? '',
+          message: evt.message,
+          resolvedMessage: evt.message,
+          status: 'sent', // legacy events have no queue status lifecycle
+          sentAt: evt.createdAt?.toISOString() ?? null,
+          deliveredAt: null,
+          readAt: null,
+          failedAt: null,
+          failReason: null,
+          createdAt: evt.createdAt?.toISOString() ?? new Date().toISOString(),
+          conversationId: null,
+        };
+      });
+
       return NextResponse.json({
         campaign: {
           id: campaign.id,
           name: campaign.name,
-          status: campaign.status,
+          status: campaign.status ?? 'draft',
           totalSent: campaign.totalSent ?? 0,
           totalDelivered: campaign.totalDelivered ?? 0,
           totalRead: campaign.totalRead ?? 0,
           totalFailed: campaign.totalFailed ?? 0,
           createdAt: campaign.createdAt?.toISOString() ?? new Date().toISOString(),
         },
-        messages: [],
-        total: 0,
+        messages: legacyRows,
+        total: legacyTotal,
         page,
-        totalPages: 0,
+        totalPages: legacyTotalPages,
       } as CampaignMessagesResponse);
     }
 
