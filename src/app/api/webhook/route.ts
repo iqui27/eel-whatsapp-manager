@@ -140,6 +140,8 @@ export async function POST(request: NextRequest) {
     // Some variants send body.data as an array directly.
     // Normalise to always be an array.
     const rawUpsertData = body.data;
+    // DEBUG: log full raw data to understand Evolution API format
+    console.log('[webhook] upsert rawData type:', typeof rawUpsertData, '| isArray:', Array.isArray(rawUpsertData), '| keys:', rawUpsertData && typeof rawUpsertData === 'object' ? Object.keys(rawUpsertData as object).join(',') : String(rawUpsertData));
     let messages: unknown[];
     if (Array.isArray(rawUpsertData)) {
       messages = rawUpsertData;
@@ -157,6 +159,7 @@ export async function POST(request: NextRequest) {
       // Single message object (Evolution API v2)
       messages = [rawUpsertData];
     } else {
+      console.log('[webhook] upsert: could not parse messages from data, skipping');
       messages = [];
     }
 
