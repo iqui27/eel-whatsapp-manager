@@ -105,12 +105,24 @@ async function resolveExecutionContext(
 
   // Resolve group invite link if template uses {link_grupo}
   let groupInviteLink = '';
+  let groupLinkWarning = '';
   if (campaign.template.includes('{link_grupo}')) {
     const [segment] = await db.select().from(segments).where(eq(segments.id, campaign.segmentId)).limit(1);
     const segmentTag = segment?.segmentTag ?? null;
-    if (segmentTag) {
+    if (!segmentTag) {
+      groupLinkWarning = `Template usa {link_grupo} mas o segmento "${segment?.name ?? campaign.segmentId}" não tem tag configurada — link ficará vazio`;
+    } else {
       const group = await getGroupForSegment(segmentTag);
-      groupInviteLink = group?.inviteUrl ?? '';
+      if (!group) {
+        groupLinkWarning = `Template usa {link_grupo} mas nenhum grupo ativo com capacidade foi encontrado para tag "${segmentTag}" — link ficará vazio`;
+      } else if (!group.inviteUrl) {
+        groupLinkWarning = `Template usa {link_grupo} mas o grupo "${group.name}" não tem URL de convite — sincronize o grupo para obter o link`;
+      } else {
+        groupInviteLink = group.inviteUrl;
+      }
+    }
+    if (groupLinkWarning) {
+      console.warn('[campaign-delivery] {link_grupo}:', groupLinkWarning);
     }
   }
 
@@ -158,6 +170,7 @@ async function resolveExecutionContext(
     selectedChip,
     chipInstanceName,
     groupInviteLink,
+    groupLinkWarning,
   };
 }
 
@@ -180,6 +193,7 @@ export async function executeCampaignSend({
     selectedChip,
     chipInstanceName,
     groupInviteLink,
+    groupLinkWarning,
   } = await resolveExecutionContext(campaignId, requestedChipId, skipScheduleGuard);
 
   const audience = segmentVoters.length;
@@ -220,8 +234,21 @@ export async function executeCampaignSend({
       chipName: selectedChip?.name ?? null,
       chipInstanceName,
       executionDate: executionDate.toISOString(),
+      groupInviteLink: groupInviteLink || null,
+      groupLinkWarning: groupLinkWarning || null,
     },
   });
+
+  // Emit a dedicated warning event if the group link could not be resolved
+  if (groupLinkWarning) {
+    await addCampaignDeliveryEvent({
+      campaignId,
+      chipId: activeChipId,
+      eventType: 'send_warning',
+      message: `⚠ ${groupLinkWarning}`,
+      metadata: { groupLinkWarning },
+    });
+  }
 
   let delivered = 0;
   let failed = 0;

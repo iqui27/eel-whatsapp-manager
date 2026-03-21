@@ -35,6 +35,8 @@ function getEventIcon(eventType: string): string {
       return '✔';
     case 'send_failed':
       return '⚠';
+    case 'send_warning':
+      return '⚠';
     default:
       return '•';
   }
@@ -57,13 +59,15 @@ function getEventColor(eventType: string): string {
       return 'text-gray-500 bg-gray-50';
     case 'send_failed':
       return 'text-orange-600 bg-orange-50';
+    case 'send_warning':
+      return 'text-amber-600 bg-amber-50';
     default:
       return 'text-gray-600 bg-gray-50';
   }
 }
 
 function isSystemEvent(eventType: string): boolean {
-  return ['send_started', 'send_completed', 'send_failed'].includes(eventType);
+  return ['send_started', 'send_completed', 'send_failed', 'send_warning'].includes(eventType);
 }
 
 export function DeliveryTimeline({ events, maxEvents = 50 }: DeliveryTimelineProps) {
