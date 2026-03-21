@@ -168,7 +168,7 @@ export default function AgendarCampanhaPage() {
         body: JSON.stringify({
           id: campaign.id,
           scheduledAt,
-          chipId: selectedChipId !== 'auto' ? selectedChipId : null,
+          chipId: sendConfig.selectedChipIds?.[0] ?? (selectedChipId !== 'auto' ? selectedChipId : null),
           status: 'scheduled',
           variables: templateValidation.supportedVariables,
           // Persist send config
@@ -256,7 +256,11 @@ export default function AgendarCampanhaPage() {
         }),
       });
 
-      const payload = selectedChipId && selectedChipId !== 'auto' ? { chipId: selectedChipId } : {};
+      // Prefer the chip selected in SendConfigPanel (selectedChipIds), fall back to legacy selectedChipId
+      const resolvedChipId =
+        sendConfig.selectedChipIds?.[0] ??
+        (selectedChipId && selectedChipId !== 'auto' ? selectedChipId : null);
+      const payload = resolvedChipId ? { chipId: resolvedChipId } : {};
       const res = await fetch(`/api/campaigns/${campaign.id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
