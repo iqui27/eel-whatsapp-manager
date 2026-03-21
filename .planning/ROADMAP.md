@@ -1188,7 +1188,7 @@ Plans:
 - CAMP-44-02: Campaign messages tab (`/campanhas/[id]/mensagens`) displays all messages — API returns correct rows when messages exist in the queue for the campaign
 
 **Depends on:** Phase 18 (AI Lead Analysis), Phase 17 (Delivery Tracking)
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 44-01-PLAN.md — Full conversation context for Gemini + tag taxonomy
 - [ ] 44-02-PLAN.md — Campaign read tracking fix + messages tab fix
