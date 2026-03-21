@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Flame, Trash2, Smartphone, Loader2, X, RefreshCw,
   RotateCcw, AlertTriangle, Wifi, WifiOff, Clock, ChevronDown, Layers,
-  Pencil, Check, Shield, ChevronRight, UserCircle,
+  Pencil, Check, Shield, ChevronRight, UserCircle, Link,
 } from 'lucide-react';
 import { ChipProfileEditor } from '@/components/chip-profile-editor';
 import { Switch } from '@/components/ui/switch';
@@ -273,6 +273,7 @@ export default function ChipsPage() {
   const [syncing, setSyncing] = useState(false);
   const [restartingId, setRestartingId] = useState<string | null>(null);
   const [warmingId, setWarmingId] = useState<string | null>(null);
+  const [repairingWebhookId, setRepairingWebhookId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
@@ -419,6 +420,27 @@ export default function ChipsPage() {
       fetchChips(true);
     } catch {
       toast.error('Erro ao atualizar chip');
+    }
+  };
+
+  const handleRepairWebhook = async (chip: Chip) => {
+    setRepairingWebhookId(chip.id);
+    try {
+      const res = await fetch('/api/chips/repair-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chipId: chip.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Webhook de "${chip.name}" reparado. URL: ${data.webhookUrl}`);
+      } else {
+        toast.error(data?.error ?? 'Erro ao reparar webhook');
+      }
+    } catch {
+      toast.error('Erro ao reparar webhook');
+    } finally {
+      setRepairingWebhookId(null);
     }
   };
 
@@ -1362,6 +1384,22 @@ export default function ChipsPage() {
                           : <RotateCcw className="h-3 w-3" />
                         }
                         Reiniciar
+                      </button>
+                    )}
+
+                    {/* Repair webhook — reconfigures webhook URL in Evolution API */}
+                    {chip.instanceName && (
+                      <button
+                        onClick={() => handleRepairWebhook(chip)}
+                        disabled={repairingWebhookId === chip.id}
+                        title="Reparar webhook — reconfigura a URL de webhook na Evolution API para este chip"
+                        className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-blue-500/10 hover:text-blue-600 disabled:opacity-40 transition-colors"
+                      >
+                        {repairingWebhookId === chip.id
+                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                          : <Link className="h-3 w-3" />
+                        }
+                        Reparar Webhook
                       </button>
                     )}
 

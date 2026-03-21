@@ -135,14 +135,53 @@ async function resolveExecutionContext(
   const connectedChips = await getHealthyChips();
 
   const preferredChipId = requestedChipId ?? campaign.chipId ?? null;
-  const selectedChip = (
-    preferredChipId
-      ? connectedChips.find((chip) =>
-        chip.id === preferredChipId
-        || chip.instanceName === preferredChipId
-        || chip.name === preferredChipId)
-      : undefined
-  ) ?? connectedChips[0] ?? null;
+
+  let selectedChip = preferredChipId
+    ? connectedChips.find((chip) =>
+      chip.id === preferredChipId
+      || chip.instanceName === preferredChipId
+      || chip.name === preferredChipId)
+    : undefined;
+
+  // If a specific chip was requested but not found in healthy chips, fail explicitly
+  // instead of silently falling back to another chip (which was causing "Henrique" to send)
+  if (preferredChipId && !selectedChip) {
+    const { db: dbInstance } = await import('@/db');
+    const { chips: chipsTable } = await import('@/db/schema');
+    const { eq: eqFn } = await import('drizzle-orm');
+    const [requested] = await dbInstance.select().from(chipsTable)
+      .where(eqFn(chipsTable.id, preferredChipId)).limit(1);
+
+    if (!requested) {
+      throw createDeliveryError(
+        `Chip "${preferredChipId}" não encontrado no banco de dados. Selecione outro chip.`,
+        400,
+      );
+    }
+    if (!requested.enabled) {
+      throw createDeliveryError(
+        `Chip "${requested.name}" está desativado. Ative-o em Ajustes → Chips antes de enviar.`,
+        400,
+      );
+    }
+    const sentToday = requested.messagesSentToday ?? 0;
+    const limit = requested.dailyLimit ?? 200;
+    if (sentToday >= limit) {
+      throw createDeliveryError(
+        `Chip "${requested.name}" atingiu o limite diário (${sentToday}/${limit} mensagens). Aguarde o reset às meia-noite ou selecione outro chip.`,
+        400,
+      );
+    }
+    throw createDeliveryError(
+      `Chip "${requested.name}" não está saudável (status: ${requested.healthStatus}). Verifique a conexão em Ajustes → Chips.`,
+      400,
+    );
+  }
+
+  // No chip preference — use first available healthy chip
+  if (!selectedChip) {
+    selectedChip = connectedChips[0];
+  }
 
   // Resolve the Evolution API instance name.
   // When a chip is explicitly found, use its instanceName/name only — never fall back to

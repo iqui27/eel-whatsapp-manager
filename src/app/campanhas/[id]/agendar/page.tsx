@@ -16,6 +16,7 @@ import {
   Send,
   AlertTriangle,
   CalendarCheck,
+  Cpu,
 } from 'lucide-react';
 import type { Campaign, Chip, Config, Segment } from '@/db';
 import {
@@ -429,6 +430,38 @@ export default function AgendarCampanhaPage() {
           onChange={setSendConfig}
           allChips={allChips}
         />
+
+        {/* Chip resolution indicator — shows exactly which chip will be used */}
+        {(() => {
+          const resolvedId = sendConfig.selectedChipIds?.[0] ?? (selectedChipId !== 'auto' ? selectedChipId : null);
+          const chip = resolvedId ? allChips.find(c => c.id === resolvedId) : null;
+          if (sendConfig.selectedChipIds && sendConfig.selectedChipIds.length > 1) {
+            return (
+              <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-800">
+                <Cpu className="h-4 w-4 shrink-0 text-blue-500" />
+                <span>
+                  <span className="font-medium">{sendConfig.selectedChipIds.length} chips selecionados</span>
+                  {' '}— estratégia: {sendConfig.chipStrategy === 'round_robin' ? 'rotação' : sendConfig.chipStrategy === 'least_loaded' ? 'menos carregado' : 'afinidade'}.{' '}
+                  O primeiro a enviar será <span className="font-medium">{allChips.find(c => c.id === sendConfig.selectedChipIds[0])?.name ?? sendConfig.selectedChipIds[0]}</span>.
+                </span>
+              </div>
+            );
+          }
+          if (chip) {
+            return (
+              <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-2.5 text-sm text-green-800">
+                <Cpu className="h-4 w-4 shrink-0 text-green-500" />
+                <span>Chip selecionado: <span className="font-semibold">{chip.name}</span> ({chip.instanceName ?? chip.name})</span>
+              </div>
+            );
+          }
+          return (
+            <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+              <Cpu className="h-4 w-4 shrink-0 text-amber-500" />
+              <span>Nenhum chip selecionado — será usado o <span className="font-medium">primeiro chip saudável disponível</span>. Selecione um chip acima para garantir o envio pelo chip correto.</span>
+            </div>
+          );
+        })()}
 
         <Separator />
 
