@@ -5,7 +5,7 @@
 
 import { db } from '@/db';
 import { campaigns, conversionEvents, messageQueue, type ConversionEvent, type NewConversionEvent } from '@/db/schema';
-import { eq, and, desc, lte, gte, inArray } from 'drizzle-orm';
+import { eq, and, desc, lte, gte, inArray, sql } from 'drizzle-orm';
 
 // ─── Record Conversion Events ──────────────────────────────────────────────────
 
