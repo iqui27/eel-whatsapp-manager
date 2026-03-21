@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { chips, voters, segments, type Campaign, type Voter } from '@/db/schema';
+import { voters, segments, type Campaign, type Voter } from '@/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { addCampaignDeliveryEvent, getCampaign, updateCampaign } from '@/lib/db-campaigns';
 import { loadConfig } from '@/lib/db-config';
@@ -11,6 +11,7 @@ import {
 } from '@/lib/campaign-variables';
 import { getSegmentVoterIds } from '@/lib/db-segments';
 import { getGroupForSegment } from '@/lib/db-groups';
+import { getHealthyChips } from '@/lib/db-chips';
 import { sendText } from '@/lib/evolution';
 
 type DeliveryError = Error & { status?: number };
@@ -118,10 +119,8 @@ async function resolveExecutionContext(
     .from(voters)
     .where(inArray(voters.id, voterIds));
 
-  const connectedChips = await db
-    .select()
-    .from(chips)
-    .where(eq(chips.status, 'connected'));
+  // Use healthStatus-based lookup (covers chips where legacy status field is stale)
+  const connectedChips = await getHealthyChips();
 
   const preferredChipId = requestedChipId ?? campaign.chipId ?? null;
   const selectedChip = (
