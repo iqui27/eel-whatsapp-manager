@@ -4,7 +4,7 @@ import { conversations, campaigns, groupMessages } from '@/db/schema';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { loadChips, updateChip, updateChipHealth } from '@/lib/db-chips';
 import { addConversation, addMessage } from '@/lib/db-conversations';
-import { searchVoters, findVoterByPhone } from '@/lib/db-voters';
+import { findVoterByPhone } from '@/lib/db-voters';
 import { normalizePhone } from '@/lib/phone';
 import { getGroupByJid, updateGroupSize } from '@/lib/db-groups';
 import { 
@@ -201,13 +201,12 @@ export async function POST(request: NextRequest) {
               ? participantJid.replace('@s.whatsapp.net', '').replace(/\D/g, '')
               : '';
 
-            // Look up sender name via voter DB
+            // Look up sender name via voter DB (dual-format: handles 12↔13 digit variants)
             let senderName: string | null = null;
             if (senderPhone) {
               const normalizedSender = normalizePhone(senderPhone);
               if (normalizedSender) {
-                const matchedVoters = await searchVoters(normalizedSender);
-                const voter = matchedVoters.find((v) => v.phone === normalizedSender);
+                const voter = await findVoterByPhone(normalizedSender);
                 if (voter) senderName = voter.name;
               }
             }
@@ -294,14 +293,22 @@ export async function POST(request: NextRequest) {
         const messageText = groupMsgText;
         if (!messageText.trim()) continue; // Empty/media-only messages
 
-        // Look up voter by phone number (already normalized)
-        const matchedVoters = await searchVoters(phone);
-        const voter = matchedVoters.find((v) => v.phone === phone);
+        // Look up voter by phone number — dual-format handles 12↔13 digit Brazilian variants
+        const voter = await findVoterByPhone(phone);
 
         const voterId = voter?.id ?? null;
         const voterName = voter?.name ?? `+${phone}`;
 
-        // Check if an active conversation already exists for this phone
+        // Build phone variants for conversation lookup — if sender arrives with 12-digit JID
+        // but the conversation was stored with 13-digit (or vice-versa), we still find it.
+        const phoneVariants: string[] = [phone];
+        if (phone.length === 12) {
+          phoneVariants.push(phone.slice(0, 4) + '9' + phone.slice(4));
+        } else if (phone.length === 13) {
+          phoneVariants.push(phone.slice(0, 4) + phone.slice(5));
+        }
+
+        // Check if an active conversation already exists for this phone (or its variant)
         // ORDER BY last_message_at DESC so we always pick the most recent active conversation
         // when multiple exist for the same number (avoids routing to stale/old conversations)
         const existingConvs = await db
@@ -309,7 +316,7 @@ export async function POST(request: NextRequest) {
           .from(conversations)
           .where(
             and(
-              eq(conversations.voterPhone, phone),
+              inArray(conversations.voterPhone, phoneVariants),
               inArray(conversations.status, ['open', 'bot', 'waiting', 'assigned']),
             ),
           )
