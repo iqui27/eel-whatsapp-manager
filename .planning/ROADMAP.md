@@ -31,6 +31,7 @@
 | 40 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 41 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 42 | Groups Polish + Conversion Tracking | Complete    | 2026-03-21 | 2 plans (1/2 complete) |
+| 43 | Phone Resolution + Group Identity | P0 | 42 | 2 plans |
 
 ---
 
@@ -1152,6 +1153,26 @@ Plans:
 Plans:
 - [ ] 42-01-PLAN.md — Cache invalidation on group creation + group card layout fix
 - [ ] 42-02-PLAN.md — Member voter name enrichment + webhook auto opt-in
+
+---
+
+### Phase 43: Phone Resolution + Group Identity
+**Status:** Not started
+**Goal:** Fix voter name resolution across all incoming webhook events (dual-format 12↔13 digit phones) and provide real identity for WhatsApp group members — including closed groups where members appear as `@lid` JIDs that cannot be resolved through direct API calls.
+
+**Requirements:** [PHONE-43-01, GRP-43-01, GRP-43-02, GRP-43-03, GRP-43-04]
+
+- PHONE-43-01: Webhook `MESSAGES_UPSERT` uses `findVoterByPhone` (dual-format inArray) when linking incoming messages to voters — fixes conversation feed showing voters without names when phone has no 9th digit
+- GRP-43-01: New `group_sender_cache` DB table (groupJid + senderPhone + normalizedPhone + lastSeenAt) with Drizzle migration, storing real sender JIDs captured from group message events
+- GRP-43-02: Webhook `MESSAGES_UPSERT` for group messages (remoteJid ends with `@g.us`) writes sender phone to `group_sender_cache` — only `@s.whatsapp.net` senders (real phones), ignoring `@lid`
+- GRP-43-03: Group members API (`/api/groups/[id]/members`) queries `group_sender_cache` to attempt @lid → phone resolution; resolved phones then go through `findVoterByPhone` to return voter name; unresolvable @lid members shown with null name as before
+- GRP-43-04: Closed group opt-in path — GROUP_PARTICIPANTS_UPDATE handler uses `findVoterByPhone` for participant real JIDs; @lid participants in closed groups cannot be opted-in automatically (documented limitation), but any real-JID participant joining any group (open or closed) correctly triggers opt-in
+
+**Depends on:** Phase 42 (Groups Polish — dual-format `findVoterByPhone` in db-voters)
+**Plans:** 2 plans
+Plans:
+- [ ] 43-01-PLAN.md — Fix webhook phone lookup (findVoterByPhone) + group_sender_cache table + cache population
+- [ ] 43-02-PLAN.md — Members API @lid resolution via cache + GROUP_PARTICIPANTS_UPDATE cache writes
 
 ---
 
