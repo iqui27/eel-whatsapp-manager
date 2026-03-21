@@ -94,7 +94,18 @@ export async function POST(
       }
 
       // Evolution API v2 requires the number as JID: 55XXXXXXXXXXX@s.whatsapp.net
+      // Brazilian 9th-digit: some numbers are stored as 13-digit (55+DDD+9+8) but
+      // registered on WhatsApp as 12-digit (55+DDD+8). Try both formats.
       const waNumber = formatPhoneForWhatsApp(conversation.voterPhone);
+      const waNumberAlt =
+        normalizedVoterPhone.length === 13
+          ? `${normalizedVoterPhone.slice(0, 4)}${normalizedVoterPhone.slice(5)}@s.whatsapp.net`
+          : normalizedVoterPhone.length === 12
+            ? `${normalizedVoterPhone.slice(0, 4)}9${normalizedVoterPhone.slice(4)}@s.whatsapp.net`
+            : null;
+
+      const isExistsError = (err: unknown) =>
+        err instanceof Error && /"exists":\s*false/.test(err.message);
 
       try {
         await sendText(
@@ -105,22 +116,37 @@ export async function POST(
           body.content,
         );
       } catch (err) {
-        console.error('[POST message sendText]', err);
-        
-        // Parse Evolution API error for user-friendly message
-        let errorMsg = 'Erro ao enviar mensagem no WhatsApp';
-        if (err instanceof Error) {
-          const match = err.message.match(/"exists":\s*false/);
-          if (match) {
-            errorMsg = `O número ${normalizedVoterPhone} não possui WhatsApp cadastrado`;
-          } else if (err.message.includes('(401)')) {
-            errorMsg = 'Chip desconectado do WhatsApp. Reconecte na Evolution API.';
-          } else {
-            errorMsg = err.message;
+        // If the first format doesn't exist on WhatsApp, retry with the alternative format
+        if (isExistsError(err) && waNumberAlt) {
+          console.log(`[POST message] ${waNumber} not found, retrying with ${waNumberAlt}`);
+          try {
+            await sendText(
+              config.evolutionApiUrl,
+              config.evolutionApiKey,
+              instanceName,
+              waNumberAlt,
+              body.content,
+            );
+            // Alternative worked — continue to addMessage below
+          } catch (err2) {
+            console.error('[POST message sendText retry]', err2);
+            const altPhone = waNumberAlt.replace('@s.whatsapp.net', '');
+            return NextResponse.json({
+              error: `O número ${normalizedVoterPhone} (e variante ${altPhone}) não possui WhatsApp cadastrado`,
+            }, { status: 400 });
           }
+        } else {
+          console.error('[POST message sendText]', err);
+          let errorMsg = 'Erro ao enviar mensagem no WhatsApp';
+          if (err instanceof Error) {
+            if (err.message.includes('(401)')) {
+              errorMsg = 'Chip desconectado do WhatsApp. Reconecte na Evolution API.';
+            } else {
+              errorMsg = err.message;
+            }
+          }
+          return NextResponse.json({ error: errorMsg }, { status: 400 });
         }
-        
-        return NextResponse.json({ error: errorMsg }, { status: 400 });
       }
     }
 
