@@ -551,6 +551,55 @@ export async function POST(request: NextRequest) {
             syslogWarn('webhook', `Grupo "${group.name}" está CHEIO (${newSize} membros)`, { groupId: group.id, groupJid, size: newSize });
           }
 
+          // ─── Auto opt-in for all group joins (Phase 42) ────────────────────────
+          // Every person who joins via invite link is the consent signal — opt them in
+          // automatically if they have a matching voter record and aren't already opted in.
+          if (action === 'add' && participants.length > 0) {
+            for (const participantJid of participants) {
+              // Skip @lid JIDs — they are Linked Device IDs, not phone numbers
+              if (!participantJid.endsWith('@s.whatsapp.net')) continue;
+
+              const rawPhone = participantJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+              const normalizedPhone = normalizePhone(rawPhone);
+              if (!normalizedPhone) continue;
+
+              // Generate the alternate format for the Brazilian 9th-digit variation.
+              // WhatsApp may send a 12-digit JID (55 + DDD + 8 digits) while the DB
+              // stores 13 digits (55 + DDD + 9 + 8 digits), or vice versa.
+              let normalizedPhoneWithNine: string | null = null;
+              if (normalizedPhone.length === 12) {
+                // Insert '9' after the DDD (position 4): 55DD → 55DD9
+                normalizedPhoneWithNine = normalizedPhone.slice(0, 4) + '9' + normalizedPhone.slice(4);
+              }
+
+              try {
+                const matchedVoters = await searchVoters(normalizedPhone);
+                // Match against both the 12-digit and 13-digit variants
+                const voter = matchedVoters.find(
+                  v => v.phone === normalizedPhone ||
+                       (normalizedPhoneWithNine !== null && v.phone === normalizedPhoneWithNine)
+                );
+
+                if (voter && voter.optInStatus !== 'active') {
+                  await logConsent(
+                    voter.id,
+                    'opt_in',
+                    'whatsapp_group',
+                    `Entrou no grupo "${group.name}" via link de convite`
+                  );
+                  syslogInfo('webhook', `Opt-in automático registrado para ${voter.name}`, {
+                    voterId: voter.id,
+                    phone: normalizedPhone,
+                    groupId: group.id,
+                  });
+                }
+              } catch (optInErr) {
+                console.error('[webhook] Auto opt-in error:', optInErr);
+                // NEVER throw — webhook must always return 200
+              }
+            }
+          }
+
           // ─── Group join conversion tracking (Phase 17) ─────────────────────────
           if (action === 'add' && group.campaignId && participants.length > 0) {
             for (const participantJid of participants) {
