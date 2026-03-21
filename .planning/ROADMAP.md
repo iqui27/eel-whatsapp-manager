@@ -30,7 +30,7 @@
 | 39 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 40 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 41 | 2/2 | Complete    | 2026-03-20 | 2 plans |
-| 42 | Groups Polish & Conversion Tracking | P0 | 16, 21 | TBD |
+| 42 | 2/2 | Complete   | 2026-03-21 | TBD |
 
 ---
 
@@ -1139,15 +1139,16 @@ Plans:
 **Status:** Not started
 **Goal:** Fix group management bugs and add conversion tracking — auto-link rotation when creating new groups mid-campaign, real member names display, "ver detalhes" layout fix, and auto opt-in on group join.
 
-**Requirements:** [GRP-POL-01, GRP-POL-02, GRP-POL-03, GRP-POL-04]
+**Requirements:** [GRP-POL-01, GRP-POL-02, GRP-POL-03, GRP-POL-04, GRP-POL-05]
 
 - GRP-POL-01: When a new group is created mid-campaign, the campaign link automatically updates to point to the new group (auto-link rotation)
 - GRP-POL-02: Group member list shows real contact names (linked from contacts/voters DB) for conversion tracking and identity management
 - GRP-POL-03: "Ver detalhes" button in group card layout is contained within the card component (no overflow/clipping)
 - GRP-POL-04: When a person joins a group via invite link, they are automatically opted-in (opt-in registered in DB)
+- GRP-POL-05: Chip sync pulls full instance info from Evolution API (including proxy settings) and updates the DB — changes made directly in Evolution (proxy, profile) are reflected in the frontend after sync
 
 **Depends on:** Phase 16 (WhatsApp Group Management), Phase 21 (Campaign-Group Integration)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 42-01-PLAN.md — Cache invalidation on group creation + group card layout fix
 - [ ] 42-02-PLAN.md — Member voter name enrichment + webhook auto opt-in

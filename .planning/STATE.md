@@ -29,7 +29,7 @@ progress:
 **Progress:** [██████████] 104%
 **Last Activity:** 2026-03-20
 **Last Activity Description:** Phase 41 complete
-**Stopped At:** Completed 41-02-PLAN.md — campaign detail analytics + AI insights panel
+**Stopped At:** Completed 42-02-PLAN.md — voter name enrichment in members API + auto opt-in on group join
 
 **Milestone 6 Execution Plan:**
 - Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
@@ -431,6 +431,8 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 41]: Resume from paused always goes to scheduled — safest, cron picks it up
 - [Phase 41]: Campaign detail page converted to client component for AI refresh + 30s auto-refresh
 - [Phase 41]: AI analysis fetched on-demand with in-memory cache keyed by campaignId:totalSent — invalidates on new message deliveries
+- [Phase 42-groups-polish-conversion-tracking]: Drizzle inArray batch lookup for voter names in members API (one round-trip for 800+ members)
+- [Phase 42-groups-polish-conversion-tracking]: Auto opt-in on group join (webhook) uses logConsent with dual-format phone matching for Brazilian 9th-digit variation
 
 ## Accumulated Context
 
@@ -588,6 +590,7 @@ src/components/
 | Phase 40 P02 | 4 min | 2 tasks | 3 files |
 | Phase 41-campanhas-management-analytics P01 | 3 min | 2 tasks | 3 files |
 | Phase 41 P02 | 4 min | 2 tasks | 3 files |
+| Phase 42-groups-polish-conversion-tracking P02 | 15 | 2 tasks | 2 files |
 
 ## Next Actions
 
