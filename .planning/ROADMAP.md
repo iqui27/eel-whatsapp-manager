@@ -1176,6 +1176,25 @@ Plans:
 
 ---
 
+### Phase 44: AI Analysis Enhancement + Campaign Tracking Fixes
+**Status:** Not started
+**Goal:** Upgrade Gemini analysis to use full conversation context instead of 3 isolated messages, standardize AI-suggested tags to a curated campaign taxonomy, fix campaign read/reply tracking (webhook status updates not correlating to message queue), and fix the campaign messages tab showing 0 messages.
+
+**Requirements:** [AI-44-01, AI-44-02, CAMP-44-01, CAMP-44-02]
+
+- AI-44-01: `triggerAnalysis` passes full conversation thread (all messages with role labels and timestamps) to Gemini instead of 3 plain strings — produces accurate sentiment/intent because Gemini understands the full exchange, not just the last message
+- AI-44-02: Gemini `suggestedTags` constrained to a predefined campaign taxonomy (e.g., apoiador, indeciso, opositor, saúde, educação, segurança, emprego, transporte) — replaces free-form tags like "teste", "saudação", "inicio-conversa" that have no strategic value
+- CAMP-44-01: Campaign message read/replied tracking works — `messages.update` webhook correctly correlates the Evolution API message key ID to `messageQueue.evolutionMessageId` so `readAt` and campaign `totalRead` are updated when voters open messages
+- CAMP-44-02: Campaign messages tab (`/campanhas/[id]/mensagens`) displays all messages — API returns correct rows when messages exist in the queue for the campaign
+
+**Depends on:** Phase 18 (AI Lead Analysis), Phase 17 (Delivery Tracking)
+**Plans:** 2 plans
+Plans:
+- [ ] 44-01-PLAN.md — Full conversation context for Gemini + tag taxonomy
+- [ ] 44-02-PLAN.md — Campaign read tracking fix + messages tab fix
+
+---
+
 | Decision | Choice | Reason |
 |----------|--------|--------|
 | Visual direction | V2 Editorial Light (Radix Command) | Selected by user from 4 Paper options |
