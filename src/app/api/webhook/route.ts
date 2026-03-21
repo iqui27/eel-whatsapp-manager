@@ -165,11 +165,16 @@ export async function POST(request: NextRequest) {
 
       try {
         const key = msg.key as Record<string, unknown> | undefined;
+        // DEBUG: log the raw message structure to understand Evolution API v2 format
+        console.log('[webhook] upsert msg keys:', Object.keys(msg), '| key:', JSON.stringify(key)?.slice(0, 120));
         if (!key) continue;
 
         // Only handle inbound (not sent by us).
         // Use strict === true to avoid skipping messages where fromMe is undefined.
-        if (key.fromMe === true) continue;
+        if (key.fromMe === true) {
+          console.log('[webhook] skipping fromMe=true msg', key.id);
+          continue;
+        }
 
         const remoteJid = key.remoteJid as string | undefined;
         if (!remoteJid) continue;
@@ -189,7 +194,10 @@ export async function POST(request: NextRequest) {
           if (!groupMsgText.trim()) continue;
           try {
             const group = await getGroupByJid(remoteJid);
-            if (!group) continue; // Unknown group — skip
+            if (!group) {
+              console.log('[webhook] Group not found for JID:', remoteJid, '— skipping');
+              continue;
+            }
 
             // Extract sender from participant field (group messages carry this)
             const participantJid = (msg.participant as string | undefined) ?? '';
