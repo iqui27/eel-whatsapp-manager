@@ -8,7 +8,7 @@
 import { db } from '@/db';
 import { voters, aiAnalyses, conversations, conversationMessages, type AiAnalysis, type NewAiAnalysis } from '@/db/schema';
 import { eq, desc, and, isNotNull } from 'drizzle-orm';
-import { analyzeMessage, profileLead, isGeminiConfigured, type MessageAnalysis, type LeadProfile } from '@/lib/gemini';
+import { analyzeMessage, profileLead, isGeminiConfigured, type MessageAnalysis, type LeadProfile, type ConversationTurn } from '@/lib/gemini';
 
 // ─── Real-Time Analysis Trigger ───────────────────────────────────────────────
 
@@ -36,10 +36,14 @@ export async function triggerAnalysis(
     : await getVoterByPhone(voterPhone);
 
   // Run analysis
+  const [conversationThread] = await Promise.all([
+    getConversationThread(voterPhone, 20),
+  ]);
+
   const analysis = await analyzeMessage(messageText, {
     voterName: options?.voterName || voter?.name,
     voterTags: options?.voterTags || voter?.tags || [],
-    previousMessages: await getRecentMessages(voterPhone, 3),
+    conversationThread,
   });
 
   if (!analysis) {
@@ -192,6 +196,33 @@ async function getRecentMessages(phone: string, limit: number): Promise<string[]
     .limit(limit);
 
   return messages.map(m => m.content);
+}
+
+async function getConversationThread(phone: string, limit: number = 20): Promise<ConversationTurn[]> {
+  const messages = await db
+    .select({
+      sender: conversationMessages.sender,
+      content: conversationMessages.content,
+      createdAt: conversationMessages.createdAt,
+    })
+    .from(conversationMessages)
+    .innerJoin(conversations, eq(conversationMessages.conversationId, conversations.id))
+    .where(eq(conversations.voterPhone, phone))
+    .orderBy(desc(conversationMessages.createdAt))
+    .limit(limit);
+
+  const roleMap: Record<string, ConversationTurn['role']> = {
+    voter: 'Eleitor',
+    bot: 'Campanha',
+    agent: 'Atendente',
+  };
+
+  // Reverse so Gemini receives chronological order (oldest first = natural reading order)
+  return messages.reverse().map(m => ({
+    role: roleMap[m.sender] ?? 'Eleitor',
+    content: m.content,
+    timestamp: m.createdAt?.toISOString() ?? new Date().toISOString(),
+  }));
 }
 
 /**
