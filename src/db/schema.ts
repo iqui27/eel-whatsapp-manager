@@ -630,3 +630,22 @@ export const cronLocks = pgTable('cron_locks', {
   lockedAt:  timestamp('locked_at',  { withTimezone: true }).notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 });
+
+// ─── Group Sender Cache (Phase 43 - @lid resolution) ──────────────────────────
+// Stores the mapping of (groupJid, senderJid) → normalizedPhone captured
+// from real @s.whatsapp.net senders in group messages. Used to resolve
+// @lid participants (WhatsApp privacy feature) to known voter names.
+export const groupSenderCache = pgTable('group_sender_cache', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  groupJid: text('group_jid').notNull(),
+  senderJid: text('sender_jid').notNull(),
+  normalizedPhone: text('normalized_phone').notNull(),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).default(sql`now()`).notNull(),
+}, (t) => [
+  index('idx_group_sender_cache_group').on(t.groupJid),
+  index('idx_group_sender_cache_phone').on(t.normalizedPhone),
+  // Unique constraint: one senderJid per group (composite unique for upsert target)
+]);
+
+export type GroupSenderCache = typeof groupSenderCache.$inferSelect;
+export type NewGroupSenderCache = typeof groupSenderCache.$inferInsert;
