@@ -749,10 +749,15 @@ export default function ConversasPage() {
           });
         });
       } else {
-        // Remove optimistic msg on failure
+        // Remove optimistic msg on failure — show real error from API
         setMessages(prev => prev.filter(m => m.id !== tempId));
         setReply(content);
-        toast.error('Erro ao enviar mensagem');
+        try {
+          const errData = await res.json() as { error?: string };
+          toast.error(errData.error ?? 'Erro ao enviar mensagem');
+        } catch {
+          toast.error('Erro ao enviar mensagem');
+        }
       }
     } catch {
       setMessages(prev => prev.filter(m => m.id !== tempId));

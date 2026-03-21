@@ -146,6 +146,29 @@ export async function filterVoters(filters: VoterFilters): Promise<Voter[]> {
   return query;
 }
 
+/**
+ * Find a single voter by exact phone number, handling the Brazilian 9th-digit variation.
+ * Queries both the 12-digit form (55 + DDD + 8 digits) and the 13-digit form
+ * (55 + DDD + 9 + 8 digits) in a single inArray query so that JIDs arriving
+ * without the 9th digit still resolve to the correct voter record.
+ */
+export async function findVoterByPhone(normalizedPhone: string): Promise<Voter | undefined> {
+  const variants: string[] = [normalizedPhone];
+  if (normalizedPhone.length === 12) {
+    // Add 13-digit variant: insert '9' after DDD (position 4)
+    variants.push(normalizedPhone.slice(0, 4) + '9' + normalizedPhone.slice(4));
+  } else if (normalizedPhone.length === 13) {
+    // Add 12-digit variant: remove the '9' at position 4
+    variants.push(normalizedPhone.slice(0, 4) + normalizedPhone.slice(5));
+  }
+  const rows = await db
+    .select()
+    .from(voters)
+    .where(inArray(voters.phone, variants))
+    .limit(1);
+  return rows[0];
+}
+
 export async function searchVoters(query: string): Promise<Voter[]> {
   // If query looks like a phone number, normalize it for search
   const isPhoneQuery = /^\d/.test(query);

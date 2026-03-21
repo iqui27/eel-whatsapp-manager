@@ -4,7 +4,7 @@ import { conversations, campaigns, groupMessages } from '@/db/schema';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { loadChips, updateChip, updateChipHealth } from '@/lib/db-chips';
 import { addConversation, addMessage } from '@/lib/db-conversations';
-import { searchVoters } from '@/lib/db-voters';
+import { searchVoters, findVoterByPhone } from '@/lib/db-voters';
 import { normalizePhone } from '@/lib/phone';
 import { getGroupByJid, updateGroupSize } from '@/lib/db-groups';
 import { 
@@ -563,22 +563,8 @@ export async function POST(request: NextRequest) {
               const normalizedPhone = normalizePhone(rawPhone);
               if (!normalizedPhone) continue;
 
-              // Generate the alternate format for the Brazilian 9th-digit variation.
-              // WhatsApp may send a 12-digit JID (55 + DDD + 8 digits) while the DB
-              // stores 13 digits (55 + DDD + 9 + 8 digits), or vice versa.
-              let normalizedPhoneWithNine: string | null = null;
-              if (normalizedPhone.length === 12) {
-                // Insert '9' after the DDD (position 4): 55DD → 55DD9
-                normalizedPhoneWithNine = normalizedPhone.slice(0, 4) + '9' + normalizedPhone.slice(4);
-              }
-
               try {
-                const matchedVoters = await searchVoters(normalizedPhone);
-                // Match against both the 12-digit and 13-digit variants
-                const voter = matchedVoters.find(
-                  v => v.phone === normalizedPhone ||
-                       (normalizedPhoneWithNine !== null && v.phone === normalizedPhoneWithNine)
-                );
+                const voter = await findVoterByPhone(normalizedPhone);
 
                 if (voter && voter.optInStatus !== 'active') {
                   await logConsent(

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/db-config';
 import { loadChips, updateChip, updateChipHealth } from '@/lib/db-chips';
 import { requirePermission } from '@/lib/api-auth';
-import { getConnectionState, restartInstance, fetchInstances } from '@/lib/evolution';
+import { getConnectionState, restartInstance, fetchInstances, fetchInstanceProxy } from '@/lib/evolution';
 import type { EvolutionInstance } from '@/lib/evolution';
 
 const WEBHOOK_STALE_MS = 2 * 60 * 1000; // 2 minutes
@@ -118,34 +118,32 @@ export async function POST(request: NextRequest) {
           lastHealthCheck: now,
         });
 
-        // Sync instance details from Evolution → DB (proxy, profile name)
+        // Sync proxy from Evolution → DB via /proxy/find/{instance}
+        // (fetchInstances does not return proxy data)
+        const proxy = await fetchInstanceProxy(evolutionApiUrl, evolutionApiKey, instanceName);
         const evInst = evolutionInstanceMap.get(instanceName);
-        if (evInst) {
-          const updates: Record<string, unknown> = {};
+        const updates: Record<string, unknown> = {};
 
-          // Sync proxy: if Evolution has proxy config and our DB doesn't (or differs)
-          if (evInst.proxy?.host) {
-            const evProxyHost = evInst.proxy.host;
-            const evProxyPort = evInst.proxy.port ? Number(evInst.proxy.port) : 80;
-            const evProxyProtocol = (evInst.proxy.protocol ?? 'http') as 'http' | 'https' | 'socks4' | 'socks5';
-            if (chip.proxyHost !== evProxyHost || chip.proxyPort !== evProxyPort) {
-              updates.proxyHost = evProxyHost;
-              updates.proxyPort = evProxyPort;
-              updates.proxyProtocol = evProxyProtocol;
-              updates.proxyUsername = evInst.proxy.username ?? null;
-              updates.proxyPassword = evInst.proxy.password ?? null;
-            }
+        if (proxy?.host) {
+          const evProxyHost = proxy.host;
+          const evProxyPort = proxy.port ? Number(proxy.port) : 80;
+          const evProxyProtocol = (proxy.protocol ?? 'http') as 'http' | 'https' | 'socks4' | 'socks5';
+          if (chip.proxyHost !== evProxyHost || chip.proxyPort !== evProxyPort) {
+            updates.proxyHost = evProxyHost;
+            updates.proxyPort = evProxyPort;
+            updates.proxyProtocol = evProxyProtocol;
+            updates.proxyUsername = proxy.username ?? null;
+            updates.proxyPassword = proxy.password ?? null;
           }
+        }
 
-          // Sync profile name if Evolution has one and ours is empty
-          if (evInst.profileName && !chip.profileName) {
-            updates.profileName = evInst.profileName;
-          }
+        if (evInst?.profileName && !chip.profileName) {
+          updates.profileName = evInst.profileName;
+        }
 
-          if (Object.keys(updates).length > 0) {
-            await updateChip(chip.id, updates);
-            console.log(`[sync] Updated chip ${instanceName} from Evolution:`, Object.keys(updates));
-          }
+        if (Object.keys(updates).length > 0) {
+          await updateChip(chip.id, updates);
+          console.log(`[sync] Updated chip ${instanceName} from Evolution:`, Object.keys(updates));
         }
 
         results.push({

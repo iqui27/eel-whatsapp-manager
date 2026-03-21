@@ -714,6 +714,39 @@ export async function getProfileStatus(
   }
 }
 
+// ─── Proxy Management ────────────────────────────────────────────────────────
+
+export interface EvolutionProxyConfig {
+  host: string;
+  port: string | number;
+  protocol: string;
+  username?: string;
+  password?: string;
+}
+
+/**
+ * Fetch proxy settings for a specific instance from Evolution API.
+ * Returns null if proxy is not configured or endpoint not available.
+ */
+export async function fetchInstanceProxy(
+  apiUrl: string,
+  apiKey: string,
+  instanceName: string,
+): Promise<EvolutionProxyConfig | null> {
+  try {
+    const res = await fetch(
+      `${baseUrl(apiUrl)}/proxy/find/${encodeURIComponent(instanceName)}`,
+      { headers: { apikey: apiKey } },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.host) return null;
+    return data as EvolutionProxyConfig;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
 /** Test connectivity — returns { ok, message } */
