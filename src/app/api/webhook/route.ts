@@ -604,6 +604,23 @@ export async function POST(request: NextRequest) {
             }
           }
 
+          // ─── Write joining members to group sender cache (Phase 43) ────────────
+          // Enables the members API to surface names for members even if they haven't sent a message.
+          // Only @s.whatsapp.net JIDs — @lid cannot be resolved to a phone number.
+          if (action === 'add' && participants.length > 0) {
+            for (const participantJid of participants) {
+              if (!participantJid.endsWith('@s.whatsapp.net')) continue;
+              const rawPhone = participantJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+              const normalizedPhone = normalizePhone(rawPhone);
+              if (!normalizedPhone) continue;
+              try {
+                await upsertGroupSenderCache(groupJid, participantJid, normalizedPhone);
+              } catch (cacheErr) {
+                console.error('[webhook] Failed to cache joining participant:', cacheErr);
+              }
+            }
+          }
+
           // ─── Group join conversion tracking (Phase 17) ─────────────────────────
           if (action === 'add' && group.campaignId && participants.length > 0) {
             for (const participantJid of participants) {
