@@ -172,7 +172,7 @@ export function GroupCard({ group, segments = [] }: GroupCardProps) {
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-1.5 px-4 pb-4 pt-1 border-t border-border/50 mt-auto">
+      <div className="flex flex-wrap items-center gap-1.5 px-4 pb-4 pt-1 border-t border-border/50 mt-auto">
         <Button
           variant="ghost"
           size="sm"
@@ -195,7 +195,7 @@ export function GroupCard({ group, segments = [] }: GroupCardProps) {
             Arquivar
           </Button>
         )}
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
           <EditGroupDialog group={group} segments={segments} />
           <Link href={`/grupos/${group.id}`}>
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
