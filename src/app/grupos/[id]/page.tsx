@@ -120,6 +120,12 @@ export default function GroupDetailPage() {
 
   useEffect(() => { void loadMessages(); }, [loadMessages]);
 
+  // Auto-refresh messages every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => { void loadMessages(); }, 10_000);
+    return () => clearInterval(interval);
+  }, [loadMessages]);
+
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

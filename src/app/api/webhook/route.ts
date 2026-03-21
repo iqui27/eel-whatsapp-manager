@@ -140,8 +140,6 @@ export async function POST(request: NextRequest) {
     // Some variants send body.data as an array directly.
     // Normalise to always be an array.
     const rawUpsertData = body.data;
-    // DEBUG: log full raw data to understand Evolution API format
-    console.log('[webhook] upsert rawData type:', typeof rawUpsertData, '| isArray:', Array.isArray(rawUpsertData), '| keys:', rawUpsertData && typeof rawUpsertData === 'object' ? Object.keys(rawUpsertData as object).join(',') : String(rawUpsertData));
     let messages: unknown[];
     if (Array.isArray(rawUpsertData)) {
       messages = rawUpsertData;
@@ -159,7 +157,6 @@ export async function POST(request: NextRequest) {
       // Single message object (Evolution API v2)
       messages = [rawUpsertData];
     } else {
-      console.log('[webhook] upsert: could not parse messages from data, skipping');
       messages = [];
     }
 
@@ -168,16 +165,10 @@ export async function POST(request: NextRequest) {
 
       try {
         const key = msg.key as Record<string, unknown> | undefined;
-        // DEBUG: log the raw message structure to understand Evolution API v2 format
-        console.log('[webhook] upsert msg keys:', Object.keys(msg), '| key:', JSON.stringify(key)?.slice(0, 120));
         if (!key) continue;
 
         // Only handle inbound (not sent by us).
-        // Use strict === true to avoid skipping messages where fromMe is undefined.
-        if (key.fromMe === true) {
-          console.log('[webhook] skipping fromMe=true msg', key.id);
-          continue;
-        }
+        if (key.fromMe === true) continue;
 
         const remoteJid = key.remoteJid as string | undefined;
         if (!remoteJid) continue;
@@ -197,14 +188,18 @@ export async function POST(request: NextRequest) {
           if (!groupMsgText.trim()) continue;
           try {
             const group = await getGroupByJid(remoteJid);
-            if (!group) {
-              console.log('[webhook] Group not found for JID:', remoteJid, '— skipping');
-              continue;
-            }
+            if (!group) continue;
 
-            // Extract sender from participant field (group messages carry this)
-            const participantJid = (msg.participant as string | undefined) ?? '';
-            const senderPhone = participantJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+            // Evolution API v2 puts participant in key.participant; v1 puts it in msg.participant
+            const participantJid =
+              (key.participant as string | undefined) ??
+              (msg.participant as string | undefined) ??
+              '';
+            // @lid is Meta's Linked Device ID — not a phone number; @s.whatsapp.net is a real phone
+            const isPhoneJid = participantJid.endsWith('@s.whatsapp.net');
+            const senderPhone = isPhoneJid
+              ? participantJid.replace('@s.whatsapp.net', '').replace(/\D/g, '')
+              : '';
 
             // Look up sender name via voter DB
             let senderName: string | null = null;

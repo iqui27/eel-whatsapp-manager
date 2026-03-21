@@ -5,7 +5,7 @@
 
 import { db } from '@/db';
 import { campaigns, conversionEvents, messageQueue, type ConversionEvent, type NewConversionEvent } from '@/db/schema';
-import { eq, and, desc, lte, sql } from 'drizzle-orm';
+import { eq, and, desc, lte, gte, inArray } from 'drizzle-orm';
 
 // ─── Record Conversion Events ──────────────────────────────────────────────────
 
@@ -266,8 +266,8 @@ export async function findRecentMessageToPhone(
       and(
         eq(messageQueue.voterPhone, phone),
         lte(messageQueue.createdAt, new Date()),
-        sql`${messageQueue.createdAt} >= ${cutoff}`,
-        sql`${messageQueue.status} IN ('sent', 'delivered', 'read')`
+        gte(messageQueue.createdAt, cutoff),
+        inArray(messageQueue.status, ['sent', 'delivered', 'read'])
       )
     )
     .orderBy(desc(messageQueue.createdAt))
