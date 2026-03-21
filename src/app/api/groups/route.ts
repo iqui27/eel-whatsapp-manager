@@ -3,6 +3,7 @@ import { listGroups, createGroupRecord } from '@/lib/db-groups';
 import { loadChips } from '@/lib/db-chips';
 import { loadConfig } from '@/lib/db-config';
 import { createGroup, getInviteCode, updateParticipant } from '@/lib/evolution';
+import { invalidateGroupCache } from '@/lib/group-link-cache';
 import { db } from '@/db';
 import { campaigns } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -139,6 +140,11 @@ export async function POST(request: NextRequest) {
       status: 'active',
       admins: admins ?? [],
     });
+
+    // Bust segment-scoped cache so campaigns immediately resolve to the new group
+    if (group.segmentTag) {
+      invalidateGroupCache(group.segmentTag);
+    }
 
     return NextResponse.json({ group }, { status: 201 });
   } catch (error) {
