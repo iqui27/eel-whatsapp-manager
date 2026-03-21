@@ -31,7 +31,7 @@
 | 40 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 41 | 2/2 | Complete    | 2026-03-20 | 2 plans |
 | 42 | Groups Polish + Conversion Tracking | Complete    | 2026-03-21 | 2 plans (1/2 complete) |
-| 43 | Phone Resolution + Group Identity | P0 | 42 | 2 plans |
+| 43 | 1/2 | In Progress|  | 2 plans |
 
 ---
 
@@ -1169,7 +1169,7 @@ Plans:
 - GRP-43-04: Closed group opt-in path — GROUP_PARTICIPANTS_UPDATE handler uses `findVoterByPhone` for participant real JIDs; @lid participants in closed groups cannot be opted-in automatically (documented limitation), but any real-JID participant joining any group (open or closed) correctly triggers opt-in
 
 **Depends on:** Phase 42 (Groups Polish — dual-format `findVoterByPhone` in db-voters)
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 43-01-PLAN.md — Fix webhook phone lookup (findVoterByPhone) + group_sender_cache table + cache population
 - [ ] 43-02-PLAN.md — Members API @lid resolution via cache + GROUP_PARTICIPANTS_UPDATE cache writes

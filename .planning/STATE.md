@@ -1,35 +1,35 @@
 ---
 gsd_state_version: 1.0
-milestone: v6.0
-milestone_name: "Milestone 6 — Dashboard Polish + Campanhas Overhaul + Chip Profiles"
-current_phase: 36
-current_phase_name: dashboard-editorial-polish
-current_plan: 0
-status: planning_complete
-stopped_at: "Completed 42-01-PLAN.md — groups polish cache fix + card layout + chip proxy sync"
-last_updated: "2026-03-21T06:33:00.000Z"
+milestone: v7.0
+milestone_name: "Milestone 7 — Phone Resolution + Group Identity"
+current_phase: 43
+current_phase_name: phone-resolution-group-identity
+current_plan: 1
+status: in_progress
+stopped_at: "Completed 43-01-PLAN.md — phone resolution + group sender cache infrastructure"
+last_updated: "2026-03-21T07:00:00.000Z"
 last_activity: 2026-03-21
 progress:
-  total_phases: 42
+  total_phases: 43
   completed_phases: 35
-  total_plans: 127
-  completed_plans: 109
+  total_plans: 128
+  completed_plans: 110
   percent: 86
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 42
-**Current Phase Name:** groups-polish-conversion-tracking
-**Current Plan:** Not started
-**Total Phases:** 42
-**Total Plans in Phase 42:** 2 (42-01, 42-02)
-**Status:** Milestone complete
+**Current Phase:** 43
+**Current Phase Name:** phone-resolution-group-identity
+**Current Plan:** 43-01 complete
+**Total Phases:** 43
+**Total Plans in Phase 43:** 1 (43-01)
+**Status:** In progress
 **Progress:** [██████████] 86%
 **Last Activity:** 2026-03-21
-**Last Activity Description:** Phase 42 complete
-**Stopped At:** Completed 42-01-PLAN.md — groups polish cache fix + card layout + chip proxy sync
+**Last Activity Description:** Phase 43 Plan 01 complete — group sender cache + webhook wiring
+**Stopped At:** Completed 43-01-PLAN.md — phone resolution + group sender cache infrastructure
 
 **Milestone 6 Execution Plan:**
 - Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
@@ -436,6 +436,9 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 42-01]: invalidateGroupCache guarded with if (group.segmentTag) — not all groups have a segment
 - [Phase 42-01]: fetchInstances called once outside chip loop to avoid N API calls — O(1) map lookup per chip
 - [Phase 42-01]: Chip sync proxy direction is Evolution→DB only; DB→Evolution happens at createInstance time
+- [Phase 43-01]: Migration created at drizzle/ (not migrations/) — matches project drizzle.config.ts out dir
+- [Phase 43-01]: normalizedSender hoisted to outer scope so it is accessible after message insert for cache write
+- [Phase 43-01]: group_sender_cache uses composite unique (group_jid, sender_jid) for ON CONFLICT DO UPDATE
 
 ## Accumulated Context
 
@@ -594,6 +597,7 @@ src/components/
 | Phase 41-campanhas-management-analytics P01 | 3 min | 2 tasks | 3 files |
 | Phase 41 P02 | 4 min | 2 tasks | 3 files |
 | Phase 42-groups-polish-conversion-tracking P02 | 15 | 2 tasks | 2 files |
+| Phase 43-phone-resolution-group-identity P01 | 10 min | 3 tasks | 4 files |
 
 ## Next Actions
 
