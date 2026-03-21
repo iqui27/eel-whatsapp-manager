@@ -20,6 +20,7 @@ import { restartInstance, sendText } from '@/lib/evolution';
 import { loadConfig } from '@/lib/db-config';
 import { logConsent, detectConsentKeyword, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from '@/lib/db-compliance';
 import { syslogInfo, syslogWarn, syslogError, syslogDebug } from '@/lib/system-logger';
+import { upsertGroupSenderCache } from '@/lib/db-group-sender-cache';
 
 // ─── Dedup cache — prevents storing duplicate webhook deliveries ─────────────
 // Evolution API occasionally fires the same event twice within a few seconds.
@@ -203,12 +204,10 @@ export async function POST(request: NextRequest) {
 
             // Look up sender name via voter DB (dual-format: handles 12↔13 digit variants)
             let senderName: string | null = null;
-            if (senderPhone) {
-              const normalizedSender = normalizePhone(senderPhone);
-              if (normalizedSender) {
-                const voter = await findVoterByPhone(normalizedSender);
-                if (voter) senderName = voter.name;
-              }
+            const normalizedSender = senderPhone ? normalizePhone(senderPhone) : null;
+            if (normalizedSender) {
+              const voter = await findVoterByPhone(normalizedSender);
+              if (voter) senderName = voter.name;
             }
 
             // Persist message
@@ -221,6 +220,18 @@ export async function POST(request: NextRequest) {
               fromMe: false,
               evolutionMessageId: msgId ?? null,
             }).returning();
+
+            // Populate group sender cache for @s.whatsapp.net senders (Phase 43)
+            // This enables @lid → phone resolution in the members API.
+            // @lid senders are already excluded by the isPhoneJid guard above.
+            if (isPhoneJid && senderPhone && normalizedSender) {
+              try {
+                await upsertGroupSenderCache(remoteJid, participantJid, normalizedSender);
+              } catch (cacheErr) {
+                console.error('[webhook] Failed to upsert group sender cache:', cacheErr);
+                // Never throw — cache is best-effort
+              }
+            }
 
             // Gemini analysis (non-blocking — fire and forget)
             if (isGeminiConfigured() && savedMsg) {
