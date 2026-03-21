@@ -7,6 +7,7 @@ import {
   timestamp,
   time,
   index,
+  uniqueIndex,
   primaryKey,
   jsonb,
 } from 'drizzle-orm/pg-core';
@@ -644,7 +645,7 @@ export const groupSenderCache = pgTable('group_sender_cache', {
 }, (t) => [
   index('idx_group_sender_cache_group').on(t.groupJid),
   index('idx_group_sender_cache_phone').on(t.normalizedPhone),
-  // Unique constraint: one senderJid per group (composite unique for upsert target)
+  uniqueIndex('group_sender_cache_group_sender_unique').on(t.groupJid, t.senderJid),
 ]);
 
 export type GroupSenderCache = typeof groupSenderCache.$inferSelect;
