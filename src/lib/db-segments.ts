@@ -168,6 +168,42 @@ function segmentMatchesSingleVoter(segment: Segment, voterId: string) {
   }
 }
 
+/**
+ * Ensure the "Concuso" segment exists and contains all voters from "Empregabilidade".
+ * Creates the "Concuso" segment if it doesn't exist, then merges in Empregabilidade
+ * voter IDs (deduplicating) and refreshes the audience count.
+ */
+export async function syncVotersToConcuso(): Promise<{ concusoId: string; total: number }> {
+  // Ensure the "Concuso" segment exists
+  let concusoSegment = await getSegmentByTag('concuso');
+  if (!concusoSegment) {
+    concusoSegment = await addSegment({
+      name: 'Concuso',
+      segmentTag: 'concuso',
+      filters: JSON.stringify({ operator: 'AND', filters: [] }),
+      audienceCount: 0,
+    });
+  }
+
+  // Locate the "Empregabilidade" segment
+  const empregabilidadeSegment = await getSegmentByTag('empregabilidade');
+  if (!empregabilidadeSegment) {
+    throw new Error('Segmento "Empregabilidade" não encontrado.');
+  }
+
+  // Merge existing Concuso voters with Empregabilidade voters (no duplicates)
+  const [existingIds, empregabilidadeIds] = await Promise.all([
+    getSegmentVoterIds(concusoSegment.id),
+    getSegmentVoterIds(empregabilidadeSegment.id),
+  ]);
+  const merged = Array.from(new Set([...existingIds, ...empregabilidadeIds]));
+
+  await setSegmentVoters(concusoSegment.id, merged);
+  await updateSegmentCount(concusoSegment.id);
+
+  return { concusoId: concusoSegment.id, total: merged.length };
+}
+
 export async function ensureSingleVoterSegment(
   voterId: string,
   voterName?: string | null,
