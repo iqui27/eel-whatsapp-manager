@@ -86,11 +86,12 @@ export async function addMessage(
   conversationId: string,
   sender: NonNullable<ConversationMessage['sender']>,
   content: string,
+  evolutionMessageId?: string,
 ): Promise<ConversationMessage> {
   const now = new Date();
   const [message] = await db
     .insert(conversationMessages)
-    .values({ conversationId, sender, content })
+    .values({ conversationId, sender, content, evolutionMessageId: evolutionMessageId ?? null })
     .returning();
 
   // Update lastMessageAt on the parent conversation

@@ -104,10 +104,19 @@ const PRESET_LABELS: Record<Preset, { label: string; sublabel: string; warning?:
   fast: { label: 'Rápido', sublabel: 'Lote 20 · 8–30s delay', warning: true },
 };
 
-const STRATEGY_LABELS: Record<SendConfigValue['chipStrategy'], string> = {
-  round_robin: 'Rodízio',
-  least_loaded: 'Menos Carregado',
-  affinity: 'Afinidade',
+const STRATEGY_INFO: Record<SendConfigValue['chipStrategy'], { label: string; description: string }> = {
+  round_robin: {
+    label: 'Rodízio',
+    description: 'Alterna chips em sequência. Distribui igualmente, independente da carga atual.',
+  },
+  least_loaded: {
+    label: 'Menos Carregado',
+    description: 'Sempre envia pelo chip com menor uso no dia. Equilibra carga automaticamente.',
+  },
+  affinity: {
+    label: 'Afinidade',
+    description: 'Prefere reenviar pelo mesmo chip que já conversou com o contato antes.',
+  },
 };
 
 // ─── Health dot ───────────────────────────────────────────────────────────────
@@ -386,50 +395,60 @@ export function SendConfigPanel({ value, onChange, allChips, disabled = false }:
                 Nenhum chip disponível. Configure chips em Ajustes.
               </p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {allChips.map((chip) => {
                   const checked = value.selectedChipIds.includes(chip.id);
+                  const sent = chip.messagesSentToday ?? 0;
+                  const limit = chip.dailyLimit ?? 200;
+                  const pct = Math.min((sent / limit) * 100, 100);
+                  const isUnhealthy = chip.healthStatus && chip.healthStatus !== 'healthy' && chip.healthStatus !== 'disconnected';
+                  const statusLabel: Record<string, string> = {
+                    degraded: 'Degradado',
+                    not_found: 'Não encontrado',
+                    cooldown: 'Cooldown',
+                    error: 'Erro',
+                  };
                   return (
                     <label
                       key={chip.id}
                       className={cn(
-                        'flex items-center justify-between rounded-lg border px-3 py-2.5 cursor-pointer transition-colors',
+                        'relative flex items-center gap-2.5 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors overflow-hidden',
                         checked
                           ? 'border-primary bg-primary/5'
-                          : 'border-border bg-background hover:border-primary/30',
+                          : 'border-border bg-card hover:border-primary/30',
                         disabled && 'cursor-not-allowed opacity-50',
                       )}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleChip(chip.id)}
-                          disabled={disabled}
-                          className="accent-primary"
+                      {/* Usage fill behind content */}
+                      {pct > 0 && (
+                        <div
+                          className={cn('absolute inset-y-0 left-0 opacity-[0.06] transition-all', pct > 80 ? 'bg-amber-500' : 'bg-primary')}
+                          style={{ width: `${pct}%` }}
                         />
-                        <HealthDot status={chip.healthStatus ?? 'disconnected'} />
-                        <div>
-                          <span className="text-sm font-medium text-foreground">{chip.name}</span>
-                          <span className="ml-1.5 text-xs text-muted-foreground">({chip.phone})</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span className="tabular-nums">
-                          {chip.messagesSentToday ?? 0}/{chip.dailyLimit ?? 200}
+                      )}
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleChip(chip.id)}
+                        disabled={disabled}
+                        className="accent-primary shrink-0 relative"
+                      />
+                      <HealthDot status={chip.healthStatus ?? 'disconnected'} />
+                      <span className="text-sm font-medium text-foreground truncate flex-1 relative">{chip.name}</span>
+                      <span className="text-[10px] text-muted-foreground/50 font-mono relative">{chip.phone}</span>
+                      {isUnhealthy && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-200/60 relative shrink-0">
+                          {statusLabel[chip.healthStatus!] ?? chip.healthStatus}
                         </span>
-                        <span className="opacity-50">msgs hoje</span>
-                        {chip.healthStatus && chip.healthStatus !== 'healthy' && chip.healthStatus !== 'disconnected' && (
-                          <Badge className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-200 px-1.5">
-                            {chip.healthStatus}
-                          </Badge>
-                        )}
-                      </div>
+                      )}
+                      <span className="text-xs tabular-nums text-muted-foreground relative shrink-0">
+                        {sent}<span className="text-muted-foreground/40">/{limit}</span>
+                      </span>
                     </label>
                   );
                 })}
-                <p className="text-[11px] text-muted-foreground pt-1">
-                  Deixe todos desmarcados para usar todos os chips conectados automaticamente.
+                <p className="text-[11px] text-muted-foreground pt-0.5">
+                  Deixe todos desmarcados para usar chips conectados automaticamente.
                 </p>
               </div>
             )}
@@ -437,24 +456,39 @@ export function SendConfigPanel({ value, onChange, allChips, disabled = false }:
             {/* Strategy (only when > 1 chip selected) */}
             {value.selectedChipIds.length > 1 && (
               <div className="space-y-2 pt-1">
-                <Label className="text-xs">Estratégia de distribuição</Label>
-                <div className="flex gap-2 flex-wrap">
-                  {(['round_robin', 'least_loaded', 'affinity'] as const).map((strat) => (
-                    <button
-                      key={strat}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => set('chipStrategy', strat)}
-                      className={cn(
-                        'rounded-full border px-3 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-                        value.chipStrategy === strat
-                          ? 'border-primary bg-primary/5 text-primary font-medium'
-                          : 'border-border text-muted-foreground hover:border-primary/30',
-                      )}
-                    >
-                      {STRATEGY_LABELS[strat]}
-                    </button>
-                  ))}
+                <p className="text-xs text-muted-foreground font-medium">Estratégia de distribuição</p>
+                <div className="grid gap-1.5">
+                  {(['round_robin', 'least_loaded', 'affinity'] as const).map((strat) => {
+                    const active = value.chipStrategy === strat;
+                    const info = STRATEGY_INFO[strat];
+                    return (
+                      <button
+                        key={strat}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => set('chipStrategy', strat)}
+                        className={cn(
+                          'flex items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                          active
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border bg-card hover:border-primary/30',
+                        )}
+                      >
+                        <span className={cn(
+                          'mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border-2 transition-colors',
+                          active ? 'border-primary bg-primary' : 'border-border',
+                        )} />
+                        <div>
+                          <p className={cn('text-xs font-medium', active ? 'text-primary' : 'text-foreground')}>
+                            {info.label}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
+                            {info.description}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

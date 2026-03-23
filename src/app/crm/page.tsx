@@ -514,7 +514,7 @@ export default function CrmPage() {
 
   return (
     <SidebarLayout currentPage="crm" pageTitle="CRM">
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6 bg-background min-h-full">
 
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
@@ -734,7 +734,7 @@ export default function CrmPage() {
             )}
           </div>
         ) : (
-          <div className="rounded-xl border border-border overflow-x-auto">
+          <div className="rounded-xl border border-border overflow-x-auto bg-card">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40">

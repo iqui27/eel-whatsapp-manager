@@ -67,14 +67,14 @@ const STATUS_LABELS: Record<string, string> = {
 
 function getStatusBadge(status: string) {
   const colors: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-700 border-gray-200',
-    scheduled: 'bg-blue-100 text-blue-700 border-blue-200',
-    sending: 'bg-amber-100 text-amber-700 border-amber-200',
-    sent: 'bg-green-100 text-green-700 border-green-200',
-    paused: 'bg-orange-100 text-orange-700 border-orange-200',
-    cancelled: 'bg-red-100 text-red-700 border-red-200',
+    draft: 'bg-muted text-muted-foreground border-border',
+    scheduled: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800',
+    sending: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800',
+    sent: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-800',
+    paused: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800',
+    cancelled: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800',
   };
-  return colors[status] || 'bg-gray-100 text-gray-700 border-gray-200';
+  return colors[status] || 'bg-muted text-muted-foreground border-border';
 }
 
 function formatDate(date: string | Date | null | undefined): string {
@@ -94,6 +94,102 @@ function formatDateShort(date: string | Date | null | undefined): string {
     day: '2-digit',
     month: 'short',
   });
+}
+
+// ─── Campaign action buttons ──────────────────────────────────────────────────
+
+function CampaignActions({
+  campaignId,
+  status,
+  onDone,
+}: {
+  campaignId: string;
+  status: string;
+  onDone: () => void;
+}) {
+  const [loading, setLoading] = useState<string | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const call = async (action: 'send' | 'pause' | 'cancel') => {
+    setLoading(action);
+    setError(null);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/${action}`, { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? 'Erro ao executar ação');
+      } else {
+        onDone();
+      }
+    } catch {
+      setError('Erro de conexão');
+    } finally {
+      setLoading(null);
+      setConfirmCancel(false);
+    }
+  };
+
+  const canStart  = status === 'draft' || status === 'paused' || status === 'scheduled';
+  const canPause  = status === 'sending';
+  const canCancel = status !== 'cancelled' && status !== 'sent';
+
+  if (!canStart && !canPause && !canCancel) return null;
+
+  return (
+    <div className="flex items-center gap-2 shrink-0">
+      {error && (
+        <span className="text-xs text-red-600">{error}</span>
+      )}
+      {canPause && (
+        <button
+          onClick={() => call('pause')}
+          disabled={!!loading}
+          className="px-3 py-1.5 text-sm font-medium border border-amber-300 bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors disabled:opacity-50"
+        >
+          {loading === 'pause' ? 'Pausando...' : 'Pausar'}
+        </button>
+      )}
+      {canStart && (
+        <button
+          onClick={() => call('send')}
+          disabled={!!loading}
+          className="px-3 py-1.5 text-sm font-medium bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50"
+        >
+          {loading === 'send'
+            ? 'Iniciando...'
+            : status === 'paused' ? 'Retomar' : 'Iniciar'}
+        </button>
+      )}
+      {canCancel && !confirmCancel && (
+        <button
+          onClick={() => setConfirmCancel(true)}
+          disabled={!!loading}
+          className="px-3 py-1.5 text-sm font-medium border border-border bg-card text-destructive rounded hover:bg-destructive/10 transition-colors disabled:opacity-50"
+        >
+          Abortar
+        </button>
+      )}
+      {confirmCancel && (
+        <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded px-2 py-1">
+          <span className="text-xs text-red-700 font-medium">Confirmar?</span>
+          <button
+            onClick={() => call('cancel')}
+            disabled={!!loading}
+            className="text-xs font-semibold text-red-700 hover:underline disabled:opacity-50"
+          >
+            {loading === 'cancel' ? 'Abortando...' : 'Sim'}
+          </button>
+          <button
+            onClick={() => setConfirmCancel(false)}
+            className="text-xs text-muted-foreground hover:underline"
+          >
+            Não
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Score color helper ───────────────────────────────────────────────────────
@@ -122,6 +218,52 @@ function getScoreLabel(score: number): string {
   return 'Requer atenção';
 }
 
+// ─── WhatsApp message renderer ────────────────────────────────────────────────
+
+function renderInline(text: string): React.ReactNode[] {
+  // Split on *bold* and {variable} tokens
+  const parts = text.split(/(\*[^*]+\*|\{[^}]+\})/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('*') && part.endsWith('*')) {
+      return <strong key={i}>{part.slice(1, -1)}</strong>;
+    }
+    if (part.startsWith('{') && part.endsWith('}')) {
+      return (
+        <span
+          key={i}
+          className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-primary/10 text-primary border border-primary/20 mx-0.5"
+        >
+          {part}
+        </span>
+      );
+    }
+    return part;
+  });
+}
+
+function WhatsAppPreview({ text }: { text: string }) {
+  const lines = text.split('\n');
+  const nodes: React.ReactNode[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (lines[i] === '') {
+      nodes.push(<div key={`gap-${i}`} className="h-2" />);
+    } else {
+      nodes.push(<p key={i} className="leading-relaxed">{renderInline(lines[i])}</p>);
+    }
+    i++;
+  }
+  return (
+    <div className="relative max-h-52 overflow-y-auto">
+      {/* Bubble */}
+      <div className="rounded-xl rounded-tl-sm bg-muted border border-border/60 px-3.5 py-2.5 text-sm text-foreground shadow-sm max-w-full">
+        {nodes}
+        <span className="block text-right text-[10px] text-muted-foreground/60 mt-1 select-none">✓✓</span>
+      </div>
+    </div>
+  );
+}
+
 // ─── KPI card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({
@@ -136,7 +278,7 @@ function KpiCard({
   colorClass?: string;
 }) {
   return (
-    <div className="border rounded-lg p-4 space-y-1">
+    <div className="bg-card border border-border rounded-lg p-4 space-y-1">
       <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
       <p className={cn('text-2xl font-semibold tabular-nums', colorClass)}>{value}</p>
       {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
@@ -156,7 +298,7 @@ function AIInsightsPanel({
   onRefresh: () => void;
 }) {
   return (
-    <div className="border rounded-lg p-6 space-y-5">
+    <div className="bg-card border border-border rounded-lg p-6 space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <span className="text-base select-none" aria-hidden>&#10024;</span>
@@ -165,7 +307,7 @@ function AIInsightsPanel({
         <button
           onClick={onRefresh}
           disabled={loading}
-          className="text-sm border rounded px-3 py-1.5 hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+          className="text-sm border border-border bg-background rounded px-3 py-1.5 hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Atualizando...' : 'Atualizar analise'}
         </button>
@@ -503,44 +645,49 @@ export default function CampaignDetailPage() {
         </nav>
 
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="space-y-2 min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {campaign?.name ?? <span className="animate-pulse bg-muted rounded h-7 w-48 inline-block" />}
-            </h1>
-            <div className="flex items-center gap-3 flex-wrap">
-              {campaign && (
-                <span className={cn(
-                  'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
-                  getStatusBadge(campaign.status ?? 'draft')
-                )}>
-                  {STATUS_LABELS[campaign.status ?? 'draft'] ?? campaign.status}
-                </span>
-              )}
-              {dateRange && (
-                <span className="text-sm text-muted-foreground">{dateRange}</span>
-              )}
-              {campaign?.createdAt && (
-                <span className="text-sm text-muted-foreground">
-                  Criada em {formatDate(campaign.createdAt)}
-                </span>
-              )}
-              {refreshing && (
-                <span className="text-xs text-muted-foreground">Atualizando...</span>
-              )}
-            </div>
+        <div className="space-y-3">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {campaign?.name ?? <span className="animate-pulse bg-muted rounded h-7 w-48 inline-block" />}
+          </h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            {campaign && (
+              <span className={cn(
+                'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border',
+                getStatusBadge(campaign.status ?? 'draft')
+              )}>
+                {STATUS_LABELS[campaign.status ?? 'draft'] ?? campaign.status}
+              </span>
+            )}
+            {dateRange && (
+              <span className="text-sm text-muted-foreground">{dateRange}</span>
+            )}
+            {campaign?.createdAt && (
+              <span className="text-sm text-muted-foreground">
+                Criada em {formatDate(campaign.createdAt)}
+              </span>
+            )}
+            {refreshing && (
+              <span className="text-xs text-muted-foreground">Atualizando...</span>
+            )}
           </div>
-
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            {campaign && (
+              <CampaignActions
+                campaignId={id}
+                status={campaign.status ?? 'draft'}
+                onDone={() => fetchAnalytics(true)}
+              />
+            )}
+            <div className="w-px h-5 bg-border hidden sm:block" />
             <Link
               href={`/campanhas/${id}/editar`}
-              className="px-3 py-1.5 text-sm border rounded hover:bg-muted"
+              className="px-3 py-1.5 text-sm border border-border bg-card rounded hover:bg-muted transition-colors"
             >
               Editar
             </Link>
             <Link
               href={`/campanhas/${id}/mensagens`}
-              className="px-3 py-1.5 text-sm border rounded hover:bg-muted"
+              className="px-3 py-1.5 text-sm border border-border bg-card rounded hover:bg-muted transition-colors"
             >
               Mensagens
             </Link>
@@ -576,7 +723,7 @@ export default function CampaignDetailPage() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
           {/* Segment */}
-          <div className="border rounded-lg p-4 space-y-1.5">
+          <div className="bg-card border border-border rounded-lg p-4 space-y-1.5">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Segmento</p>
             {segment ? (
               <div className="space-y-0.5">
@@ -595,14 +742,14 @@ export default function CampaignDetailPage() {
           </div>
 
           {/* Assigned chips */}
-          <div className="border rounded-lg p-4 space-y-1.5">
+          <div className="bg-card border border-border rounded-lg p-4 space-y-1.5">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Chips</p>
             {assignedChips.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {assignedChips.slice(0, 3).map((chip) => (
                   <span
                     key={chip.id}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs bg-muted"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-border text-xs bg-background"
                   >
                     {chip.profilePicture ? (
                       <img
@@ -619,7 +766,7 @@ export default function CampaignDetailPage() {
                   </span>
                 ))}
                 {assignedChips.length > 3 && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full border text-xs bg-muted text-muted-foreground">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-border text-xs bg-background text-muted-foreground">
                     +{assignedChips.length - 3}
                   </span>
                 )}
@@ -630,7 +777,7 @@ export default function CampaignDetailPage() {
           </div>
 
           {/* Send config */}
-          <div className="border rounded-lg p-4 space-y-1.5">
+          <div className="bg-card border border-border rounded-lg p-4 space-y-1.5">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Configuracao</p>
             {campaign ? (
               <div className="text-xs space-y-0.5 text-muted-foreground">
@@ -649,12 +796,10 @@ export default function CampaignDetailPage() {
           </div>
 
           {/* Message preview */}
-          <div className="border rounded-lg p-4 space-y-1.5 sm:col-span-2 lg:col-span-1">
+          <div className="bg-card border border-border rounded-lg p-4 space-y-2 sm:col-span-2 lg:col-span-1">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Mensagem</p>
             {campaign ? (
-              <pre className="whitespace-pre-wrap text-sm leading-relaxed max-h-48 overflow-y-auto font-sans">
-                {template}
-              </pre>
+              <WhatsAppPreview text={template} />
             ) : (
               <p className="text-sm text-muted-foreground">Carregando...</p>
             )}
@@ -697,18 +842,18 @@ export default function CampaignDetailPage() {
         )}
 
         {/* Conversion Funnel */}
-        <div className="border rounded-lg p-6">
+        <div className="bg-card border border-border rounded-lg p-6">
           <h2 className="text-lg font-semibold mb-4">Funil de Conversao</h2>
           <ConversionFunnel data={funnel} />
         </div>
 
         {/* Two columns: Timeline + Chip Breakdown */}
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="border rounded-lg p-6">
+          <div className="bg-card border border-border rounded-lg p-6">
             <h2 className="text-lg font-semibold mb-4">Timeline de Entregas</h2>
             <DeliveryTimeline events={timeline} />
           </div>
-          <div className="border rounded-lg p-6">
+          <div className="bg-card border border-border rounded-lg p-6">
             <h2 className="text-lg font-semibold mb-4">Performance por Chip</h2>
             <ChipBreakdown breakdown={chipBreakdown} />
           </div>
@@ -723,7 +868,7 @@ export default function CampaignDetailPage() {
 
         {/* Anti-ban Dashboard */}
         {antiBanStats && campaign && (
-          <div className="border rounded-lg p-6 space-y-5">
+          <div className="bg-card border border-border rounded-lg p-6 space-y-5">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <h2 className="text-lg font-semibold">Protecao Anti-Ban</h2>
               {antiBanStats.circuitBreakerStatus === 'tripped' && (
@@ -866,36 +1011,33 @@ export default function CampaignDetailPage() {
           </div>
         )}
 
-        {/* Campaign details */}
+        {/* Campaign metadata strip */}
         {campaign && (
-          <div className="border rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-4">Detalhes da Campanha</h2>
-            <div className="grid md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground text-xs uppercase tracking-wide font-medium">Template</span>
-                <p className="mt-2 p-3 bg-muted rounded text-sm leading-relaxed">{campaign.template}</p>
+          <div className="bg-card border border-border rounded-lg px-4 py-3 flex flex-wrap gap-x-6 gap-y-3">
+            {campaign.createdAt && (
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Criada em</span>
+                <span className="text-sm text-foreground">{formatDate(campaign.createdAt)}</span>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Agendado para:</span>
-                  <span>{formatDate(campaign.scheduledAt)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Criada em:</span>
-                  <span>{formatDate(campaign.createdAt)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Atualizada em:</span>
-                  <span>{formatDate(campaign.updatedAt)}</span>
-                </div>
-                {campaign.abEnabled && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Teste A/B:</span>
-                    <span>Ativo ({campaign.abSplitPercent}% / {100 - (campaign.abSplitPercent || 50)}%)</span>
-                  </div>
-                )}
+            )}
+            {campaign.updatedAt && (
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Atualizada em</span>
+                <span className="text-sm text-foreground">{formatDate(campaign.updatedAt)}</span>
               </div>
-            </div>
+            )}
+            {campaign.scheduledAt && (
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Agendada para</span>
+                <span className="text-sm text-foreground">{formatDate(campaign.scheduledAt)}</span>
+              </div>
+            )}
+            {campaign.abEnabled && (
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Teste A/B</span>
+                <span className="text-sm text-foreground">{campaign.abSplitPercent}% / {100 - (campaign.abSplitPercent || 50)}%</span>
+              </div>
+            )}
           </div>
         )}
 

@@ -5,7 +5,7 @@ import { AlertTriangle, BellOff, CheckCircle2, Search, Shield } from 'lucide-rea
 import { ThemeToggle } from './theme-toggle';
 import { NotificationCenter, type Notification } from './notification-center';
 import { TopbarDatePicker } from './topbar-date-picker';
-import { getRecentNotifications, type StoredNotification } from '@/lib/notifications';
+import type { StoredNotification } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
 
 interface TopbarProps {
@@ -52,22 +52,32 @@ export function Topbar({
   // Use external notifications if provided, otherwise use internal state
   const notifications = externalNotifications ?? internalNotifications;
 
-  // Load notifications on mount
+  // Load notifications from API on mount and poll every 30s
   useEffect(() => {
-    if (!externalNotifications) {
-      const stored = getRecentNotifications(20);
-      setInternalNotifications(stored.map((n: StoredNotification) => ({
-        id: n.id,
-        type: n.type as Notification['type'],
-        title: n.title,
-        message: n.message,
-        severity: n.severity,
-        chipId: n.chipId,
-        chipName: n.chipName,
-        createdAt: n.createdAt,
-        data: n.data,
-      })));
-    }
+    if (externalNotifications) return;
+
+    const fetchNotifications = async () => {
+      try {
+        const res = await fetch('/api/notifications?limit=20');
+        if (!res.ok) return;
+        const stored: StoredNotification[] = await res.json();
+        setInternalNotifications(stored.map((n) => ({
+          id: n.id,
+          type: n.type as Notification['type'],
+          title: n.title,
+          message: n.message,
+          severity: n.severity,
+          chipId: n.chipId,
+          chipName: n.chipName,
+          createdAt: new Date(n.createdAt),
+          data: n.data,
+        })));
+      } catch { /* silent */ }
+    };
+
+    void fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30_000);
+    return () => clearInterval(interval);
   }, [externalNotifications]);
 
   // Fetch real alert count from operations — pauses when tab is backgrounded

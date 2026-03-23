@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { conversations, campaigns, groupMessages } from '@/db/schema';
+import { conversations, campaigns, groupMessages, conversationMessages } from '@/db/schema';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { loadChips, updateChip, updateChipHealth } from '@/lib/db-chips';
 import { addConversation, addMessage } from '@/lib/db-conversations';
@@ -513,12 +513,34 @@ export async function POST(request: NextRequest) {
         }
 
         if (deliveryStatus && remoteJid) {
-          // The evolutionMessageId is the message key ID
+          // Update campaign messageQueue row (Phase 17)
           const result = await updateMessageDeliveryStatus(msgId, deliveryStatus, failReason);
           if (result.updated) {
-            console.log('[webhook] Updated message', msgId, '→', deliveryStatus, 'campaign:', result.campaignId);
-          } else {
-            console.debug('[webhook] messages.update: no messageQueue row for evolutionMessageId', msgId, '(likely legacy campaign or non-campaign message)');
+            console.log('[webhook] Updated messageQueue', msgId, '→', deliveryStatus, 'campaign:', result.campaignId);
+          }
+
+          // Also update conversationMessages row if matched (conversation delivery tracking)
+          try {
+            const now = new Date();
+            const updateData: Record<string, Date> = {};
+            if (deliveryStatus === 'delivered' || deliveryStatus === 'read') {
+              updateData.deliveredAt = now;
+            }
+            if (deliveryStatus === 'read') {
+              updateData.readAt = now;
+            }
+            if (Object.keys(updateData).length > 0) {
+              const [updated] = await db
+                .update(conversationMessages)
+                .set(updateData)
+                .where(eq(conversationMessages.evolutionMessageId, msgId))
+                .returning({ id: conversationMessages.id });
+              if (updated) {
+                console.log('[webhook] Updated conversationMessages', msgId, '→', deliveryStatus);
+              }
+            }
+          } catch (convUpdateErr) {
+            console.error('[webhook] Failed to update conversationMessages delivery status:', convUpdateErr);
           }
         }
       } catch (updateErr) {

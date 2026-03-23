@@ -107,26 +107,29 @@ export async function POST(
       const isExistsError = (err: unknown) =>
         err instanceof Error && /"exists":\s*false/.test(err.message);
 
+      let evolutionMessageId: string | undefined;
       try {
-        await sendText(
+        const sent = await sendText(
           config.evolutionApiUrl,
           config.evolutionApiKey,
           instanceName,
           waNumber,
           body.content,
         );
+        evolutionMessageId = sent.key?.id || undefined;
       } catch (err) {
         // If the first format doesn't exist on WhatsApp, retry with the alternative format
         if (isExistsError(err) && waNumberAlt) {
           console.log(`[POST message] ${waNumber} not found, retrying with ${waNumberAlt}`);
           try {
-            await sendText(
+            const sent = await sendText(
               config.evolutionApiUrl,
               config.evolutionApiKey,
               instanceName,
               waNumberAlt,
               body.content,
             );
+            evolutionMessageId = sent.key?.id || undefined;
             // Alternative worked — continue to addMessage below
           } catch (err2) {
             console.error('[POST message sendText retry]', err2);
@@ -148,6 +151,9 @@ export async function POST(
           return NextResponse.json({ error: errorMsg }, { status: 400 });
         }
       }
+
+      const message = await addMessage(id, body.sender, body.content, evolutionMessageId);
+      return NextResponse.json(message, { status: 201 });
     }
 
     const message = await addMessage(id, body.sender, body.content);
