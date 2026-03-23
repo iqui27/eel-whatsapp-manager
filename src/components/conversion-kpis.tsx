@@ -30,25 +30,25 @@ interface KPICardProps {
 
 function KPICard({ label, value, trend, color }: KPICardProps) {
   return (
-    <div className="rounded-lg border bg-card p-3 text-center min-w-0">
-      <div className="text-xs text-muted-foreground mb-1 truncate">{label}</div>
-      <div className={`text-lg font-bold ${color} truncate`}>{value}</div>
+    <div className="flex flex-col gap-2 px-4 py-3 min-w-0">
+      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">{label}</span>
+      <span className={`text-2xl font-semibold tabular-nums truncate ${color}`}>{value}</span>
       {trend !== undefined && (
-        <div className="flex items-center justify-center gap-0.5 mt-1 text-xs">
+        <div className="flex items-center gap-1.5 text-xs font-medium">
           {trend > 0 ? (
             <>
-              <TrendingUp className="h-3 w-3 text-green-500" />
+              <TrendingUp className="h-3 w-3 text-green-500 shrink-0" />
               <span className="text-green-600">+{trend}%</span>
             </>
           ) : trend < 0 ? (
             <>
-              <TrendingDown className="h-3 w-3 text-red-500" />
+              <TrendingDown className="h-3 w-3 text-red-500 shrink-0" />
               <span className="text-red-600">{trend}%</span>
             </>
           ) : (
             <>
-              <Minus className="h-3 w-3 text-gray-400" />
-              <span className="text-gray-500">0%</span>
+              <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/30 shrink-0" />
+              <span className="text-muted-foreground font-normal">sem variação</span>
             </>
           )}
         </div>
@@ -114,7 +114,7 @@ export function ConversionKPIs({ data, loading }: ConversionKPIsProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+    <div className="flex flex-wrap divide-x divide-border">
       {kpis.map((kpi) => (
         <KPICard key={kpi.label} {...kpi} />
       ))}

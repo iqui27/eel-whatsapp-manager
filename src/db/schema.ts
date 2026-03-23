@@ -369,9 +369,13 @@ export const conversationMessages = pgTable('conversation_messages', {
   conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
   sender: text('sender', { enum: ['voter', 'bot', 'agent'] }).notNull(),
   content: text('content').notNull(),
+  evolutionMessageId: text('evolution_message_id'),
+  deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+  readAt: timestamp('read_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
 }, (t) => [
   index('idx_conv_messages_conv').on(t.conversationId),
+  index('idx_conv_messages_evolution_id').on(t.evolutionMessageId),
 ]);
 
 // ─── Consent Logs ────────────────────────────────────────────────────────────

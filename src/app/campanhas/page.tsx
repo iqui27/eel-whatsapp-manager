@@ -522,10 +522,10 @@ export default function CampanhasPage() {
           </div>
         ) : (
           /* Campaigns table */
-          <div className="rounded-xl border border-border overflow-hidden">
+          <div className="rounded-xl border border-border overflow-hidden bg-card">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/40">
+                <TableRow className="bg-muted/60 border-b border-border">
                   <TableHead className="w-[220px]">Nome</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Segmento</TableHead>
@@ -541,7 +541,7 @@ export default function CampanhasPage() {
                   const chipIds = Array.isArray(campaign.selectedChipIds) ? campaign.selectedChipIds : [];
 
                   return (
-                    <TableRow key={campaign.id} className="hover:bg-muted/30">
+                    <TableRow key={campaign.id} className="border-b border-border/50 hover:bg-muted/40 transition-colors">
                       {/* Nome — clickable link to detail page */}
                       <TableCell className="font-medium text-sm">
                         <Link

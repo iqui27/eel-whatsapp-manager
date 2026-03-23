@@ -69,12 +69,10 @@ function KpiCard({
 }) {
   const animatedValue = useCountUp(typeof value === 'number' ? value : 0, 700, delay);
   return (
-    <div className="rounded-xl border border-[#E8E4DD] bg-[#F8F6F1] p-5 shadow-sm flex flex-col gap-3">
+    <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
-        <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', iconBg)}>
-          <Icon className="h-4 w-4 text-white" />
-        </div>
+        <Icon className={cn('h-4 w-4', iconBg.replace('bg-', 'text-'))} />
       </div>
       <div className="text-2xl font-semibold text-foreground tabular-nums">
         {typeof value === 'number' ? animatedValue.toLocaleString('pt-BR') : value}
@@ -251,9 +249,9 @@ function CommandPanel({
   onWarmAll: () => void;
   warmingAll: boolean;
 }) {
-  const actionClass = "flex w-full items-center gap-3 rounded-lg border border-[#E8E4DD] bg-[#F8F6F1] px-3 py-2.5 text-sm transition-colors hover:bg-[#F2F0EB] text-left";
+  const actionClass = "flex w-full items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-sm transition-colors hover:bg-muted text-left";
   return (
-    <Card className="border-[#E8E4DD] bg-[#F8F6F1]">
+    <Card className="border-border bg-card">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold">Ações rápidas</CardTitle>
       </CardHeader>
@@ -405,7 +403,7 @@ export default function DashboardPage() {
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="rounded-xl border border-[#E8E4DD] bg-[#F8F6F1] p-5 shadow-sm animate-pulse h-28" />
+              <div key={i} className="rounded-xl border border-border bg-card p-5 shadow-sm animate-pulse h-28" />
             ))}
           </div>
         </div>

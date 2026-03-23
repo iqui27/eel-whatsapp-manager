@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -418,28 +417,28 @@ export default function EditarCampanhaPage() {
   return (
     <SidebarLayout currentPage="campanhas" pageTitle="Editar campanha">
       <div className="flex h-full flex-col">
-        <div className="border-b border-border bg-background px-6 py-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <Link href="/campanhas">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-                <ArrowLeft className="h-4 w-4" />
-                Campanhas
-              </Button>
-            </Link>
-            <Separator orientation="vertical" className="h-5" />
-            <div className="min-w-[220px]">
-              <p className="font-serif text-lg text-foreground">Editar campanha</p>
-              <p className="text-xs text-muted-foreground">
-                Ajuste a mensagem, segmento e teste A/B antes do disparo.
-              </p>
-            </div>
-            <Input
+        {/* Header */}
+        <div className="border-b border-border bg-background px-6 pt-4 pb-3">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+            <Link href="/campanhas" className="hover:text-foreground transition-colors">Campanhas</Link>
+            <span>/</span>
+            <span>Editar</span>
+          </div>
+          {/* Editable title */}
+          <div className="flex items-center gap-2 group">
+            <input
               placeholder="Nome da campanha"
               value={campaignName}
               onChange={(event) => setCampaignName(event.target.value)}
-              className="min-w-[260px] max-w-[480px] flex-1 border-0 px-0 text-base font-medium shadow-none focus-visible:ring-0 placeholder:font-normal"
               disabled={isLocked}
+              className="flex-1 bg-transparent text-xl font-semibold tracking-tight text-foreground outline-none placeholder:text-muted-foreground/40 border-b-2 border-transparent focus:border-primary transition-colors disabled:cursor-default pb-0.5"
             />
+            {!isLocked && (
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground/40 group-focus-within:text-primary shrink-0 transition-colors" aria-hidden="true">
+                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+              </svg>
+            )}
           </div>
         </div>
 
@@ -457,14 +456,11 @@ export default function EditarCampanhaPage() {
                 </div>
               </div>
             )}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <MessageSquare className="h-4 w-4 text-primary" />
-                      Editor de Mensagem
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+                <div className="bg-card border border-border rounded-lg p-5 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Editor de Mensagem</span>
+                  </div>
                     <div>
                       <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Inserir variável
@@ -547,33 +543,29 @@ export default function EditarCampanhaPage() {
                       />
                     )}
 
-                    <Separator />
-                    <QualityChecks message={message} />
-                  </CardContent>
-                </Card>
+                    <div className="border-t border-border pt-4">
+                      <QualityChecks message={message} />
+                    </div>
+                </div>
 
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center justify-between text-base">
-                      <div className="flex items-center gap-2">
-                        <FlaskConical className="h-4 w-4 text-primary" />
-                        Teste A/B
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="ab-toggle" className="cursor-pointer text-sm font-normal text-muted-foreground">
-                          {abEnabled ? 'Ativado' : 'Desativado'}
-                        </Label>
-                        <Switch
-                          id="ab-toggle"
-                          checked={abEnabled}
-                          onCheckedChange={setAbEnabled}
-                          disabled={isLocked}
-                        />
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
+                <div className="bg-card border border-border rounded-lg p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FlaskConical className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Teste A/B</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{abEnabled ? 'Ativado' : 'Desativado'}</span>
+                      <Switch
+                        id="ab-toggle"
+                        checked={abEnabled}
+                        onCheckedChange={setAbEnabled}
+                        disabled={isLocked}
+                      />
+                    </div>
+                  </div>
                   {abEnabled && (
-                    <CardContent className="space-y-4">
+                    <div className="space-y-4 mt-4">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Divisão</span>
@@ -631,59 +623,53 @@ export default function EditarCampanhaPage() {
                         />
                         <QualityChecks message={variantB} />
                       </div>
-                    </CardContent>
+                    </div>
                   )}
-                </Card>
+                </div>
 
                 {/* Date Range */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Período da Campanha</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-xs text-muted-foreground">
-                      Opcional — deixe em branco para campanhas pontuais sem janela de vigência.
-                    </p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="start-date" className="text-xs font-medium">Data de início</Label>
-                        <Input
-                          id="start-date"
-                          type="date"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
-                          disabled={isLocked}
-                          className="text-sm"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="end-date" className="text-xs font-medium">Data de fim</Label>
-                        <Input
-                          id="end-date"
-                          type="date"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
-                          min={startDate || undefined}
-                          disabled={isLocked}
-                          className="text-sm"
-                        />
-                      </div>
+                <div className="bg-card border border-border rounded-lg p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Período</span>
+                    <span className="text-[10px] text-muted-foreground/60">Opcional</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="start-date" className="text-xs text-muted-foreground">Início</Label>
+                      <Input
+                        id="start-date"
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        disabled={isLocked}
+                        className="text-sm h-8"
+                      />
                     </div>
-                    {endDate && startDate && endDate <= startDate && (
-                      <p className="text-xs text-red-600">A data de fim deve ser posterior à data de início.</p>
-                    )}
-                  </CardContent>
-                </Card>
+                    <div className="space-y-1">
+                      <Label htmlFor="end-date" className="text-xs text-muted-foreground">Fim</Label>
+                      <Input
+                        id="end-date"
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        min={startDate || undefined}
+                        disabled={isLocked}
+                        className="text-sm h-8"
+                      />
+                    </div>
+                  </div>
+                  {endDate && startDate && endDate <= startDate && (
+                    <p className="mt-2 text-xs text-red-600">A data de fim deve ser posterior à data de início.</p>
+                  )}
+                </div>
 
                 {/* Segment selector */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Users className="h-4 w-4 text-primary" />
-                      Segmento
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
+                <div className="bg-card border border-border rounded-lg p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Segmento</span>
+                  </div>
+                  <div>
                     <Select
                       value={segmentId || 'none'}
                       onValueChange={(v) => setSegmentId(v === 'none' ? '' : v)}
@@ -706,8 +692,8 @@ export default function EditarCampanhaPage() {
                         {segments.find((s) => s.id === segmentId)?.segmentTag ?? 'Segmento selecionado'}
                       </p>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
 
                 {/* Send Config Panel */}
                 <SendConfigPanel
@@ -719,25 +705,21 @@ export default function EditarCampanhaPage() {
           </div>
 
           {/* Right column: fills container height, scrolls if preview is tall */}
-          <div className="hidden lg:block w-[380px] shrink-0 overflow-y-auto">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                  <Smartphone className="h-4 w-4 text-primary" />
-                  Prévia WhatsApp
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-2">
-                <WhatsAppPreview
-                  message={resolveCampaignTemplate(message, previewContext)}
-                  profileName={selectedChipProfile?.profileName}
-                  profilePictureUrl={selectedChipProfile?.profilePictureUrl}
-                />
-                <p className="mt-2 px-2 text-center text-[10px] text-muted-foreground">
-                  As variáveis são substituídas por valores reais no envio
-                </p>
-              </CardContent>
-            </Card>
+          <div className="hidden lg:block w-[360px] shrink-0 overflow-y-auto">
+            <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Prévia WhatsApp</span>
+              </div>
+              <WhatsAppPreview
+                message={resolveCampaignTemplate(message, previewContext)}
+                profileName={selectedChipProfile?.profileName}
+                profilePictureUrl={selectedChipProfile?.profilePictureUrl}
+              />
+              <p className="text-center text-[10px] text-muted-foreground">
+                Variáveis substituídas por valores reais no envio
+              </p>
+            </div>
           </div>
         </div>
 

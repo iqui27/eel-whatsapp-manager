@@ -143,6 +143,7 @@ export async function GET(request: NextRequest) {
 
             const conversationDeltas = await getConversationDeltas({
               ...filters,
+              conversationId: undefined, // never filter conversation list by id — only messages use this
               status: undefined,
               since: cursor.conversations,
             });

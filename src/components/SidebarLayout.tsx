@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ReactNode, useMemo, useState } from 'react';
+import { ReactNode, useMemo, useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -414,6 +414,18 @@ export default function SidebarLayout({
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarRestored, setSidebarRestored] = useState(false);
+
+  // Restore persisted state after mount (avoids SSR/client hydration mismatch)
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebar-collapsed');
+    if (saved === 'true') setCollapsed(true);
+    setSidebarRestored(true);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('sidebar-collapsed', String(collapsed));
+  }, [collapsed]);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -518,7 +530,7 @@ export default function SidebarLayout({
       {/* ── Desktop Sidebar ── */}
       <motion.aside
         animate={{ width: collapsed ? 64 : 240 }}
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
+        transition={{ duration: sidebarRestored ? 0.2 : 0, ease: 'easeInOut' }}
         className="relative hidden h-full shrink-0 overflow-visible md:flex"
       >
         <div className="flex h-full flex-1 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar">
@@ -584,7 +596,7 @@ export default function SidebarLayout({
       </AnimatePresence>
 
       {/* ── Main content ── */}
-      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+      <div className="flex flex-1 flex-col min-w-0">
 
         {/* Desktop Topbar — real shell contract only */}
         <header className="hidden md:block shrink-0">
@@ -613,7 +625,7 @@ export default function SidebarLayout({
         </header>
 
         {/* Page content — desktop full scroll, mobile with bottom nav */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-card">
           {currentPageAllowed ? (
             children
           ) : (

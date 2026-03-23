@@ -115,57 +115,34 @@ function getHealthLabel(health: HealthLevel): string {
   }
 }
 
-function TrafficLightIndicator({ status }: { status: SystemStatus['chips'] }) {
-  const total = status.total || 1; // Avoid division by zero
-  
+function ChipStats({ status }: { status: SystemStatus['chips'] }) {
+  const total = status.total || 1;
+  const offline = status.error + status.offline;
   return (
-    <div className="flex items-center gap-3">
-      {/* Green light */}
-      <div className="flex items-center gap-1.5">
-        <div className={cn(
-          'w-4 h-4 rounded-full border-2',
-          status.healthy > 0 ? 'bg-green-500 border-green-600' : 'bg-gray-200 border-gray-300'
-        )} />
-        <span className="text-sm text-muted-foreground">{status.healthy}</span>
+    <div className="flex items-center gap-4 flex-1">
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+          {status.healthy}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className={cn('inline-block h-1.5 w-1.5 rounded-full shrink-0', status.warning > 0 ? 'bg-yellow-500' : 'bg-muted-foreground/20')} />
+          {status.warning}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className={cn('inline-block h-1.5 w-1.5 rounded-full shrink-0', offline > 0 ? 'bg-red-500' : 'bg-muted-foreground/20')} />
+          {offline}
+        </span>
       </div>
-      
-      {/* Yellow light */}
-      <div className="flex items-center gap-1.5">
-        <div className={cn(
-          'w-4 h-4 rounded-full border-2',
-          status.warning > 0 ? 'bg-yellow-500 border-yellow-600' : 'bg-gray-200 border-gray-300'
-        )} />
-        <span className="text-sm text-muted-foreground">{status.warning}</span>
-      </div>
-      
-      {/* Red light */}
-      <div className="flex items-center gap-1.5">
-        <div className={cn(
-          'w-4 h-4 rounded-full border-2',
-          status.error > 0 || status.offline > 0 ? 'bg-red-500 border-red-600' : 'bg-gray-200 border-gray-300'
-        )} />
-        <span className="text-sm text-muted-foreground">{status.error + status.offline}</span>
-      </div>
-      
-      {/* Stacked progress bar */}
-      <div className="flex-1 h-2 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex">
+      <div className="flex-1 h-1 rounded-full overflow-hidden bg-muted flex">
         {status.healthy > 0 && (
-          <div
-            className="h-full bg-green-500"
-            style={{ width: `${(status.healthy / total) * 100}%` }}
-          />
+          <div className="h-full bg-green-500" style={{ width: `${(status.healthy / total) * 100}%` }} />
         )}
         {status.warning > 0 && (
-          <div
-            className="h-full bg-yellow-500"
-            style={{ width: `${(status.warning / total) * 100}%` }}
-          />
+          <div className="h-full bg-yellow-500" style={{ width: `${(status.warning / total) * 100}%` }} />
         )}
-        {(status.error + status.offline) > 0 && (
-          <div
-            className="h-full bg-red-500"
-            style={{ width: `${((status.error + status.offline) / total) * 100}%` }}
-          />
+        {offline > 0 && (
+          <div className="h-full bg-red-500" style={{ width: `${(offline / total) * 100}%` }} />
         )}
       </div>
     </div>
@@ -254,9 +231,7 @@ export function SystemStatusCard({
               <Smartphone className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Chips</span>
             </div>
-            <div className="flex-1">
-              <TrafficLightIndicator status={status.chips} />
-            </div>
+            <ChipStats status={status.chips} />
           </button>
 
           {/* Groups */}

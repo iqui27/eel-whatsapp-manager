@@ -137,10 +137,12 @@ const QueueItem = memo(({
   conv,
   selected,
   onClick,
+  unread = 0,
 }: {
   conv: Conversation;
   selected: boolean;
   onClick: () => void;
+  unread?: number;
 }) => {
   return (
     <button
@@ -150,17 +152,27 @@ const QueueItem = memo(({
         'w-full text-left px-3 py-3 rounded-lg border transition-colors',
         selected
           ? 'border-primary bg-primary/5'
-          : 'border-transparent hover:bg-muted/50',
+          : unread > 0
+            ? 'border-transparent bg-primary/5 hover:bg-primary/10'
+            : 'border-transparent hover:bg-muted/50',
       )}
     >
       <div className="flex items-start gap-2.5">
         <div className={cn('h-2 w-2 rounded-full mt-1.5 shrink-0', STATUS_DOT[conv.status ?? 'bot'])} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-1">
-            <span className="text-sm font-medium text-foreground truncate">{conv.voterName}</span>
+            <span className={cn('text-sm truncate', unread > 0 ? 'font-semibold text-foreground' : 'font-medium text-foreground')}>
+              {conv.voterName}
+            </span>
             <div className="flex items-center gap-1 shrink-0">
               {(conv.priority ?? 0) > 0 && <Zap className="h-3 w-3 text-amber-500" />}
-              <span className="text-[10px] text-muted-foreground">{timeAgo(conv.lastMessageAt)}</span>
+              {unread > 0 ? (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground px-1">
+                  {unread > 9 ? '9+' : unread}
+                </span>
+              ) : (
+                <span className="text-[10px] text-muted-foreground">{timeAgo(conv.lastMessageAt)}</span>
+              )}
             </div>
           </div>
           <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -179,28 +191,28 @@ const ChatBubble = memo(function ChatBubble({ msg, pending = false }: { msg: Con
   const isAgent = msg.sender === 'agent';
   const isBot   = msg.sender === 'bot';
   return (
-    <div className={cn('flex gap-2', isAgent ? 'justify-end' : 'justify-start', pending && 'opacity-60')}>
+    <div className={cn('flex gap-2 items-end', isAgent ? 'justify-end' : 'justify-start', pending && 'opacity-60')}>
       {!isAgent && (
         <div className={cn(
-          'flex h-6 w-6 items-center justify-center rounded-full shrink-0 mt-1',
-          isBot ? 'bg-blue-500/20 text-blue-600' : 'bg-muted text-muted-foreground',
+          'flex h-5 w-5 items-center justify-center rounded-full shrink-0 mb-0.5 text-[9px] font-bold',
+          isBot ? 'bg-blue-500/15 text-blue-600' : 'bg-muted text-muted-foreground',
         )}>
-          {isBot ? <Bot className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+          {isBot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
         </div>
       )}
       <div className={cn(
-        'max-w-[75%] rounded-2xl px-3.5 py-2.5',
+        'max-w-[72%] rounded-xl px-3 py-2',
         isAgent
-          ? 'rounded-tr-sm bg-primary text-primary-foreground'
+          ? 'rounded-br-sm bg-primary text-primary-foreground'
           : isBot
-            ? 'rounded-tl-sm bg-blue-500/10 text-blue-900 dark:text-blue-100'
-            : 'rounded-tl-sm bg-muted text-foreground',
+            ? 'rounded-bl-sm bg-card border border-blue-200/60 dark:border-blue-800/40 text-foreground'
+            : 'rounded-bl-sm bg-card border border-border text-foreground',
         pending && 'ring-1 ring-primary/30',
       )}>
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
         <p className={cn(
-          'text-[10px] mt-1 flex items-center gap-1',
-          isAgent ? 'text-primary-foreground/60 justify-end' : 'text-muted-foreground',
+          'text-[10px] mt-0.5 flex items-center gap-1',
+          isAgent ? 'text-primary-foreground/50 justify-end' : 'text-muted-foreground/70',
         )}>
           {pending ? (
             <><Clock className="h-2.5 w-2.5" /> Enviando...</>
@@ -476,6 +488,10 @@ export default function ConversasPage() {
   // Pending messages (optimistic, not yet confirmed by server)
   const [pendingMsgId, setPendingMsgId] = useState<string | null>(null);
 
+  // Unread counts per conversation
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const lastMessageAtRef = useRef<Record<string, string>>({});
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -492,6 +508,13 @@ export default function ConversasPage() {
   // Keep selectedIdRef in sync
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
 
+  // Request browser notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      void Notification.requestPermission();
+    }
+  }, []);
+
   const refreshStreamCursorSeed = useCallback(() => {
     setStreamInitialCursor(
       buildConversationStreamCursor(queueBootstrapRef.current, messageBootstrapRef.current),
@@ -507,6 +530,12 @@ export default function ConversasPage() {
       if (res.ok) {
         const data: Conversation[] = await res.json();
         queueBootstrapRef.current = data;
+        // Initialize lastMessageAt refs so we can detect genuinely new messages
+        for (const conv of data) {
+          lastMessageAtRef.current[conv.id] = conv.lastMessageAt
+            ? new Date(conv.lastMessageAt).toISOString()
+            : new Date(0).toISOString();
+        }
         setConversations(data);
         refreshStreamCursorSeed();
       }
@@ -645,6 +674,21 @@ export default function ConversasPage() {
     voterId: voterFilterId ?? undefined,
     conversationId: selectedId ?? undefined,
     onConversationUpsert: (conversation) => {
+      // Check if this is a genuinely new message (not just a status update)
+      const prevLastAt = lastMessageAtRef.current[conversation.id];
+      const newLastAt = conversation.lastMessageAt
+        ? new Date(conversation.lastMessageAt).toISOString()
+        : null;
+      if (newLastAt && newLastAt > (prevLastAt ?? '') && conversation.id !== selectedIdRef.current) {
+        setUnreadCounts(prev => ({ ...prev, [conversation.id]: (prev[conversation.id] ?? 0) + 1 }));
+        if ('Notification' in window && Notification.permission === 'granted' && !document.hasFocus()) {
+          new Notification(`Nova mensagem de ${conversation.voterName ?? 'contato'}`, {
+            body: 'Clique para ver a conversa',
+            icon: '/favicon.ico',
+          });
+        }
+      }
+      if (newLastAt) lastMessageAtRef.current[conversation.id] = newLastAt;
       startTransition(() => {
         setConversations((prev) => upsertConversationList(prev, conversation));
       });
@@ -880,7 +924,7 @@ export default function ConversasPage() {
 
   return (
     <SidebarLayout currentPage="conversas" pageTitle="Conversas">
-      <div className="flex h-[calc(100vh-74px)] pb-16 md:pb-0 overflow-hidden">
+      <div className="flex h-[calc(100vh-74px)] pb-16 md:pb-0 overflow-hidden bg-card">
 
         {/* ══ LEFT: Queue ══ */}
         <div className={cn('flex w-full lg:w-[300px] shrink-0 flex-col border-r border-border', mobileShowChat && 'hidden lg:flex')}>
@@ -1028,10 +1072,12 @@ export default function ConversasPage() {
                     key={conv.id}
                     conv={conv}
                     selected={selectedId === conv.id}
+                    unread={unreadCounts[conv.id] ?? 0}
                     onClick={() => {
                       setSelectedId(conv.id);
                       setMessages([]);
                       setMobileShowChat(true);
+                      setUnreadCounts(prev => { const next = { ...prev }; delete next[conv.id]; return next; });
                     }}
                   />
                 ))}
@@ -1099,7 +1145,7 @@ export default function ConversasPage() {
                 <div
                   ref={chatScrollRef}
                   onScroll={handleChatScroll}
-                  className="h-full overflow-y-auto p-4 scroll-smooth"
+                  className="h-full overflow-y-auto p-4 scroll-smooth bg-background"
                 >
                   <div className="space-y-3">
                     {messages.length === 0 ? (
@@ -1169,20 +1215,20 @@ export default function ConversasPage() {
         </div>
 
         {/* ══ RIGHT: Voter context + handoff ══ */}
-        <div className="hidden lg:flex w-[320px] shrink-0 flex-col border-l border-border">
+        <div className="hidden lg:flex w-[320px] shrink-0 flex-col border-l border-border bg-background">
           {!selectedConv ? (
             <div className="flex flex-1 items-center justify-center p-4 text-center">
               <p className="text-xs text-muted-foreground">Selecione uma conversa para ver o contexto</p>
             </div>
           ) : (
             <ScrollArea className="flex-1">
-              <div className="space-y-4 p-4">
+              <div className="space-y-3 p-4">
 
                 {/* Voter card */}
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Eleitor</p>
-                  <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
-                    <div className="flex items-center gap-2">
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Eleitor</p>
+                  <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
+                    <div className="flex items-center gap-2.5">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
                         {selectedConv.voterName.charAt(0).toUpperCase()}
                       </div>
@@ -1200,8 +1246,8 @@ export default function ConversasPage() {
                 {/* AI Insights */}
                 {voterDetail && (voterDetail.aiTier || voterDetail.aiSentiment) && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Análise IA</p>
-                    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Análise IA</p>
+                    <div className="rounded-lg border border-border bg-card p-3 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         {voterDetail.aiTier && (
                           <span className={cn(
@@ -1241,8 +1287,8 @@ export default function ConversasPage() {
                 )}
 
                 {/* Tags */}
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tags</p>
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tags</p>
                   <div className="flex flex-wrap gap-1.5">
                     {(voterDetail?.tags ?? []).map(tag => (
                       <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary font-medium">
@@ -1282,8 +1328,8 @@ export default function ConversasPage() {
 
                 {/* Filter by tag (applies to queue) */}
                 {voterDetail?.tags && voterDetail.tags.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Filtrar por tag</p>
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Filtrar por tag</p>
                     <div className="flex flex-wrap gap-1.5">
                       {voterDetail.tags.map(tag => (
                         <button
@@ -1305,19 +1351,19 @@ export default function ConversasPage() {
                 )}
 
                 {/* Handoff controls */}
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Controles</p>
-                  <div className="space-y-2">
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Controles</p>
+                  <div className="rounded-lg border border-border bg-card p-3 space-y-2">
                     <Select
                       value={selectedConv.status ?? 'bot'}
                       onValueChange={(v) => updateStatus(v as ConvStatus)}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full h-8 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {STATUS_OPTS.map(s => (
-                          <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
+                          <SelectItem key={s} value={s} className="text-xs">{STATUS_LABEL[s]}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -1326,7 +1372,7 @@ export default function ConversasPage() {
                       placeholder="Motivo do handoff (opcional)"
                       value={handoffReason}
                       onChange={e => setHandoffReason(e.target.value)}
-                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
                     />
                     <div className="grid grid-cols-2 gap-1.5">
                       <Button
@@ -1342,7 +1388,7 @@ export default function ConversasPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-xs h-7 text-green-700 border-green-200 hover:bg-green-50"
+                        className="text-xs h-7"
                         onClick={() => updateStatus('resolved')}
                         disabled={selectedConv.status === 'resolved'}
                       >
@@ -1353,8 +1399,8 @@ export default function ConversasPage() {
                 </div>
 
                 {/* Priority */}
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Prioridade</p>
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Prioridade</p>
                   <div className="flex gap-1.5">
                     {[0, 1, 2, 3].map(p => (
                       <button
@@ -1411,8 +1457,8 @@ export default function ConversasPage() {
             {selectedConv && (
               <>
                 {/* Voter card */}
-                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
-                  <div className="flex items-center gap-2">
+                <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
+                  <div className="flex items-center gap-2.5">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
                       {selectedConv.voterName.charAt(0).toUpperCase()}
                     </div>
@@ -1425,8 +1471,8 @@ export default function ConversasPage() {
                 {/* AI Insights */}
                 {voterDetail && (voterDetail.aiTier || voterDetail.aiSentiment) && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Análise IA</p>
-                    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Análise IA</p>
+                    <div className="rounded-lg border border-border bg-card p-3 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         {voterDetail.aiTier && (
                           <span className={cn(
@@ -1464,7 +1510,7 @@ export default function ConversasPage() {
                 {/* Tags */}
                 {voterDetail?.tags && voterDetail.tags.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tags</p>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tags</p>
                     <div className="flex flex-wrap gap-1.5">
                       {voterDetail.tags.map(tag => (
                         <span key={tag} className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary font-medium">
