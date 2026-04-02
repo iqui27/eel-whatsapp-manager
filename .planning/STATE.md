@@ -1,49 +1,53 @@
 ---
 gsd_state_version: 1.0
-milestone: v7.0
-milestone_name: "Milestone 7 — Phone Resolution + Group Identity"
-current_phase: 44
-current_phase_name: ai-analysis-enhancement-campaign-tracking-fixes
-current_plan: 2
-status: in_progress
-stopped_at: "Completed 44-02-PLAN.md — Legacy campaign messages fallback + webhook debug observability"
-last_updated: "2026-03-21T16:25:02Z"
-last_activity: 2026-03-21
+milestone: v1.0
+milestone_name: milestone
+current_phase: 45
+current_phase_name: performance-optimization-v2
+current_plan: 1
+status: executing
+stopped_at: Completed 45-02-PLAN.md — Lazy load heavy components via next/dynamic
+last_updated: "2026-04-02T23:13:41.194Z"
+last_activity: 2026-04-02
 progress:
-  total_phases: 44
-  completed_phases: 35
-  total_plans: 131
-  completed_plans: 113
-  percent: 86
+  total_phases: 45
+  completed_phases: 38
+  total_plans: 116
+  completed_plans: 123
+  percent: 100
 ---
 
 # EEL Eleicao — Project State
 
 ## Current Execution
-**Current Phase:** 44
-**Current Phase Name:** ai-analysis-enhancement-campaign-tracking-fixes
-**Current Plan:** Not started
+
+**Current Phase:** 45
+**Current Phase Name:** performance-optimization-v2
+**Current Plan:** 1
 **Total Phases:** 44
 **Total Plans in Phase 44:** 2 (44-01, 44-02)
-**Status:** Milestone complete
-**Progress:** [██████████] 86%
-**Last Activity:** 2026-03-21
-**Last Activity Description:** Phase 44 complete
-**Stopped At:** Completed 44-02-PLAN.md — Legacy campaign messages fallback + webhook debug observability
+**Status:** Ready to execute
+**Progress:** [██████████] 100%
+**Last Activity:** 2026-04-02
+**Last Activity Description:** Phase 45 execution started
+**Stopped At:** Completed 45-02-PLAN.md — Lazy load heavy components via next/dynamic
 
 **Milestone 6 Execution Plan:**
+
 - Wave 1 (parallel): 36-01, 37-01, 38-01, 39-01
 - Wave 2: 38-02, 39-02, 40-01
 - Wave 3: 40-02, 41-01
 - Wave 4: 41-02
 
 **Phase 34 (Remaining Performance Hardening) — COMPLETE** ✅
+
 - Plan 34-01: Cron overlap protection (DB lock table + withCronLock) ✅ commits: 62e8ac8, 0d4d8bf
 - Plan 34-02: SSE connection limits (3/user, 50 global, 5min max) ✅ commit: f2dea8c
 - Plan 34-03: SidebarLayout SWR caching (session 60s, chips 30s) ✅ commit: 78669bf
 - Plan 34-04: Log retention cron (daily at 3 AM UTC, 30-day retention) ✅ commit: 2dc3e1e
 
 **Phase 35 (Campaign Management Overhaul) — COMPLETE** ✅
+
 - Plan 35-01: Quick fixes (double sidebar + logger default + cron instrumentation) [Wave 1] ✅
 - Plan 35-02: Campaign DB schema expansion (send config + proxy fields, migration 0014) [Wave 1] ✅
 - Plan 35-03: Campaign send config UI (speed presets, time windows, multi-chip selection) [Wave 2] ✅
@@ -53,9 +57,12 @@ progress:
 
 Progress: [██████████] 100%
 
-Last session: 2026-03-20T00:00:00.000Z
+Last session: 2026-04-02T23:13:41.187Z
 
 ## Current Position
+
+Phase: 45 (performance-optimization-v2) — EXECUTING
+Plan: 2 of 4
 **Phase 01 (V2 Shell) — COMPLETE** ✅
 **Phase 02 (DB Schema) — COMPLETE** ✅
 **Phase 03 (Import + Segmentation) — COMPLETE** ✅
@@ -65,24 +72,29 @@ Last session: 2026-03-20T00:00:00.000Z
 **Phase 07 (Compliance + Admin) — COMPLETE** ✅
 **Phase 08 (Reports + Polish) — COMPLETE** ✅
 **Phase 09 (Real Data + Integrations) — COMPLETE** ✅
+
 - Plans completed: 9/9 (`09-01`, `09-02`, `09-03`, `09-04`, `09-05`, `09-06`, `09-07`, `09-08`, `09-09`)
 
 **Phase 10 (Real-Time Chat via SSE) — COMPLETE** ✅
+
 - Plan 10-01 complete: authenticated SSE route + delta-query helpers + shared cursor/event contract
 - Plan 10-02 complete: `/conversas` now bootstraps with REST and continues via SSE through the shared EventSource hook
 - Plan 10-03 complete: dashboard queue panel now reuses the shared stream and updates open-queue removals in near real time
 
 **Phase 11 (Full-System Verification + UAT Sweep) — COMPLETE** ✅
+
 - Plan 11-01 complete: production-backed baseline/auth/legacy verification + shared evidence ledger
 - Plan 11-02 complete: import/segmentation/CRM validated on current HEAD; campaign lifecycle blocked by target-database schema drift and production deploy parity gaps
 - Plan 11-03 complete: realtime/governance/reporting verification finished with a release-blocked verdict and explicit gap routing
 
 **Phase 12 (Campaign Personalization Completion) — COMPLETE** ✅
+
 - Plan 12-01 complete: persisted candidate profile settings plus the shared campaign-variable contract foundation
 - Plan 12-02 complete: create/edit/schedule flows now share the same variable registry, preview semantics, validation, and persisted variable metadata
 - Plan 12-03 complete: manual and scheduled delivery now resolve the same personalization contract as the editor and block invalid templates pre-send
 
 **Phase 13 (Zero-Pendency Release Closure) — COMPLETE** ✅
+
 - Plan 13-01 complete: shell/setup/dashboard no longer ship demo-only contracts or misleading configured-state behavior
 - Plan 13-02 complete: sessions, roles, permissions, and protected APIs now enforce real authorization and `401`/`403` boundaries
 - Plan 13-03 complete: CRM notes/checklists persist server-side and the mobile capture/inbox workflows shipped
@@ -90,6 +102,7 @@ Last session: 2026-03-20T00:00:00.000Z
 - Plan 13-05 complete: production was redeployed to the intended head and live UAT passed across protected pages, authz, CRM persistence, and scheduled report dispatch
 
 **Phase 14 (Chip Health Reliability) — COMPLETE** ✅
+
 - Plan 14-01: Evolution API v2 full wrapper (13+ functions), 8-state chip health schema, health cron with auto-restart, webhook hardened with statusReason + lastWebhookEvent tracking ✅
 - Plan 14-02: Chips API returns all health data + graceful restart; chips page rebuilt as health monitoring dashboard with 8-state indicators, progress bars, timestamps, not_found detection ✅
 
@@ -100,44 +113,55 @@ Last session: 2026-03-17T18:30:00.000Z
 ## Project History
 
 ### EEL v1 (Chip Warming Manager) — COMPLETE
+
 All 6 original phases shipped and deployed to `zap.iqui27.app`.
 
 ### EEL Eleicao (Electoral Campaign Dashboard) — COMPLETE
+
 Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap created.
 
 **Phase 01 — V2 Shell — COMPLETE** ✅
+
 - 01-01: V2 design tokens (warm #F8F6F1) + 8-item electoral sidebar
 - 01-02: V2 Topbar (search, period, alerts, profile) + shell integration
 
 **Phase 02 — DB Schema — COMPLETE** ✅
+
 - 02-01: voters, campaigns, segments, segmentVoters tables + 3 CRUD libraries
 - 02-02: conversations, consentLogs, users tables + 3 more CRUD libs + 3 API routes
 
 **Phase 03 — Import + Segmentation — COMPLETE** ✅
+
 - 03-01: 4-step CSV import wizard (Upload → Mapping → Validation → Processing) + `/api/voters/import` bulk endpoint
 - 03-02: Segmentation page (filter builder AND/OR + audience preview panel + saved segments table)
 
 **Phase 04 — Campaign Editor + Send — COMPLETE** ✅
+
 - 04-01: Campaign list + split-pane editor + WhatsApp preview + CTA score + variable insertion
 - 04-02: A/B test panel + scheduling wizard + simulated send API + auto-refresh monitor page
 
 **Phase 05 — Dashboard V2 + Chat Panel — COMPLETE** ✅
+
 - 05-01: Electoral KPI row + operations table + command panel + onboarding wizard
 - 05-02: Conversations API route + chat queue panel (15s auto-refresh, priority dots)
 
 **Phase 06 — HITL Conversations + CRM — COMPLETE** ✅
+
 - 06-01: Three-column HITL conversations UI (queue / live-chat / voter-context) + messages API
 - 06-02: CRM voter list (debounced search, engagement bars, tags) + voter profile page (engagement circle, editable tags, timeline, checklist/notes) + compliance API
 
 **Phase 07 — Compliance + Admin — COMPLETE** ✅
+
 - 07-01: LGPD compliance page (opt-in status cards, consent table with revoke/anonymize, audit timeline with CSV export)
 - 07-02: Admin panel (users table with inline role editing, invite dialog, permissions matrix tab) + /api/users CRUD
 
 **Phase 08 — Reports + Polish — COMPLETE** ✅
+
 - 08-01: Reports page (/relatorios) — period KPI cards, SVG bar chart, campaign performance table, CSV export
 - 08-02: Final polish — "Ver relatórios" dashboard quick-action, empty state audit, nav verification
 
 **Phase 09 — Real Data + Integrations — COMPLETE** ✅
+
 - 9 plans across 4 waves covering real-data work plus post-verification gap closures
 - Wave 1 (parallel): Plans 01, 02, 04, 05 — webhook, send pipeline, CRM, segmentation
 - Wave 2 (depends on Wave 1): Plans 03, 06, 07 — conversations, dashboard/reports, campaign edit ✅
@@ -145,56 +169,68 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Wave 4: Plan 09 — CRM single-voter segment prefill ✅
 
 **Phase 10 — Real-Time Chat via SSE — COMPLETE** ✅
+
 - Wave 1: Plan 10-01 — authenticated SSE backend foundation complete ✅
 - Wave 2: Plan 10-02 — `/conversas` EventSource migration complete ✅
 - Wave 3: Plan 10-03 — dashboard queue panel realtime adoption complete ✅
 
 **Phase 11 — Full-System Verification + UAT Sweep — COMPLETE** ✅
+
 - Wave 1: Plan 11-01 — baseline auth/setup/settings/operational verification complete ✅
 - Wave 2: Plan 11-02 — electoral-core UAT and blocker routing complete ✅
 - Wave 3: Plan 11-03 — realtime/governance/reporting verdict and evidence ledger complete ✅
 
 **Phase 12 — Campaign Personalization Completion — COMPLETE** ✅
+
 - Wave 1: Plan 12-01 — candidate profile and shared variable contract foundation complete ✅
 - Wave 2: Plan 12-02 — campaign authoring alignment complete ✅
 - Wave 3: Plan 12-03 — delivery/runtime personalization parity complete ✅
 
 **Phase 13 — Zero-Pendency Release Closure — COMPLETE** ✅
+
 - Wave 1: Plans 13-01 and 13-02 — shell contract cleanup plus real authz/session enforcement complete ✅
 - Wave 2: Plan 13-03 — CRM persistence plus mobile operator workflows complete ✅
 - Wave 3: Plan 13-04 — report export/scheduling automation complete ✅
 - Wave 4: Plan 13-05 — production deploy, cron hardening, and zero-pendency live sign-off complete ✅
 
 **Phase 14 (Chip Health Reliability) — COMPLETE** ✅
+
 - Plan 14-01: Evolution API v2 full wrapper (13+ functions), 8-state chip health schema, health cron with auto-restart, webhook hardened with statusReason + lastWebhookEvent tracking ✅
 - Plan 14-02: Chips API returns all health data + graceful restart; chips page rebuilt as health monitoring dashboard with 8-state indicators, progress bars, timestamps ✅
 
 **Phase 15 (Mass Messaging Engine) — COMPLETE** ✅
+
 - Plan 15-01: Message queue schema (8-state lifecycle), chip router (health/capacity/affinity scoring), queue processor cron with anti-ban protections ✅
 - Plan 15-02: Campaign hydration pipeline, message variation engine (spintax, greetings, emojis) ✅
 - Plan 15-03: Automatic chip failover, hourly/daily counter reset cron ✅
 
 **Phase 16 (WhatsApp Group Management) — COMPLETE** ✅
+
 - Plan 16-01: Groups schema (whatsapp_groups table), db-groups.ts with CRUD + overflow, group-sync utility, GROUP_PARTICIPANTS_UPDATE webhook handler ✅
 - Plan 16-02: Groups API routes, /grupos page with status filters, GroupCard/CreateGroupDialog components, campaign integration with {link_grupo} variable ✅
 
 **Phase 17 (Delivery Tracking & Conversion Funnel) — COMPLETE** ✅
+
 - Plan 17-01: Conversion events table, MESSAGES_UPDATE webhook for delivery status, reply correlation, group join conversion tracking ✅
 - Plan 17-02: Funnel API, ConversionFunnel/DeliveryTimeline/ChipBreakdown components, campaign detail page at /campanhas/[id] ✅
 
 **Phase 18 (AI Lead Analysis) — COMPLETE** ✅
+
 - Plan 18-01: Gemini module (gemini-2.0-flash), real-time message analysis, auto-tagging pipeline, AI fields in voters table ✅
 - Plan 18-02: Batch profiling cron, AI insights panel, sentiment timeline, lead scoring widget ✅
 
 **Phase 19 (Operations Dashboard Rebuild) — COMPLETE** ✅
+
 - Plan 19-01: ChipHealthGrid, CampaignProgressBars, AlertsPanel, operations API ✅
 - Plan 19-02: GroupCapacityGrid, ConversionKPIs, MessageFeed, KPIs API, messages API ✅
 - Plan 19-03: All components verified, APIs tested, ready for integration ✅
 
 **Phase 20 (Critical Fixes) — COMPLETE** ✅
+
 - Plan 20-01: Fixed Evolution API connection visualization (5min stale threshold), message feed now includes inbound messages, real-time monitoring with 10s auto-refresh, GroupCapacityGrid with real data, segment-to-group mapping helpers, auto-admin promotion on group creation ✅
 
 **Phase 21 (Campaign-Group Integration) — COMPLETE** ✅
+
 - Plan 21-01: Schema Enhancement - segmentTag field, segment-chip-group mapping, CRUD updates ✅
 - Plan 21-02: Campaign Queue Integration - {link_grupo} resolution, group auto-creation, link caching ✅
 - Plan 21-03: Automatic Group Overflow - 90% detection, overflow creation, cache invalidation ✅
@@ -204,6 +240,7 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Plan 21-07: Message History & Analytics - search, export, analytics charts, per-campaign/chip logs ✅
 
 **Phase 22 (UI Polish) — COMPLETE** ✅
+
 - Plan 22-01: Navigation Fix - dashboard ops tab removal, mobile nav indices, SidebarLayout wrappers, Link conversion ✅
 - Plan 22-02: Dashboard Layout - right column widened to 320px, per-endpoint error toasts ✅
 - Plan 22-03: Operacoes Polish - text truncation fixed, loading vs empty state bug, voter count populated ✅
@@ -214,39 +251,48 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Plan 22-08: Topbar date display, session dot indicator, chip-health-grid no-emoji commit ✅
 
 **Phase 23 (Critical Layout Foundation) — COMPLETE** ✅
+
 - Plan 23-01: Responsive topbar (flex-shrink, breakpoint hiding), dashboard right panel scroll ✅
 - Plan 23-02: Setup page 46 hex colors → Tailwind tokens, conversas height fix (74px), wizard verified ✅
 
 **Phase 24 (Operations Unification) — COMPLETE** ✅
+
 - Plan 24-01: ChipHealthGrid/MessageFeed/SystemStatusCard accents, flex widths, auto-refresh, stacked bar CSS ✅
 - Plan 24-02: QuickActionsPanel contextual counts, HelpPanel FAQ accents + real email, operations page accent fixes ✅
 
 **Phase 25 (Conversas Overhaul) — COMPLETE** ✅
+
 - Plan 25-01: Silent catch → toast+retry, SSE status dots, MAX_RECONNECT 5→8, heartbeat 45s, online/offline listeners, forceReconnect ✅
 - Plan 25-02: AI tier/sentiment badges, analysis summary, recommended action, inline tag editing in voter panel ✅
 - Plan 25-03: Client-side search in queue, mobile voter context Sheet via User button, shadcn Sheet installed ✅
 
 **Phase 26 (Campanhas & Segmentação UX) — COMPLETE** ✅
+
 - Plan 26-01: Campanhas — pagination 20/pg, name search, status filter, date sort, onboarding guide, empty states ✅
 - Plan 26-02: Segmentação — Novo Segmento button, Geográfico/Demográfico/Seção accents, usage stats table, onboarding ✅
 
 **Phase 27 (CRM Overhaul) — COMPLETE** ✅
+
 - Plan 27-01: AI tier dot + sentiment column, inline row editor (name/phone/zone/section/opt-in/notes) ✅
 - Plan 27-02: Filter bar (tier/opt-in/zone), checkbox multi-select, bulk delete+export, CSV with 16 fields + BOM ✅
 
 **Phase 28 (Relatórios Pro) — COMPLETE** ✅
+
 - Plan 28-01: recharts installed, DailyBarChart (tooltips+axes), TrendLineChart (sent/delivered/read) ✅
 - Plan 28-02: ConversionFunnel (4-step with drop-off%), responsive 2-col chart grid, KPI grid 2-col mobile ✅
 
 **Phase 29 (Configurações & Perfil) — COMPLETE** ✅
+
 - Plan 29-01: /configuracoes page (6 sections: Candidato/Evolution/Gemini/Notif/Campanhas/Aquecimento), sidebar updated ✅
 - Plan 29-02: /perfil page (avatar, role badge, name edit, password change, permissions checklist), sidebar 'Meu Perfil' ✅
 
 **Phase 30 (Header Cleanup & Final Polish) — COMPLETE** ✅
+
 - Plan 30-01: Command palette entity search (voters), new nav commands, topbar real alert count from API ✅
 - Plan 30-02: Deprecated redirects (/history→/historico, /contacts→/crm, /clusters→/), all sidebar accent fixes ✅
 
 **Phase 31 (Diagnostic Fixes) — COMPLETE** ✅
+
 - Plan 31-01: CRM inline edit fix, AI analysis card, Gemini model updated to gemini-2.5-flash (GA) ✅
 - Plan 31-02: Voter segments shown in CRM list and detail pages via bulk join query ✅
 - Plan 31-03: Group creation UX — admin phones field, voter picker dialog, API admin promotion ✅
@@ -254,6 +300,7 @@ Paper design complete (22 artboards). V2 Editorial Light selected. Roadmap creat
 - Plan 31-05: Opt-in/out keyword detection in webhook (automatic LGPD consent automation) ✅
 
 **Phase 32 (System Logs) — COMPLETE** ✅
+
 - Plan 32-01: system_logs DB table + migration, system-logger.ts, GET /api/system-logs with filters, webhook + Gemini instrumentation ✅
 - Plan 32-02: /logs UI page — level/category pills, text search, date range, expandable JSON detail, duration badge, auto-refresh, CSV export ✅
 - Plan 32-03: Batch logger rewrite (in-memory buffer → 2s batch INSERT, SYSLOG_MIN_LEVEL env guard), logs page debounce + appliedRef pattern ✅
@@ -271,18 +318,21 @@ Progress: [██████████] 100%
 Last session: 2026-03-20T00:00:00.000Z
 
 **Phase 33 (Performance Optimization) — COMPLETE** ✅
+
 - Plan 33-01: CSS @keyframes page transitions, lazy-loaded recharts, motion-safe polyfill ✅
 - Plan 33-02: In-memory session cache (60s TTL, 500 max) ✅
 - Plan 33-03: Visibility guards on all 6 polling intervals + SSE optimization (5s poll, voter cache) ✅
 - Plan 33-04: DB indexes (voters, message_queue, conversion_events), SQL-level voter pagination ✅
 
 **Phase 34 (Remaining Performance Hardening) — COMPLETE** ✅
+
 - Plan 34-01: Cron overlap protection — cron_locks DB table + withCronLock helper + all 8 routes wrapped ✅
 - Plan 34-02: SSE connection limits (3/user, 50 global, 5min max lifetime) ✅
 - Plan 34-03: SidebarLayout SWR caching (session 60s, chips 30s) ✅
 - Plan 34-04: Log retention cron (daily at 3 AM UTC, 30-day retention) ✅
 
 ## Decisions Made
+
 - [x] Visual direction: V2 Editorial Light (Radix Command) — from Paper exploration
 - [x] Database: Supabase PostgreSQL (already in use)
 - [x] ORM: Drizzle (already in use)
@@ -442,10 +492,13 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 43-02]: @lid participants remain voterName: null — WhatsApp does not expose @lid↔phone mapping; documented in code for future resolution
 - [Phase 43-02]: cachePhoneToName used as fallback for @s.whatsapp.net participants — resilience against normalizePhone format variants
 - [Phase 43-02]: GROUP_PARTICIPANTS_UPDATE cache write placed after auto opt-in loop, before campaign conversion tracking
+- [Phase 45]: Combined Tasks 1 and 5 (GeminiMessageAssistant + SendConfigPanel) in single commit since both modify same files
+- [Phase 45]: Task 3 (CommandPalette) and Task 4 (MessageAnalyticsCharts) skipped - components not imported in specified files
 
 ## Accumulated Context
 
 ### Roadmap Evolution
+
 - Phase 10 added: Real-Time Chat via SSE
   - Origin: deferred post-Phase 09 work to replace polling in chat surfaces with real-time transport.
 - Phase 11 added: Full-System Verification + UAT Sweep
@@ -456,9 +509,11 @@ Last session: 2026-03-20T00:00:00.000Z
   - Origin: user requested a plan to close every remaining page/feature gap and leave the milestone with no unresolved pending items.
 
 ## Blockers
+
 - None. Phase 13 closed the remaining milestone gaps and the final production-backed sweep ended green.
 
 ## Key Files (Current)
+
 ```
 src/db/
   schema.ts             # 13 tables: config, chips, contacts, clusters, chip_clusters, contact_clusters,
@@ -602,12 +657,14 @@ src/components/
 | Phase 42-groups-polish-conversion-tracking P02 | 15 | 2 tasks | 2 files |
 | Phase 43-phone-resolution-group-identity P01 | 10 min | 3 tasks | 4 files |
 | Phase 43-phone-resolution-group-identity P02 | 8 min | 2 tasks | 2 files |
+| Phase 45 P02 | 5 | 4 tasks | 4 files |
 
 ## Next Actions
 
 **Milestone 6 — Ready for Execution**
 
 Execute Wave 1 (parallel — no dependencies):
+
 1. `/gsd-execute-phase 36` — Dashboard Editorial Polish (1 plan)
 2. `/gsd-execute-phase 37` — Operações Layout & Data (1 plan)
 3. `/gsd-execute-phase 38` — Chip Profile Management (2 plans)
