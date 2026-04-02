@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/use-swr';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -316,58 +318,49 @@ function CommandPanel({
 export default function DashboardPage() {
   const router = useRouter();
 
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [segments, setSegments] = useState<Segment[]>([]);
-  const [systemStatus, setSystemStatus] = useState<SystemStatus>({ chips: 0, voters: 0, segments: 0 });
-  const [isLoading, setIsLoading] = useState(true);
+  // SWR-based data fetching with automatic caching and deduplication
+  const { data: campaigns, error: campaignsError, isLoading: campaignsLoading, mutate: mutateCampaigns } = useSWR<Campaign[]>('/api/campaigns', fetcher);
+  const { data: segments, error: segmentsError, isLoading: segmentsLoading } = useSWR<Segment[]>('/api/segments', fetcher);
+  const { data: votersData, error: votersError } = useSWR<{ total: number }>('/api/voters?limit=1', fetcher);
+  const { data: chipsData, error: chipsError } = useSWR<{ enabled?: boolean }[]>('/api/chips', fetcher);
+
   const [warmingAll, setWarmingAll] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  const fetchAll = useCallback(async () => {
-    try {
-      const [campRes, segRes, voterRes, chipRes] = await Promise.all([
-        fetch('/api/campaigns'),
-        fetch('/api/segments'),
-        fetch('/api/voters?limit=1'),
-        fetch('/api/chips'),
-      ]);
-
-      if (campRes.status === 401) { router.push('/login'); return; }
-
-      if (!campRes.ok) toast.error('Erro ao carregar campanhas');
-      if (!segRes.ok) toast.error('Erro ao carregar segmentos');
-      if (!voterRes.ok) toast.error('Erro ao carregar eleitores');
-      if (!chipRes.ok) toast.error('Erro ao carregar chips');
-
-      const [campData, segData, voterData, chipData] = await Promise.all([
-        campRes.ok ? campRes.json() : [],
-        segRes.ok ? segRes.json() : [],
-        voterRes.ok ? voterRes.json() : { total: 0 },
-        chipRes.ok ? chipRes.json() : [],
-      ]);
-
-      setCampaigns(campData);
-      setSegments(segData);
-      setSystemStatus({
-        chips: Array.isArray(chipData) ? chipData.filter((c: { enabled?: boolean }) => c.enabled).length : 0,
-        voters: typeof voterData?.total === 'number' ? voterData.total : 0,
-        segments: Array.isArray(segData) ? segData.length : 0,
-      });
-
-      // Show onboarding if no campaigns and not dismissed
-      if (campData.length === 0 && !localStorage.getItem(STORAGE_KEY)) {
-        setShowOnboarding(true);
+  // Handle auth errors - redirect to login
+  useEffect(() => {
+    if (campaignsError || segmentsError || votersError || chipsError) {
+      // Check for 401 in error message or response
+      const errorMsg = (campaignsError as Error)?.message || (segmentsError as Error)?.message || (votersError as Error)?.message || (chipsError as Error)?.message;
+      if (errorMsg?.includes('401') || errorMsg?.includes('Unauthorized')) {
+        router.push('/login');
+      } else {
+        toast.error('Erro ao carregar dados');
       }
-    } catch {
-      toast.error('Erro ao carregar dados');
-    } finally {
-      setIsLoading(false);
     }
-  }, [router]);
+  }, [campaignsError, segmentsError, votersError, chipsError, router]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
-  
+  // Show onboarding if no campaigns and not dismissed
+  useEffect(() => {
+    if (campaigns && campaigns.length === 0 && !localStorage.getItem(STORAGE_KEY)) {
+      setShowOnboarding(true);
+    }
+  }, [campaigns]);
 
+  // Derived system status from SWR data
+  const systemStatus: SystemStatus = {
+    chips: chipsData ? chipsData.filter((c) => c.enabled).length : 0,
+    voters: votersData?.total ?? 0,
+    segments: segments ? segments.length : 0,
+  };
+
+  // Combined loading state
+  const isLoading = campaignsLoading || segmentsLoading;
+
+  // Refresh function for manual refresh button
+  const refreshAll = useCallback(() => {
+    mutateCampaigns();
+  }, [mutateCampaigns]);
 
   const handleWarmAll = async () => {
     setWarmingAll(true);
@@ -388,14 +381,15 @@ export default function DashboardPage() {
   };
 
   // ── Derived KPIs ──
-  const totalSent      = campaigns.reduce((acc, c) => acc + (c.totalSent ?? 0), 0);
-  const totalDelivered = campaigns.reduce((acc, c) => acc + (c.totalDelivered ?? 0), 0);
-  const totalRead      = campaigns.reduce((acc, c) => acc + (c.totalRead ?? 0), 0);
-  const totalReplied   = campaigns.reduce((acc, c) => acc + (c.totalReplied ?? 0), 0);
-  const totalFailed    = campaigns.reduce((acc, c) => acc + (c.totalFailed ?? 0), 0);
+  const campaignList = campaigns ?? [];
+  const totalSent      = campaignList.reduce((acc, c) => acc + (c.totalSent ?? 0), 0);
+  const totalDelivered = campaignList.reduce((acc, c) => acc + (c.totalDelivered ?? 0), 0);
+  const totalRead      = campaignList.reduce((acc, c) => acc + (c.totalRead ?? 0), 0);
+  const totalReplied   = campaignList.reduce((acc, c) => acc + (c.totalReplied ?? 0), 0);
+  const totalFailed    = campaignList.reduce((acc, c) => acc + (c.totalFailed ?? 0), 0);
   const deliveryRate   = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : null;
   const readRate       = totalDelivered > 0 ? Math.round((totalRead / totalDelivered) * 100) : null;
-  const noCampaignData = campaigns.length === 0 || totalSent === 0;
+  const noCampaignData = campaignList.length === 0 || totalSent === 0;
 
   if (isLoading) {
     return (
@@ -424,7 +418,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={fetchAll} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={refreshAll} className="gap-1.5">
               <RefreshCw className="h-3.5 w-3.5" />
               Atualizar
             </Button>
@@ -436,7 +430,7 @@ export default function DashboardPage() {
           <OnboardingWizard
             voterCount={systemStatus.voters}
             segmentCount={systemStatus.segments}
-            campaignCount={campaigns.length}
+            campaignCount={campaignList.length}
             onDismiss={dismissOnboarding}
           />
         )}
@@ -504,7 +498,7 @@ export default function DashboardPage() {
                   <CardTitle className="flex items-center gap-2 text-base">
                     <BarChart3 className="h-4 w-4 text-primary" />
                     Campanhas ativas
-                    <Badge variant="secondary">{campaigns.length}</Badge>
+                    <Badge variant="secondary">{campaignList.length}</Badge>
                   </CardTitle>
                   <Link href="/campanhas">
                     <Button variant="ghost" size="sm" className="text-xs gap-1">
@@ -515,7 +509,7 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                {campaigns.length === 0 ? (
+                {campaignList.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-12 text-center px-6">
                     <Send className="h-8 w-8 text-muted-foreground/30" />
                     <div className="space-y-1">
@@ -543,8 +537,8 @@ export default function DashboardPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {campaigns.slice(0, 8).map(campaign => {
-                          const seg = segments.find(s => s.id === campaign.segmentId);
+                        {campaignList.slice(0, 8).map(campaign => {
+                          const seg = (segments ?? []).find(s => s.id === campaign.segmentId);
                           const sent = campaign.totalSent ?? 0;
                           const delivered = campaign.totalDelivered ?? 0;
                           const rate = sent > 0 ? Math.round((delivered / sent) * 100) : 0;
