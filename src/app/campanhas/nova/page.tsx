@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ import { calculateCtaScore, scoreBg } from '@/lib/cta-score';
 import type { Config, Segment, Campaign, Chip } from '@/db';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   ArrowLeft,
   ArrowRight,
@@ -43,10 +45,27 @@ import {
   type CandidateProfileContext,
   validateCampaignTemplates,
 } from '@/lib/campaign-variables';
-import { SendConfigPanel, DEFAULT_SEND_CONFIG, type SendConfigValue } from '@/components/SendConfigPanel';
+import { DEFAULT_SEND_CONFIG, type SendConfigValue } from '@/components/SendConfigPanel';
 import { WhatsAppPreview } from '@/components/whatsapp-preview';
 import { WhatsAppFormatToolbar } from '@/components/whatsapp-format-toolbar';
-import { GeminiMessageAssistant } from '@/components/gemini-message-assistant';
+
+// Lazy-loaded heavy components for better initial bundle size
+// GeminiMessageAssistant: ~617 lines, loads only when user interacts with AI button
+const GeminiMessageAssistant = dynamic(
+  () => import('@/components/gemini-message-assistant'),
+  {
+    loading: () => <Skeleton className="h-32 w-full" />,
+    ssr: false,
+  }
+);
+
+// SendConfigPanel: ~578 lines, deferred from initial load
+const SendConfigPanel = dynamic(
+  () => import('@/components/SendConfigPanel').then((mod) => mod.SendConfigPanel),
+  {
+    loading: () => <Skeleton className="h-96 w-full" />,
+  }
+);
 
 // ─── Candidate profile empty state ────────────────────────────────────────────
 
