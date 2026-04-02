@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/use-swr';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -209,15 +211,12 @@ type PaginatedVotersResponse = {
 
 export default function CrmPage() {
   const router = useRouter();
-  const [voters, setVoters] = useState<VoterWithSegments[]>([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalVoters, setTotalVoters] = useState(0);
   const [voterToDelete, setVoterToDelete] = useState<VoterWithSegments | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   // Tags managed separately as string[] for the TagPicker
@@ -244,6 +243,42 @@ export default function CrmPage() {
   const [isAddingToSegment, setIsAddingToSegment] = useState(false);
   const [isLoadingSegments, setIsLoadingSegments] = useState(false);
 
+  // Build SWR key from filters
+  const votersKey = useMemo(() => {
+    const params = new URLSearchParams({
+      page: String(currentPage),
+      limit: String(PAGE_LIMIT),
+    });
+    if (debouncedSearch) params.set('search', debouncedSearch);
+    if (tierFilter !== 'all') params.set('tier', tierFilter);
+    if (optInFilter !== 'all') params.set('optIn', optInFilter);
+    if (zoneFilter !== 'all') params.set('zone', zoneFilter);
+    if (tagFilter) params.set('tag', tagFilter);
+    if (segmentFilter !== 'all') params.set('segmentId', segmentFilter);
+    if (projectFilter) params.set('projectName', projectFilter);
+    if (subsecretariaFilter) params.set('subsecretaria', subsecretariaFilter);
+    return `/api/voters?${params.toString()}`;
+  }, [currentPage, debouncedSearch, tierFilter, optInFilter, zoneFilter, tagFilter, segmentFilter, projectFilter, subsecretariaFilter]);
+
+  // SWR-based data fetching
+  const { data: votersResponse, error: votersError, isLoading, mutate: mutateVoters } = useSWR<PaginatedVotersResponse>(votersKey, fetcher);
+
+  // Derived values from SWR response
+  const voters = votersResponse?.data ?? [];
+  const totalVoters = votersResponse?.total ?? 0;
+
+  // Handle auth errors
+  useEffect(() => {
+    if (votersError) {
+      const errorMsg = (votersError as Error)?.message;
+      if (errorMsg?.includes('401') || errorMsg?.includes('Unauthorized')) {
+        router.push('/login');
+      } else {
+        toast.error('Erro ao carregar eleitores');
+      }
+    }
+  }, [votersError, router]);
+
   // Load filter options once on mount
   useEffect(() => {
     fetch('/api/segments')
@@ -256,42 +291,7 @@ export default function CrmPage() {
       .catch(() => {});
   }, []);
 
-  const load = useCallback(async (q: string, page: number) => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(PAGE_LIMIT),
-      });
-      if (q) params.set('search', q);
-      if (tierFilter !== 'all') params.set('tier', tierFilter);
-      if (optInFilter !== 'all') params.set('optIn', optInFilter);
-      if (zoneFilter !== 'all') params.set('zone', zoneFilter);
-      if (tagFilter) params.set('tag', tagFilter);
-      if (segmentFilter !== 'all') params.set('segmentId', segmentFilter);
-      if (projectFilter) params.set('projectName', projectFilter);
-      if (subsecretariaFilter) params.set('subsecretaria', subsecretariaFilter);
-
-      const res = await fetch(`/api/voters?${params.toString()}`);
-      if (res.status === 401) {
-        router.push('/login');
-        return;
-      }
-      if (!res.ok) {
-        throw new Error('Erro ao carregar eleitores');
-      }
-
-      const result: PaginatedVotersResponse = await res.json();
-      setVoters(result.data);
-      setTotalVoters(result.total);
-      setCurrentPage(result.page);
-    } catch {
-      toast.error('Erro ao carregar eleitores');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [router, tierFilter, optInFilter, zoneFilter, tagFilter, segmentFilter, projectFilter, subsecretariaFilter]);
-
+  // Debounce search
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setCurrentPage(1);
@@ -304,10 +304,6 @@ export default function CrmPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [tierFilter, optInFilter, zoneFilter, tagFilter, segmentFilter, projectFilter, subsecretariaFilter]);
-
-  useEffect(() => {
-    void load(debouncedSearch, currentPage);
-  }, [currentPage, debouncedSearch, load]);
 
   // Load available tags when add-voter dialog opens
   useEffect(() => {
@@ -336,9 +332,9 @@ export default function CrmPage() {
   const startIndex = totalVoters === 0 ? 0 : (currentPage - 1) * PAGE_LIMIT + 1;
   const endIndex = totalVoters === 0 ? 0 : Math.min(currentPage * PAGE_LIMIT, totalVoters);
 
-  const refreshPage = async (page = currentPage) => {
-    await load(debouncedSearch, page);
-  };
+  const refreshPage = useCallback(async () => {
+    await mutateVoters();
+  }, [mutateVoters]);
 
   // All filtering is now server-side — voters from API are already filtered
   const filteredVoters = voters;
@@ -469,9 +465,7 @@ export default function CrmPage() {
       setIsAddDialogOpen(false);
       resetForm();
       setCurrentPage(1);
-      if (currentPage === 1) {
-        await refreshPage(1);
-      }
+      await mutateVoters();
     } catch {
       toast.error('Erro ao adicionar eleitor');
     } finally {
@@ -501,9 +495,10 @@ export default function CrmPage() {
       toast.success('Eleitor excluído');
       const nextPage = currentPage > 1 && voters.length === 1 ? currentPage - 1 : currentPage;
       setVoterToDelete(null);
-      setCurrentPage(nextPage);
-      if (nextPage === currentPage) {
-        await refreshPage(nextPage);
+      if (nextPage !== currentPage) {
+        setCurrentPage(nextPage);
+      } else {
+        await mutateVoters();
       }
     } catch {
       toast.error('Erro ao excluir eleitor');
