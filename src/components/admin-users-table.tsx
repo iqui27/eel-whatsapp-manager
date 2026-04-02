@@ -187,7 +187,7 @@ export function AdminUsersTable() {
 
   const removeUser = useCallback(async (user: User) => {
     try {
-      const res = await fetch(\`/api/users?id=\${user.id}\`, { method: 'DELETE' });
+      const res = await fetch(`/api/users?id=${user.id}`, { method: 'DELETE' });
       if (res.ok) {
         toast.success('Usuario removido');
         setUsers(prev => prev.filter(u => u.id !== user.id));
@@ -249,7 +249,7 @@ export function AdminUsersTable() {
         body: JSON.stringify({ userId: user.id }),
       });
       if (res.ok) {
-        toast.success(\`Convite reenviado para \${user.email}\`);
+        toast.success(`Convite reenviado para ${user.email}`);
       } else {
         const data = await res.json().catch(() => null) as { error?: string } | null;
         toast.error(data?.error ?? 'Erro ao reenviar convite');
@@ -271,7 +271,7 @@ export function AdminUsersTable() {
         body: JSON.stringify({ id: passwordUser.id, password: passwordValue }),
       });
       if (res.ok) {
-        toast.success(\`Senha de \${passwordUser.name} atualizada\`);
+        toast.success(`Senha de ${passwordUser.name} atualizada`);
         setPasswordUser(null);
         setPasswordValue('');
       } else {
@@ -403,9 +403,7 @@ export function AdminUsersTable() {
                           className="h-7 px-2 text-xs"
                           onClick={() => openPermissionsDialog(user)}
                         >
-                          {(user.permissions?.length ?? 0) > 0
-                            ? \`\${user.permissions?.length ?? 0} ativas\`
-                            : 'Configurar'}
+{(user.permissions?.length ?? 0) > 0 ? `${user.permissions?.length ?? 0} ativas` : 'Configurar'}
                         </Button>
                       </TableCell>
                        <TableCell>
