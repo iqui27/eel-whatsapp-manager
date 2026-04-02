@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/use-swr';
 import {
   Plus, Search, Flame, Trash2, Smartphone, Loader2, X, RefreshCw,
   RotateCcw, AlertTriangle, Wifi, WifiOff, Clock, ChevronDown, Layers,
@@ -276,9 +278,6 @@ const FILTER_BTNS: { label: string; value: HealthFilter }[] = [
 
 export default function ChipsPage() {
   const router = useRouter();
-  const [chips, setChips] = useState<Chip[]>([]);
-  const [segments, setSegments] = useState<SegmentOption[]>([]);
-  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [restartingId, setRestartingId] = useState<string | null>(null);
   const [warmingId, setWarmingId] = useState<string | null>(null);
@@ -310,76 +309,36 @@ export default function ChipsPage() {
   });
   const [savingProxy, setSavingProxy] = useState(false);
 
-  // ─── Data loading ──────────────────────────────────────────────────────────
+  // ─── Data loading with SWR ───────────────────────────────────────────────────
 
-  const fetchSegments = useCallback(async () => {
-    try {
-      const res = await fetch('/api/segments');
-      if (res.ok) {
-        const data = await res.json();
-        setSegments(data.map((s: SegmentOption) => ({
-          id: s.id,
-          name: s.name,
-          segmentTag: s.segmentTag,
-        })));
-      }
-    } catch {
-      // Silent fail - segments are optional
-    }
-  }, []);
+  // SWR for chips with 15s refresh interval
+  const { data: chips = [], error: chipsError, isLoading: loading, mutate: mutateChips } = useSWR<Chip[]>(
+    '/api/chips',
+    fetcher,
+    { refreshInterval: 15000 }
+  );
 
-  const fetchChips = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const res = await fetch('/api/chips');
-      if (res.status === 401) { router.push('/login'); return; }
-      setChips(await res.json());
-    } catch {
-      toast.error('Erro ao carregar chips');
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+  // SWR for segments
+  const { data: segmentsData = [] } = useSWR<SegmentOption[]>('/api/segments', fetcher);
 
-  // Auto-refresh every 15 seconds — pauses when tab is backgrounded
+  // Derived segments
+  const segments = segmentsData.map(s => ({
+    id: s.id,
+    name: s.name,
+    segmentTag: s.segmentTag,
+  }));
+
+  // Handle auth errors
   useEffect(() => {
-    fetchChips();
-    fetchSegments();
-
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-
-    const startPolling = () => {
-      if (intervalId) return;
-      intervalId = setInterval(() => {
-        if (document.hidden) return;
-        fetchChips(true);
-      }, 15000);
-    };
-
-    const stopPolling = () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        stopPolling();
+    if (chipsError) {
+      const errorMsg = (chipsError as Error)?.message;
+      if (errorMsg?.includes('401') || errorMsg?.includes('Unauthorized')) {
+        router.push('/login');
       } else {
-        fetchChips(true); // immediate refresh when tab becomes visible
-        startPolling();
+        toast.error('Erro ao carregar chips');
       }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    startPolling();
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      stopPolling();
-    };
-  }, [fetchChips, fetchSegments]);
+    }
+  }, [chipsError, router]);
 
   // ─── Actions ───────────────────────────────────────────────────────────────
 
@@ -407,7 +366,7 @@ export default function ChipsPage() {
         setForm({ name: '', phone: '', instanceName: '', groupId: '', dailyLimit: '200', hourlyLimit: '25', assignedSegments: [], proxyHost: '', proxyPort: '80', proxyProtocol: 'http', proxyUsername: '', proxyPassword: '' });
         setShowForm(false);
         setShowProxySection(false);
-        fetchChips(true);
+        mutateChips();
       } else {
         const d = await res.json();
         toast.error(d.error || 'Erro ao adicionar chip');
@@ -426,7 +385,7 @@ export default function ChipsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: chip.id, updates: { enabled: !chip.enabled } }),
       });
-      fetchChips(true);
+      mutateChips();
     } catch {
       toast.error('Erro ao atualizar chip');
     }
@@ -458,7 +417,7 @@ export default function ChipsPage() {
     try {
       await fetch(`/api/chips?id=${chip.id}`, { method: 'DELETE' });
       toast.success('Chip removido');
-      fetchChips(true);
+      mutateChips();
     } catch {
       toast.error('Erro ao deletar chip');
     }
@@ -481,7 +440,7 @@ export default function ChipsPage() {
         } else {
           toast.success(`Saúde verificada! ${parts.join(', ')}`);
         }
-        fetchChips(true);
+        mutateChips();
       } else {
         toast.error(data.error || 'Erro ao sincronizar');
       }
@@ -507,7 +466,7 @@ export default function ChipsPage() {
         } else {
           toast.success(`Chip ${chip.name} reiniciado — ${data.healthStatus === 'healthy' ? 'saudável' : 'verificando...'}`);
         }
-        fetchChips(true);
+        mutateChips();
       } else {
         // Show detailed error message
         const errorMsg = data.details || data.error || 'Erro ao reiniciar chip';
@@ -533,7 +492,7 @@ export default function ChipsPage() {
       } else {
         toast.error('Erro ao aquecer');
       }
-      fetchChips(true);
+      mutateChips();
     } catch {
       toast.error('Erro ao aquecer chip');
     } finally {
@@ -562,7 +521,7 @@ export default function ChipsPage() {
       if (res.ok) {
         toast.success('Segmentos atualizados');
         setEditingSegmentsId(null);
-        fetchChips(true);
+        mutateChips();
       } else {
         toast.error('Erro ao salvar segmentos');
       }
@@ -605,7 +564,7 @@ export default function ChipsPage() {
       if (res.ok) {
         toast.success(hasProxy ? 'Proxy configurado' : 'Proxy removido');
         setEditingProxyId(null);
-        fetchChips(true);
+        mutateChips();
       } else {
         toast.error('Erro ao salvar proxy');
       }
@@ -1284,7 +1243,7 @@ export default function ChipsPage() {
                         chip={chip}
                         onSave={() => {
                           setEditingProfileId(null);
-                          fetchChips(true);
+                          mutateChips();
                         }}
                       />
                       <button

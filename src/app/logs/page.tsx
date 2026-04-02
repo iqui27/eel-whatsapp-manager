@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/use-swr';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -190,8 +192,6 @@ function MessageCell({ message }: { message: string }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function LogsPage() {
-  const [logs, setLogs]               = useState<SystemLog[]>([]);
-  const [loading, setLoading]         = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
@@ -204,9 +204,7 @@ export default function LogsPage() {
   const [editLimit, setEditLimit]           = useState('100');
 
   // ── Applied filter state (what the last/current fetch uses) ─────────────────
-  // Stored in a ref so the auto-refresh interval always reads the latest values
-  // without needing to be recreated when filters change.
-  const appliedRef = useRef<AppliedFilters>({
+  const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>({
     levels:     new Set(),
     categories: new Set(),
     search:     '',
@@ -218,90 +216,43 @@ export default function LogsPage() {
   // ── Debounce timer for search ─────────────────────────────────────────────────
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Auto-refresh interval ─────────────────────────────────────────────────────
-  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // ── Build SWR key from applied filters ───────────────────────────────────────
+  const logsKey = useMemo(() => {
+    const params = buildParams(appliedFilters);
+    return `/api/system-logs?${params.toString()}`;
+  }, [appliedFilters]);
 
-  // ─── Core fetch (reads from appliedRef — stable identity) ────────────────────
-  const doFetch = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = buildParams(appliedRef.current);
-      const res = await fetch(`/api/system-logs?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to fetch logs');
-      const data = await res.json() as { logs: SystemLog[] };
-      setLogs(data.logs ?? []);
-      setLastRefresh(new Date());
-    } catch {
-      // silently ignore
-    } finally {
-      setLoading(false);
-    }
-  }, []); // stable — never changes
+  // ── SWR fetch with conditional auto-refresh ──────────────────────────────────
+  const { data, isLoading: loading, mutate: mutateLogs } = useSWR<{ logs: SystemLog[] }>(
+    logsKey,
+    fetcher,
+    { refreshInterval: autoRefresh ? 10000 : 0 }
+  );
 
-  // ── Apply filters and fetch ───────────────────────────────────────────────────
-  const applyAndFetch = useCallback(() => {
-    appliedRef.current = {
-      levels:     editLevels,
-      categories: editCategories,
-      search:     editSearch,
-      fromDate:   editFrom,
-      toDate:     editTo,
-      limit:      editLimit,
-    };
-    void doFetch();
-  }, [editLevels, editCategories, editSearch, editFrom, editTo, editLimit, doFetch]);
+  // Derived logs and last refresh tracking
+  const logs = data?.logs ?? [];
 
-  // ── Initial load ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    void doFetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // mount only
-
-  // ── Auto-refresh — stable interval, reads appliedRef directly ────────────────
-  useEffect(() => {
-    if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
-    if (!autoRefresh) return;
-
-    autoRefreshRef.current = setInterval(() => {
-      if (document.hidden) return; // skip when tab is hidden
-      void doFetch();
-    }, 10_000);
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden && autoRefresh) {
-        void doFetch(); // immediate refresh when tab becomes visible
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [autoRefresh, doFetch]); // doFetch is stable, so this only runs when autoRefresh toggles
+    if (data) setLastRefresh(new Date());
+  }, [data]);
 
   // ─── Filter toggles (pills apply immediately) ─────────────────────────────────
   function toggleLevel(level: LogLevel) {
     setEditLevels((prev) => {
       const next = new Set(prev);
       next.has(level) ? next.delete(level) : next.add(level);
-      // Apply immediately for pill toggles — fast, user expects instant feedback
-      appliedRef.current = { ...appliedRef.current, levels: next };
+      setAppliedFilters((curr) => ({ ...curr, levels: next }));
       return next;
     });
-    // Schedule fetch after state update settles
-    setTimeout(() => void doFetch(), 0);
   }
 
   function toggleCategory(cat: LogCategory) {
     setEditCategories((prev) => {
       const next = new Set(prev);
       next.has(cat) ? next.delete(cat) : next.add(cat);
-      appliedRef.current = { ...appliedRef.current, categories: next };
+      setAppliedFilters((curr) => ({ ...curr, categories: next }));
       return next;
     });
-    setTimeout(() => void doFetch(), 0);
   }
 
   // ── Search: debounced 400ms ───────────────────────────────────────────────────
@@ -309,8 +260,7 @@ export default function LogsPage() {
     setEditSearch(value);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
-      appliedRef.current = { ...appliedRef.current, search: value };
-      void doFetch();
+      setAppliedFilters((curr) => ({ ...curr, search: value }));
     }, SEARCH_DEBOUNCE_MS);
   }
 
@@ -319,8 +269,7 @@ export default function LogsPage() {
     setEditFrom(value);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
-      appliedRef.current = { ...appliedRef.current, fromDate: value };
-      void doFetch();
+      setAppliedFilters((curr) => ({ ...curr, fromDate: value }));
     }, SEARCH_DEBOUNCE_MS);
   }
 
@@ -328,33 +277,29 @@ export default function LogsPage() {
     setEditTo(value);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
-      appliedRef.current = { ...appliedRef.current, toDate: value };
-      void doFetch();
+      setAppliedFilters((curr) => ({ ...curr, toDate: value }));
     }, SEARCH_DEBOUNCE_MS);
   }
 
   function handleLimitChange(value: string) {
     setEditLimit(value);
-    appliedRef.current = { ...appliedRef.current, limit: value };
-    void doFetch();
+    setAppliedFilters((curr) => ({ ...curr, limit: value }));
   }
 
   // ── Clear all filters ────────────────────────────────────────────────────────
   function clearFilters() {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    const cleared: AppliedFilters = { levels: new Set(), categories: new Set(), search: '', fromDate: '', toDate: '', limit: editLimit };
     setEditLevels(new Set());
     setEditCategories(new Set());
     setEditSearch('');
     setEditFrom('');
     setEditTo('');
-    appliedRef.current = cleared;
-    void doFetch();
+    setAppliedFilters({ levels: new Set(), categories: new Set(), search: '', fromDate: '', toDate: '', limit: editLimit });
   }
 
   // ── Delete a single log entry ─────────────────────────────────────────────────
   async function deleteLog(id: string) {
-    setLogs((prev) => prev.filter((l) => l.id !== id));
+    mutateLogs({ logs: logs.filter((l) => l.id !== id) }, false);
     try {
       await fetch(`/api/system-logs?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
     } catch {
@@ -417,7 +362,7 @@ export default function LogsPage() {
             </Button>
 
             {/* Manual refresh */}
-            <Button variant="outline" size="sm" onClick={() => void applyAndFetch()} disabled={loading} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => void mutateLogs()} disabled={loading} className="gap-1.5">
               <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
               Atualizar
             </Button>
@@ -486,8 +431,7 @@ export default function LogsPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-                    appliedRef.current = { ...appliedRef.current, search: editSearch };
-                    void doFetch();
+                    setAppliedFilters((curr) => ({ ...curr, search: editSearch }));
                   }
                 }}
                 className="pl-8 h-8 text-sm"

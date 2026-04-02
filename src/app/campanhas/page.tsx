@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/use-swr';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -245,12 +247,8 @@ function ActivatePauseButton({ campaign, onActivate, onPause, onResume, loading 
 const ITEMS_PER_PAGE = 20;
 
 export default function CampanhasPage() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [segments, setSegments] = useState<Segment[]>([]);
-  const [allChips, setAllChips] = useState<ChipInfo[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [pauseId, setPauseId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -258,39 +256,28 @@ export default function CampanhasPage() {
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [showGuide, setShowGuide] = useState(false);
 
+  // SWR-based data fetching
+  const { data: campaigns = [], mutate: mutateCampaigns, isLoading: campaignsLoading } = useSWR<Campaign[]>('/api/campaigns', fetcher);
+  const { data: segments = [] } = useSWR<Segment[]>('/api/segments', fetcher);
+  const { data: chipsData = [] } = useSWR<ChipInfo[]>('/api/chips', fetcher);
+
+  // Derived chips data
+  const allChips = useMemo(() => chipsData.map(c => ({
+    id: c.id,
+    name: c.name,
+    profileName: c.profileName ?? null,
+    profilePictureUrl: c.profilePictureUrl ?? null,
+  })), [chipsData]);
+
+  const isLoading = campaignsLoading;
+
   useEffect(() => {
     setShowGuide(!localStorage.getItem('campanhas-guide-dismissed'));
   }, []);
 
-  const loadCampaigns = useCallback(async () => {
-    try {
-      const [campaignsRes, segmentsRes, chipsRes] = await Promise.all([
-        fetch('/api/campaigns'),
-        fetch('/api/segments'),
-        fetch('/api/chips'),
-      ]);
-
-      if (campaignsRes.ok) setCampaigns(await campaignsRes.json());
-      if (segmentsRes.ok) setSegments(await segmentsRes.json());
-      if (chipsRes.ok) {
-        const chipsData = await chipsRes.json();
-        setAllChips(
-          chipsData.map((c: { id: string; name: string; profileName?: string | null; profilePictureUrl?: string | null }) => ({
-            id: c.id,
-            name: c.name,
-            profileName: c.profileName ?? null,
-            profilePictureUrl: c.profilePictureUrl ?? null,
-          }))
-        );
-      }
-    } catch {
-      toast.error('Erro ao carregar campanhas');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { loadCampaigns(); }, [loadCampaigns]);
+  const refreshData = useCallback(async () => {
+    await mutateCampaigns();
+  }, [mutateCampaigns]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -298,7 +285,7 @@ export default function CampanhasPage() {
       const res = await fetch(`/api/campaigns?id=${deleteId}`, { method: 'DELETE' });
       if (res.ok) {
         toast.success('Campanha removida');
-        setCampaigns(prev => prev.filter(c => c.id !== deleteId));
+        mutateCampaigns(campaigns.filter(c => c.id !== deleteId), false);
       } else {
         toast.error('Erro ao remover campanha');
       }
@@ -323,7 +310,7 @@ export default function CampanhasPage() {
       });
       if (res.ok) {
         toast.success('Campanha duplicada');
-        loadCampaigns();
+        mutateCampaigns();
       }
     } catch {
       toast.error('Erro ao duplicar campanha');
@@ -337,7 +324,7 @@ export default function CampanhasPage() {
     if (!prev) return;
 
     // Optimistic update
-    setCampaigns(cs => cs.map(c => c.id === id ? { ...c, status: newStatus as Campaign['status'] } : c));
+    mutateCampaigns(campaigns.map(c => c.id === id ? { ...c, status: newStatus as Campaign['status'] } : c), false);
     setActionLoading(id);
 
     try {
@@ -351,11 +338,11 @@ export default function CampanhasPage() {
         throw new Error(data.error ?? 'Erro ao atualizar status');
       }
       const updated = await res.json();
-      setCampaigns(cs => cs.map(c => c.id === id ? updated : c));
+      mutateCampaigns(campaigns.map(c => c.id === id ? updated : c), false);
       toast.success(`Campanha ${newStatus === 'scheduled' ? 'ativada' : newStatus === 'paused' ? 'pausada' : 'retomada'}`);
     } catch (err) {
       // Rollback
-      setCampaigns(cs => cs.map(c => c.id === id ? prev : c));
+      mutateCampaigns(campaigns.map(c => c.id === id ? prev : c), false);
       toast.error(err instanceof Error ? err.message : 'Erro ao atualizar status');
     } finally {
       setActionLoading(null);

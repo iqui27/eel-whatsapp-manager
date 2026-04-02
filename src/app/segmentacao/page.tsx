@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/use-swr';
 import {
   AlertTriangle,
   BarChart3,
@@ -393,20 +395,21 @@ export default function SegmentacaoPage() {
   const [segmentTag, setSegmentTag] = useState('');
   const [tagError, setTagError] = useState<string | null>(null);
   const [selectedFilterKey, setSelectedFilterKey] = useState('');
-  const [segments, setSegments] = useState<SavedSegment[]>([]);
-  const [filterOptions, setFilterOptions] = useState<FilterOptionsResponse | null>(null);
   const [audienceCount, setAudienceCount] = useState<number | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [segmentBeingEdited, setSegmentBeingEdited] = useState<SavedSegment | null>(null);
   const [segmentToDelete, setSegmentToDelete] = useState<SavedSegment | null>(null);
-  const [isLoadingSegments, setIsLoadingSegments] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
+
+  // SWR-based data fetching
+  const { data: segments = [], isLoading: isLoadingSegments, mutate: mutateSegments } = useSWR<SavedSegment[]>('/api/segments', fetcher);
+  const { data: campaigns = [] } = useSWR<Array<{ id: string; segmentId: string | null; updatedAt: string | null }>>('/api/campaigns', fetcher);
+  const { data: filterOptions } = useSWR<FilterOptionsResponse>('/api/segments?action=filter-options', fetcher);
 
   useEffect(() => {
     setShowGuide(!localStorage.getItem('segmentacao-guide-dismissed'));
   }, []);
-  const [campaigns, setCampaigns] = useState<Array<{ id: string; segmentId: string | null; updatedAt: string | null }>>([]);
   const filterBuilderRef = useRef<HTMLDivElement>(null);
 
   const segmentUsage = useMemo(() => {
@@ -433,40 +436,10 @@ export default function SegmentacaoPage() {
     filterBuilderRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const filterDefs = buildFilterDefs(filterOptions);
+  const filterDefs = buildFilterDefs(filterOptions ?? null);
   const previewPayload = serializeFilters(activeFilters, logic);
   const hasValidFilters = previewPayload.filters.length > 0;
   const totalVoterCount = filterOptions?.totalVoters ?? 0;
-
-  const loadSegments = useCallback(async () => {
-    try {
-      const [segRes, campRes] = await Promise.all([
-        fetch('/api/segments'),
-        fetch('/api/campaigns'),
-      ]);
-      if (segRes.ok) setSegments(await segRes.json());
-      if (campRes.ok) setCampaigns(await campRes.json());
-    } catch {
-      toast.error('Erro ao carregar segmentos');
-    } finally {
-      setIsLoadingSegments(false);
-    }
-  }, []);
-
-  const loadFilterOptions = useCallback(async () => {
-    try {
-      const response = await fetch('/api/segments?action=filter-options');
-      if (!response.ok) return;
-      setFilterOptions(await response.json());
-    } catch {
-      toast.error('Erro ao carregar filtros disponiveis');
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadSegments();
-    void loadFilterOptions();
-  }, [loadFilterOptions, loadSegments]);
 
   useEffect(() => {
     if (!hasValidFilters) {
@@ -589,7 +562,7 @@ export default function SegmentacaoPage() {
 
       toast.success(segmentBeingEdited ? 'Segmento atualizado com sucesso!' : 'Segmento salvo com sucesso!');
       resetComposer();
-      await loadSegments();
+      await mutateSegments();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao salvar segmento';
       toast.error(segmentBeingEdited ? message : message);
@@ -641,7 +614,7 @@ export default function SegmentacaoPage() {
         resetComposer();
       }
 
-      setSegments((current) => current.filter((item) => item.id !== segment.id));
+      mutateSegments(segments.filter((item) => item.id !== segment.id), false);
       toast.success('Segmento excluido com sucesso!');
     } catch {
       toast.error('Erro ao excluir segmento');

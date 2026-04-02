@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/use-swr';
 import SidebarLayout from '@/components/SidebarLayout';
 import {
   AlertDialog,
@@ -147,57 +149,22 @@ function KpiCard({
 
 export default function RelatoriosPage() {
   const [period, setPeriod] = useState<Period>('7');
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [loading, setLoading] = useState(true);
   const [referenceDate, setReferenceDate] = useState<Date | null>(null);
-  const [schedules, setSchedules] = useState<ReportSchedule[]>([]);
-  const [dispatches, setDispatches] = useState<ReportDispatch[]>([]);
   const [scheduleForm, setScheduleForm] = useState<ScheduleForm>(EMPTY_SCHEDULE_FORM);
   const [savingSchedule, setSavingSchedule] = useState(false);
-  const [isLoadingSchedules, setIsLoadingSchedules] = useState(true);
   const [scheduleToRemove, setScheduleToRemove] = useState<string | null>(null);
+
+  // SWR-based data fetching
+  const { data: campaigns = [], isLoading: loading } = useSWR<Campaign[]>('/api/campaigns', fetcher);
+  const { data: schedulesData, isLoading: isLoadingSchedules, mutate: mutateSchedules } = useSWR<ScheduleResponse>('/api/reports/schedules', fetcher);
+
+  // Derived schedules and dispatches
+  const schedules = schedulesData?.schedules ?? [];
+  const dispatches = schedulesData?.dispatches ?? [];
 
   useEffect(() => {
     setReferenceDate(new Date());
   }, []);
-
-  const loadCampaigns = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/campaigns');
-      if (res.ok) {
-        setCampaigns(await res.json());
-      } else {
-        toast.error('Erro ao carregar campanhas');
-      }
-    } catch {
-      toast.error('Erro ao carregar campanhas');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadSchedules = useCallback(async () => {
-    try {
-      const res = await fetch('/api/reports/schedules');
-      if (!res.ok) {
-        toast.error('Erro ao carregar agendamentos');
-        return;
-      }
-      const payload: ScheduleResponse = await res.json();
-      setSchedules(payload.schedules);
-      setDispatches(payload.dispatches);
-    } catch {
-      toast.error('Erro ao carregar agendamentos');
-    } finally {
-      setIsLoadingSchedules(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadCampaigns();
-    void loadSchedules();
-  }, [loadCampaigns, loadSchedules]);
 
   const report = useMemo(
     () => buildCampaignReport(campaigns, Number.parseInt(period, 10), referenceDate ?? new Date()),
@@ -242,7 +209,7 @@ export default function RelatoriosPage() {
       if (res.ok) {
         toast.success('Agendamento criado');
         setScheduleForm(EMPTY_SCHEDULE_FORM);
-        await loadSchedules();
+        await mutateSchedules();
       } else {
         toast.error('Erro ao criar agendamento');
       }
@@ -251,7 +218,7 @@ export default function RelatoriosPage() {
     } finally {
       setSavingSchedule(false);
     }
-  }, [loadSchedules, scheduleForm]);
+  }, [mutateSchedules, scheduleForm]);
 
   const toggleSchedule = useCallback(async (schedule: ReportSchedule) => {
     try {
@@ -261,21 +228,21 @@ export default function RelatoriosPage() {
         body: JSON.stringify({ id: schedule.id, active: !(schedule.active ?? true) }),
       });
       toast.success('Agendamento atualizado');
-      await loadSchedules();
+      await mutateSchedules();
     } catch {
       toast.error('Erro ao atualizar agendamento');
     }
-  }, [loadSchedules]);
+  }, [mutateSchedules]);
 
   const removeSchedule = useCallback(async (scheduleId: string) => {
     try {
       await fetch(`/api/reports/schedules?id=${scheduleId}`, { method: 'DELETE' });
       toast.success('Agendamento removido');
-      await loadSchedules();
+      await mutateSchedules();
     } catch {
       toast.error('Erro ao remover agendamento');
     }
-  }, [loadSchedules]);
+  }, [mutateSchedules]);
 
   return (
     <SidebarLayout currentPage="relatorios">
