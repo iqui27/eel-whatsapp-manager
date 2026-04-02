@@ -2,19 +2,28 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Flame, Trash2, Smartphone, Loader2, X, RefreshCw,
   RotateCcw, AlertTriangle, Wifi, WifiOff, Clock, ChevronDown, Layers,
   Pencil, Check, Shield, ChevronRight, UserCircle, Link,
 } from 'lucide-react';
-import { ChipProfileEditor } from '@/components/chip-profile-editor';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import SidebarLayout from '@/components/SidebarLayout';
 import { EmptyState } from '@/components/empty-state';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+
+// Lazy-loaded heavy component for better initial bundle size
+// ChipProfileEditor: ~407 lines, loads only when editing a chip's profile
+const ChipProfileEditor = dynamic(
+  () => import('@/components/chip-profile-editor').then((mod) => mod.ChipProfileEditor),
+  {
+    loading: () => <div className="p-4 text-center text-sm text-muted-foreground">Carregando editor...</div>,
+  }
+);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
