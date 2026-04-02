@@ -3,6 +3,8 @@
 import { memo, startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/use-swr';
 import SidebarLayout from '@/components/SidebarLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -521,39 +523,6 @@ export default function ConversasPage() {
     );
   }, []);
 
-  // ── Load conversations ──
-  const loadConversations = useCallback(async (silent = false) => {
-    try {
-      const query = voterFilterId ? `?voterId=${encodeURIComponent(voterFilterId)}` : '';
-      const res = await fetch(`/api/conversations${query}`);
-      if (res.status === 401) { router.push('/login'); return; }
-      if (res.ok) {
-        const data: Conversation[] = await res.json();
-        queueBootstrapRef.current = data;
-        // Initialize lastMessageAt refs so we can detect genuinely new messages
-        for (const conv of data) {
-          lastMessageAtRef.current[conv.id] = conv.lastMessageAt
-            ? new Date(conv.lastMessageAt).toISOString()
-            : new Date(0).toISOString();
-        }
-        setConversations(data);
-        refreshStreamCursorSeed();
-      }
-    } catch (err) {
-      if (!silent) {
-        toast.error('Erro ao carregar conversas', {
-          action: { label: 'Tentar novamente', onClick: () => void loadConversations() },
-        });
-      }
-    } finally {
-      if (!silent) {
-        setHasLoadedConversations(true);
-      }
-    }
-  }, [refreshStreamCursorSeed, router, voterFilterId]);
-
-  useEffect(() => { loadConversations(); }, [loadConversations]);
-
   useEffect(() => {
     setQueueTab('all');
   }, [voterFilterId]);
@@ -668,6 +637,44 @@ export default function ConversasPage() {
   }, [selectedId, selectedConv?.handoffReason]);
 
   const streamEnabled = hasLoadedConversations && (!selectedId || loadedMessagesForId === selectedId);
+
+  // SWR for initial conversation queue load (SSE handles realtime updates)
+  const conversationsQuery = voterFilterId ? `?voterId=${encodeURIComponent(voterFilterId)}` : '';
+  const { data: conversationsData, error: conversationsError, mutate: mutateConversations } = useSWR<Conversation[]>(
+    `/api/conversations${conversationsQuery}`,
+    fetcher,
+  );
+
+  // Handle auth errors
+  useEffect(() => {
+    if (conversationsError) {
+      const errorMsg = (conversationsError as Error)?.message;
+      if (errorMsg?.includes('401') || errorMsg?.includes('Unauthorized')) {
+        router.push('/login');
+      } else {
+        toast.error('Erro ao carregar conversas', {
+          action: { label: 'Tentar novamente', onClick: () => void mutateConversations() },
+        });
+      }
+    }
+  }, [conversationsError, mutateConversations, router]);
+
+  // Update conversations from SWR data
+  useEffect(() => {
+    if (conversationsData) {
+      queueBootstrapRef.current = conversationsData;
+      // Initialize lastMessageAt refs so we can detect genuinely new messages
+      for (const conv of conversationsData) {
+        lastMessageAtRef.current[conv.id] = conv.lastMessageAt
+          ? new Date(conv.lastMessageAt).toISOString()
+          : new Date(0).toISOString();
+      }
+      setConversations(conversationsData);
+      refreshStreamCursorSeed();
+      setHasLoadedConversations(true);
+    }
+  }, [conversationsData, refreshStreamCursorSeed]);
+
   const { status: streamStatus, reconnectAttempts } = useConversationStream({
     enabled: streamEnabled,
     initialCursor: streamInitialCursor,
@@ -958,7 +965,7 @@ export default function ConversasPage() {
                 <span className="text-[11px] text-muted-foreground">Tempo real offline</span>
                 <button
                   type="button"
-                  onClick={() => void loadConversations(true)}
+                  onClick={() => void mutateConversations()}
                   className="text-primary text-[11px] hover:underline ml-auto"
                 >
                   Atualizar
@@ -1554,7 +1561,7 @@ export default function ConversasPage() {
         initialVoter={filteredVoter}
         onClose={() => setShowNewDialog(false)}
         onCreated={async (conv) => {
-          await loadConversations();
+          await mutateConversations();
           setMessages([]);
           setSelectedId(conv.id);
         }}
