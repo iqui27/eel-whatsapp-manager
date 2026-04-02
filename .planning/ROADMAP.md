@@ -1195,6 +1195,36 @@ Plans:
 
 ---
 
+### Phase 45: Performance Optimization v2
+**Status:** Not started
+**Goal:** Implement critical performance optimizations based on Vercel React Best Practices — fix barrel imports (186 instances), migrate static pages to React Server Components (5 pages), replace useEffect+fetch with SWR (38 pages), lazy load heavy components, and eliminate unnecessary derived state effects. Target: 50% bundle reduction, 50% First Load JS reduction, 43% faster Time to Interactive.
+
+**Requirements:** [PERF-45-01, PERF-45-02, PERF-45-03, PERF-45-04, PERF-45-05]
+
+- PERF-45-01: Convert 186 barrel imports to direct imports — reduce bundle size by eliminating unused exports from barrel files (src/lib/index.ts, src/components/index.ts, etc.)
+- PERF-45-02: Migrate 5 static pages to React Server Components — Dashboard, Relatorios, Compliance, Admin, Configuracoes (no client-side interactivity needed for initial render)
+- PERF-45-03: Replace 38 useEffect+fetch patterns with SWR for client-side data fetching — automatic deduplication, caching, revalidation, error handling
+- PERF-45-04: Lazy load heavy components via next/dynamic — GeminiMessageAssistant (617 lines), ChipProfileEditor (407 lines), ChatQueuePanel (213 lines), ConversionFunnel, recharts components
+- PERF-45-05: Remove unnecessary useEffect for derived state — state that can be computed from props or other state without effects
+
+**Depends on:** Phase 44 (AI Analysis Enhancement)
+**Plans:** 4 plans (2 waves)
+
+Plans:
+- [ ] 45-01-PLAN.md — SWR expansion (3 → 25+ instances across data-fetching pages)
+- [ ] 45-02-PLAN.md — Dynamic imports for heavy components (8-10 lazy-loaded components)
+- [ ] 45-03-PLAN.md — Server component migration (7 pages converted)
+- [ ] 45-04-PLAN.md — Derived state cleanup (10-15 useEffect removed)
+
+### Phase 45 Wave Structure
+
+| Wave | Plans | Parallel | Notes |
+|------|-------|----------|-------|
+| 1 | 45-01, 45-02 | Yes | SWR + dynamic imports, no file overlaps |
+| 2 | 45-03, 45-04 | Yes | Server components + derived state cleanup |
+
+---
+
 | Decision | Choice | Reason |
 |----------|--------|--------|
 | Visual direction | V2 Editorial Light (Radix Command) | Selected by user from 4 Paper options |
