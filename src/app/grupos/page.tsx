@@ -1,10 +1,19 @@
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { listGroups } from '@/lib/db-groups';
 import { GroupCard } from '@/components/group-card';
-import { CreateGroupDialog } from '@/components/create-group-dialog';
 import { loadChips } from '@/lib/db-chips';
 import { loadSegments } from '@/lib/db-segments';
 import { Suspense } from 'react';
+
+// Lazy-loaded heavy component for better initial bundle size
+// CreateGroupDialog: ~343 lines, loads only when user clicks "Novo Grupo"
+const CreateGroupDialog = dynamic(
+  () => import('@/components/create-group-dialog').then((mod) => mod.CreateGroupDialog),
+  {
+    loading: () => <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md opacity-50" disabled>Carregando...</button>,
+  }
+);
 
 interface GroupsPageProps {
   searchParams: Promise<{
