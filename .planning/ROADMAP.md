@@ -17,7 +17,7 @@
 | 06 | HITL Conversations + CRM | P1 | 02, 05 | TBD |
 | 07 | Compliance + Admin | P2 | 02 | TBD |
 | 08 | Reports + Polish | P2 | 04, 06 | TBD |
-| 09 | Real Data + Integrations | 2/2 | Complete   | 2026-04-03 |
+| 09 | Real Data + Integrations | 2/2 | Complete    | 2026-04-03 |
 | 10 | Real-Time Chat via SSE | P1 | 06, 09 | 3/3 complete |
 | 11 | Full-System Verification + UAT Sweep | P0 | 10 | 3/3 complete |
 | 12 | Campaign Personalization Completion | P0 | 04, 09, 11 | 3/3 complete |
@@ -1177,7 +1177,7 @@ Plans:
 ---
 
 ### Phase 44: AI Analysis Enhancement + Campaign Tracking Fixes
-**Status:** Not started
+**Status:** Gap Closure
 **Goal:** Upgrade Gemini analysis to use full conversation context instead of 3 isolated messages, standardize AI-suggested tags to a curated campaign taxonomy, fix campaign read/reply tracking (webhook status updates not correlating to message queue), and fix the campaign messages tab showing 0 messages.
 
 **Requirements:** [AI-44-01, AI-44-02, CAMP-44-01, CAMP-44-02]
@@ -1188,10 +1188,11 @@ Plans:
 - CAMP-44-02: Campaign messages tab (`/campanhas/[id]/mensagens`) displays all messages — API returns correct rows when messages exist in the queue for the campaign
 
 **Depends on:** Phase 18 (AI Lead Analysis), Phase 17 (Delivery Tracking)
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 Plans:
-- [ ] 44-01-PLAN.md — Full conversation context for Gemini + tag taxonomy
-- [ ] 44-02-PLAN.md — Campaign read tracking fix + messages tab fix
+- [x] 44-01-PLAN.md — Full conversation context for Gemini + tag taxonomy
+- [x] 44-02-PLAN.md — Campaign read tracking fix + messages tab fix
+- [ ] 44-03-PLAN.md — GAP CLOSURE: Restore debug log in messages.update webhook (CAMP-44-01 regression)
 
 ---
 
