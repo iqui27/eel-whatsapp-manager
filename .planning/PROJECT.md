@@ -57,7 +57,7 @@ The project already has a working deployed app (`zap.iqui27.app`) with:
 1. `warming.ts` still uses legacy JSON file-based libs (data consistency risk)
 2. `webhook/route.ts` uses legacy JSON imports
 3. `proxy.ts` (middleware) exists but is not wired
-4. All pages are `'use client'` with `useEffect` fetching (no RSC, no SWR)
+4. ~~All pages are `'use client'` with `useEffect` fetching (no RSC, no SWR)~~ — **Phase 45 addressed:** 7 pages now server components, 28 pages use SWR for data fetching
 5. Setup page has hardcoded dark colors (theme-inconsistent)
 6. No form validation library
 7. Missing many shadcn components (Dialog, Sheet, Table, Tabs, Textarea, etc.)
