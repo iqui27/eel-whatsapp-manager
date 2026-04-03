@@ -93,6 +93,10 @@ export default function GroupDetailPage() {
   const [lidVoterName, setLidVoterName] = useState('');
   const [lidNotes, setLidNotes] = useState('');
   const [lidSaving, setLidSaving] = useState(false);
+  const [lidVoterId, setLidVoterId] = useState<string | null>(null);
+  const [voterSearchQuery, setVoterSearchQuery] = useState('');
+  const [voterSearchResults, setVoterSearchResults] = useState<Array<{id: string; name: string; phone: string; zone: string | null; section: string | null}>>([]);
+  const [searchingVoters, setSearchingVoters] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load group
@@ -138,6 +142,26 @@ export default function GroupDetailPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Debounced voter search
+  useEffect(() => {
+    if (voterSearchQuery.length < 2) {
+      setVoterSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearchingVoters(true);
+      try {
+        const res = await fetch(`/api/voters/search?q=${encodeURIComponent(voterSearchQuery)}&limit=10`);
+        if (res.ok) {
+          const data = await res.json() as { voters: Array<{id: string; name: string; phone: string; zone: string | null; section: string | null}> };
+          setVoterSearchResults(data.voters ?? []);
+        }
+      } catch { /* ignore */ }
+      finally { setSearchingVoters(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [voterSearchQuery]);
 
   const loadMembers = useCallback(async () => {
     if (!group) return;
@@ -196,6 +220,9 @@ export default function GroupDetailPage() {
     setLidModalParticipant(p);
     setLidVoterName(p.voterName ?? '');
     setLidNotes('');
+    setLidVoterId(null);
+    setVoterSearchQuery('');
+    setVoterSearchResults([]);
     setLidModalOpen(true);
   };
 
@@ -206,7 +233,7 @@ export default function GroupDetailPage() {
       const res = await fetch(`/api/groups/${id}/members/lid-mapping`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lidJid: lidModalParticipant.id, voterName: lidVoterName.trim(), notes: lidNotes.trim() }),
+        body: JSON.stringify({ lidJid: lidModalParticipant.id, voterName: lidVoterName.trim(), voterId: lidVoterId, notes: lidNotes.trim() }),
       });
       if (!res.ok) throw new Error('Erro ao salvar');
       toast.success('Mapping salvo');
@@ -585,12 +612,61 @@ export default function GroupDetailPage() {
               </div>
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Nome do eleitor</label>
-                <Input
-                  value={lidVoterName}
-                  onChange={(e) => setLidVoterName(e.target.value)}
-                  placeholder="Digite o nome do eleitor"
-                  autoFocus
-                />
+                {/* Selected voter chip */}
+                {lidVoterId && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="outline" className="gap-1.5 pl-2 pr-1 py-1">
+                      <span className="font-medium">{lidVoterName}</span>
+                      <button
+                        onClick={() => { setLidVoterId(null); setLidVoterName(''); setVoterSearchQuery(''); setVoterSearchResults([]); }}
+                        className="ml-1 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  </div>
+                )}
+                {/* Search input */}
+                <div className="relative">
+                  <Input
+                    value={voterSearchQuery}
+                    onChange={(e) => setVoterSearchQuery(e.target.value)}
+                    placeholder="Buscar eleitor por nome ou telefone..."
+                    autoFocus={!lidVoterId}
+                    onFocus={() => { if (voterSearchQuery.length >= 2) setVoterSearchResults((prev) => prev); }}
+                  />
+                  {searchingVoters && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  )}
+                  {/* Dropdown */}
+                  {voterSearchResults.length > 0 && (
+                    <div className="absolute z-10 mt-1 w-full rounded-md border bg-background shadow-md max-h-48 overflow-y-auto">
+                      {voterSearchResults.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => {
+                            setLidVoterId(v.id);
+                            setLidVoterName(v.name);
+                            setVoterSearchQuery('');
+                            setVoterSearchResults([]);
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-muted transition-colors text-sm"
+                        >
+                          <span className="font-medium">{v.name}</span>
+                          <span className="ml-2 text-muted-foreground text-xs">{v.phone}</span>
+                          {(v.zone || v.section) && (
+                            <span className="ml-2 text-muted-foreground text-xs">Zona {v.zone}{v.section ? ` / Seção ${v.section}` : ''}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {voterSearchQuery.length >= 2 && !searchingVoters && voterSearchResults.length === 0 && (
+                    <div className="absolute z-10 mt-1 w-full rounded-md border bg-background shadow-md px-3 py-2 text-sm text-muted-foreground">
+                      Nenhum eleitor encontrado
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Observações (opcional)</label>
