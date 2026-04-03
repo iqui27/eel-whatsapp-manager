@@ -63,3 +63,11 @@ This plan closes the gap from VERIFICATION.md:
 ## Known Stubs
 
 None - no stubs introduced in this plan.
+
+## Self-Check: PASSED
+
+All claims verified:
+- ✅ SUMMARY.md exists
+- ✅ Task commit feb3654 exists
+- ✅ Docs commit e0083cf exists
+- ✅ Debug message present in webhook/route.ts
