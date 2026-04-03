@@ -1188,11 +1188,11 @@ Plans:
 - CAMP-44-02: Campaign messages tab (`/campanhas/[id]/mensagens`) displays all messages — API returns correct rows when messages exist in the queue for the campaign
 
 **Depends on:** Phase 18 (AI Lead Analysis), Phase 17 (Delivery Tracking)
-**Plans:** 3 plans (2 complete + 1 gap closure)
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 44-01-PLAN.md — Full conversation context for Gemini + tag taxonomy
 - [x] 44-02-PLAN.md — Campaign read tracking fix + messages tab fix
-- [ ] 44-03-PLAN.md — GAP CLOSURE: Restore debug log in messages.update webhook (CAMP-44-01 regression)
+- [x] 44-03-PLAN.md — GAP CLOSURE: Restore debug log in messages.update webhook (CAMP-44-01 regression)
 
 ---
 
