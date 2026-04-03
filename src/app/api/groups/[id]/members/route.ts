@@ -10,6 +10,7 @@ import { inArray } from 'drizzle-orm';
 import { normalizePhone } from '@/lib/phone';
 import { getGroupSendersByGroupJid } from '@/lib/db-group-sender-cache';
 import { findVoterByPhone } from '@/lib/db-voters';
+import { getLidMapping } from '@/lib/db-lid-manual-mapping';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -81,6 +82,20 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
     console.log(`[api/groups/${id}/members] known from sender cache: ${Math.round(Object.keys(cachePhoneToName).length / 2)} voters`);
 
+    // Load manual @lid mappings for this group
+    // Operator-curated fallback for persistent @lid entries that cannot be auto-resolved
+    const lidParticipants = participants.filter(p => p.id.endsWith('@lid'));
+    const lidMappings: Record<string, string> = {};
+    for (const lidP of lidParticipants) {
+      const mapping = await getLidMapping(group.groupJid, lidP.id);
+      if (mapping) {
+        lidMappings[lidP.id] = mapping.voterName;
+      }
+    }
+    if (lidParticipants.length > 0) {
+      console.log(`[api/groups/${id}/members] manual @lid mappings: ${Object.keys(lidMappings).length}/${lidParticipants.length}`);
+    }
+
     // Batch voter name lookup with dual-format phone support (Brazilian 9th-digit variation)
     // Filter to phone JIDs only (skip @lid — already stripped to raw digits without @s.whatsapp.net guard)
     const normalizedPhones = participants
@@ -132,11 +147,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
       // For @lid: p.phone is the numeric lid ID (not a real phone).
       // We cannot map @lid ID → phone directly.
-      // Current approach: @lid stays null (WhatsApp privacy limitation).
-      // The cache is used indirectly — when the same person sent a message,
-      // their @s.whatsapp.net JID was stored and their name appears in other UI.
-      // Future: if WhatsApp ever provides @lid ↔ @s.whatsapp.net mapping, plug it in here.
-      return { ...p, voterName: null };
+      // Fallback hierarchy: voters (automatic) → cache (observed messages) → manual mapping (operator-curated) → null
+      return { ...p, voterName: lidMappings[p.id] ?? null };
     });
 
     return NextResponse.json({ participants: enriched });
