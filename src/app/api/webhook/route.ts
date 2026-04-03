@@ -517,6 +517,8 @@ export async function POST(request: NextRequest) {
           const result = await updateMessageDeliveryStatus(msgId, deliveryStatus, failReason);
           if (result.updated) {
             console.log('[webhook] Updated messageQueue', msgId, '→', deliveryStatus, 'campaign:', result.campaignId);
+          } else {
+            console.debug('[webhook] messages.update: no messageQueue row for evolutionMessageId', msgId, '(likely legacy campaign or non-campaign message)');
           }
 
           // Also update conversationMessages row if matched (conversation delivery tracking)
