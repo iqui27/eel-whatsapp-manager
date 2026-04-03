@@ -6,8 +6,8 @@ current_phase: 45
 current_phase_name: performance optimization v2
 current_plan: Not started
 status: planning
-stopped_at: Completed 260403-1ta-PLAN.md — LidMappingModal with inline edit complete, 3 commits
-last_updated: "2026-04-03T04:27:21.608Z"
+stopped_at: Completed 260403-2de-PLAN.md — voter search API + LidMappingModal combobox, 2 commits
+last_updated: "2026-04-03T04:50:27.246Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 45
@@ -30,7 +30,7 @@ progress:
 **Progress:** [██████████] 100%
 **Last Activity:** 2026-04-03
 **Last Activity Description:** Phase 44 complete, transitioned to Phase 45
-**Stopped At:** Completed 260403-1ta-PLAN.md — LidMappingModal with inline edit complete, 3 commits
+**Stopped At:** Completed 260403-2de-PLAN.md — voter search API + LidMappingModal combobox, 2 commits
 
 **Milestone 6 Execution Plan:**
 
@@ -57,7 +57,7 @@ progress:
 
 Progress: [██████████] 100%
 
-Last session: 2026-04-03T04:27:21.601Z
+Last session: 2026-04-03T04:50:27.239Z
 
 ## Current Position
 
@@ -501,6 +501,8 @@ Last session: 2026-03-20T00:00:00.000Z
 - [Phase 09]: git fetch + reset --hard instead of git pull (avoids diverged history failures) — git fetch + reset --hard instead of git pull (avoids diverged history failures)
 - [Phase 09]: Pre-deploy validation job (lint + typecheck + build) before SSH step — Pre-deploy validation job (lint + typecheck + build) before SSH step
 - [Phase 260403-1ta]: Used campaigns.manage instead of non-existent campaigns.edit for lid-mapping API auth
+- [Phase 260403-2de]: Voter search debounce 300ms for combobox — fast UX, avoids API spam on fast typing
+- [Phase 260403-2de]: Phone search normalizes digits and handles Brazilian 9-digit format via digits.length===12 check
 
 ## Accumulated Context
 
