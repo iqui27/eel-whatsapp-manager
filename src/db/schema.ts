@@ -654,3 +654,24 @@ export const groupSenderCache = pgTable('group_sender_cache', {
 
 export type GroupSenderCache = typeof groupSenderCache.$inferSelect;
 export type NewGroupSenderCache = typeof groupSenderCache.$inferInsert;
+
+// ─── Manual @lid Mapping (Phase 43 fallback) ────────────────────────────────
+// Operator-curated table mapping persistent @lid participants to voter names.
+// Used when automatic resolution fails (WhatsApp does not expose @lid↔phone).
+export const lidManualMapping = pgTable('lid_manual_mapping', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  groupJid: text('group_jid').notNull(),
+  lidJid: text('lid_jid').notNull(),           // e.g., '184052367761544@lid'
+  voterName: text('voter_name').notNull(),     // Display name for this @lid
+  voterId: uuid('voter_id').references(() => voters.id, { onDelete: 'set null' }),
+  notes: text('notes'),                        // Optional operator notes
+  createdBy: text('created_by'),               // User who created mapping
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
+}, (t) => [
+  index('idx_lid_manual_mapping_group').on(t.groupJid),
+  uniqueIndex('lid_manual_mapping_group_lid_unique').on(t.groupJid, t.lidJid),
+]);
+
+export type LidManualMapping = typeof lidManualMapping.$inferSelect;
+export type NewLidManualMapping = typeof lidManualMapping.$inferInsert;
