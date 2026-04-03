@@ -681,6 +681,7 @@ src/components/
 |---|-------------|------|--------|-----------|
 | 260403-0pa | Verificar cruzamento nomes grupo (@lid) com telefone | 2026-04-03 | investigation | [260403-0pa-verificar-cruzamento-nomes-grupo-lid-for](./quick/260403-0pa-verificar-cruzamento-nomes-grupo-lid-for/) |
 | 260403-105 | Test mapping + @lid fallback + test harness | 2026-04-03 | 1a01cc0, 9b2aad7, eae9337 | [260403-105-test-s-whatsapp-net-mapping-lid-fallback-str](./quick/260403-105-test-s-whatsapp-net-mapping-lid-fallback-str/) |
+| 260403-2de | Add voter search + admin status to @lid mapping UI | 2026-04-03 | 4a41752, c29c0a | [260403-2de-add-voter-search-admin-status-to-lid-map](./quick/260403-2de-add-voter-search-admin-status-to-lid-map/) |
 
 ## Next Actions
 
