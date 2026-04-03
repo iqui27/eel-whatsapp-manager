@@ -17,7 +17,7 @@
 | 06 | HITL Conversations + CRM | P1 | 02, 05 | TBD |
 | 07 | Compliance + Admin | P2 | 02 | TBD |
 | 08 | Reports + Polish | P2 | 04, 06 | TBD |
-| 09 | Real Data + Integrations | 1/2 | In Progress|  |
+| 09 | Real Data + Integrations | 2/2 | Complete   | 2026-04-03 |
 | 10 | Real-Time Chat via SSE | P1 | 06, 09 | 3/3 complete |
 | 11 | Full-System Verification + UAT Sweep | P0 | 10 | 3/3 complete |
 | 12 | Campaign Personalization Completion | P0 | 04, 09, 11 | 3/3 complete |
@@ -197,7 +197,7 @@ Plans:
 - RD-22: Voter profile "Ver conversas" filters by voterId
 - RD-23: Voter profile "Criar campanha" pre-fills voter context
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 09-01-PLAN.md — Webhook + Inbound Pipeline (fix imports, store messages)
 - [x] 09-02-PLAN.md — Campaign Send Pipeline (real Evolution API send, chip selector)
