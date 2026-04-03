@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -29,6 +31,7 @@ interface Participant {
   id: string;
   admin: string | null;
   phone: string;
+  voterName: string | null;
 }
 
 interface SegmentInfo {
@@ -85,6 +88,11 @@ export default function GroupDetailPage() {
   const [syncing, setSyncing] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
+  const [lidModalOpen, setLidModalOpen] = useState(false);
+  const [lidModalParticipant, setLidModalParticipant] = useState<Participant | null>(null);
+  const [lidVoterName, setLidVoterName] = useState('');
+  const [lidNotes, setLidNotes] = useState('');
+  const [lidSaving, setLidSaving] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load group
@@ -182,6 +190,47 @@ export default function GroupDetailPage() {
     } finally {
       setSending(false);
     }
+  };
+
+  const openLidModal = (p: Participant) => {
+    setLidModalParticipant(p);
+    setLidVoterName(p.voterName ?? '');
+    setLidNotes('');
+    setLidModalOpen(true);
+  };
+
+  const handleLidSave = async () => {
+    if (!lidModalParticipant || !lidVoterName.trim()) return;
+    setLidSaving(true);
+    try {
+      const res = await fetch(`/api/groups/${id}/members/lid-mapping`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lidJid: lidModalParticipant.id, voterName: lidVoterName.trim(), notes: lidNotes.trim() }),
+      });
+      if (!res.ok) throw new Error('Erro ao salvar');
+      toast.success('Mapping salvo');
+      setLidModalOpen(false);
+      await loadMembers();
+    } catch { toast.error('Erro ao salvar mapping'); }
+    finally { setLidSaving(false); }
+  };
+
+  const handleLidDelete = async () => {
+    if (!lidModalParticipant) return;
+    setLidSaving(true);
+    try {
+      const res = await fetch(`/api/groups/${id}/members/lid-mapping`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lidJid: lidModalParticipant.id }),
+      });
+      if (!res.ok) throw new Error('Erro ao remover');
+      toast.success('Mapping removido');
+      setLidModalOpen(false);
+      await loadMembers();
+    } catch { toast.error('Erro ao remover mapping'); }
+    finally { setLidSaving(false); }
   };
 
   if (loadingGroup) {
@@ -469,39 +518,111 @@ export default function GroupDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-0 divide-y divide-border">
-                  {participants.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
-                          {p.phone.slice(-2)}
+                  {participants.map((p) => {
+                    const isLid = p.id.endsWith('@lid');
+                    const isUnmapped = isLid && !p.voterName;
+                    return (
+                      <div
+                        key={p.id}
+                        className={cn(
+                          'flex items-center justify-between py-2.5',
+                          isUnmapped && 'cursor-pointer hover:bg-muted/50 rounded transition-colors',
+                        )}
+                        onClick={() => isUnmapped && openLidModal(p)}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
+                            {isLid ? '@' : p.phone.slice(-2)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-mono">
+                              {isLid ? p.id : `+${p.phone}`}
+                              {p.voterName && (
+                                <span className="text-muted-foreground ml-1">— {p.voterName}</span>
+                              )}
+                            </p>
+                            {isLid && !p.voterName && (
+                              <span className="inline-flex items-center rounded-full border px-1.5 py-0 text-[10px] font-medium bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800">
+                                Não mapeado
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-mono">+{p.phone}</p>
-                          <p className="text-xs text-muted-foreground">{p.id}</p>
+                        <div className="flex items-center gap-1.5">
+                          {!isLid && p.admin === 'superadmin' && (
+                            <Badge variant="secondary" className="gap-1 text-[10px]">
+                              <ShieldCheck className="h-3 w-3" />
+                              Super Admin
+                            </Badge>
+                          )}
+                          {!isLid && p.admin === 'admin' && (
+                            <Badge variant="outline" className="gap-1 text-[10px]">
+                              <Crown className="h-3 w-3" />
+                              Admin
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        {p.admin === 'superadmin' && (
-                          <Badge variant="secondary" className="gap-1 text-[10px]">
-                            <ShieldCheck className="h-3 w-3" />
-                            Super Admin
-                          </Badge>
-                        )}
-                        {p.admin === 'admin' && (
-                          <Badge variant="outline" className="gap-1 text-[10px]">
-                            <Crown className="h-3 w-3" />
-                            Admin
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* LidMappingModal */}
+      <Dialog open={lidModalOpen} onOpenChange={(o) => !o && setLidModalOpen(false)}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Mapear @lid</DialogTitle>
+          </DialogHeader>
+          {lidModalParticipant && (
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 font-mono text-xs">
+                {lidModalParticipant.id}
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Nome do eleitor</label>
+                <Input
+                  value={lidVoterName}
+                  onChange={(e) => setLidVoterName(e.target.value)}
+                  placeholder="Digite o nome do eleitor"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Observações (opcional)</label>
+                <Textarea
+                  value={lidNotes}
+                  onChange={(e) => setLidNotes(e.target.value)}
+                  placeholder="Notas sobre este mapeamento..."
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            {lidModalParticipant?.voterName && (
+              <Button
+                variant="destructive"
+                onClick={handleLidDelete}
+                disabled={lidSaving}
+                className="mr-auto"
+              >
+                {lidSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Remover mapping'}
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setLidModalOpen(false)} disabled={lidSaving}>
+              Cancelar
+            </Button>
+            <Button onClick={handleLidSave} disabled={lidSaving || !lidVoterName.trim()}>
+              {lidSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
