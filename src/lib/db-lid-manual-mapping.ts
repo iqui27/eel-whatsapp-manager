@@ -51,3 +51,18 @@ export async function getLidMapping(
   
   return row[0] ?? null;
 }
+
+/**
+ * Delete manual mapping for a specific @lid in a group.
+ */
+export async function deleteLidMapping(
+  groupJid: string,
+  lidJid: string,
+): Promise<void> {
+  await db
+    .delete(lidManualMapping)
+    .where(and(
+      eq(lidManualMapping.groupJid, groupJid),
+      eq(lidManualMapping.lidJid, lidJid),
+    ));
+}
