@@ -47,7 +47,7 @@ The project already has a working deployed app (`zap.iqui27.app`) with:
 - Radix UI primitives (already in dependencies)
 
 ### What Exists
-- **6 completed phases:** Design system, Supabase/Drizzle foundation, layout/nav, premium dashboard, pages overhaul, polish/animations
+- **7 completed phases:** Design system, Supabase/Drizzle foundation, layout/nav, premium dashboard, pages overhaul, polish/animations, deploy automation
 - **8 pages:** Dashboard, Chips, Contacts, Clusters, History, Settings, Login, Setup
 - **Full API layer:** CRUD for all entities, auth, warming engine, cron, webhook
 - **DB schema:** config, chips, contacts, clusters, chip_clusters, contact_clusters, logs, sessions
