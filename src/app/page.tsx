@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/use-swr';
@@ -21,7 +22,17 @@ import {
 import { useCountUp } from '@/lib/use-count-up';
 import { cn } from '@/lib/utils';
 import type { Campaign, Segment } from '@/db/schema';
-import ChatQueuePanel from '@/components/ChatQueuePanel';
+
+const ChatQueuePanel = dynamic(
+  () => import('@/components/ChatQueuePanel'),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-sm text-muted-foreground">Carregando painel...</div>
+      </div>
+    ),
+  }
+);
 import {
   Send,
   MessageCircle,
